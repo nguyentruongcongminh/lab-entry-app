@@ -334,6 +334,15 @@ function renderStats(all) {
   $('stat-released').textContent = released;
 }
 
+/* Tab Quản lý chỉ hiện MỘT khung tại một thời điểm (v23): mặc định là khung
+   Chưa kết quả (việc cần thao tác trước); khung Chờ phát hành ẩn, mở bằng nút chuyển. */
+let managePanel = 'noresult';
+
+function setManagePanel(panel) {
+  managePanel = panel === 'pending' ? 'pending' : 'noresult';
+  renderManage();
+}
+
 function renderManage() {
   const all = store.getAll();
   renderStats(all);
@@ -345,6 +354,13 @@ function renderManage() {
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
+  /* Áp dụng khung đang chọn + cập nhật số đếm trên 2 nút chuyển */
+  $('group-noresult').classList.toggle('hidden', managePanel !== 'noresult');
+  $('group-pending').classList.toggle('hidden', managePanel !== 'pending');
+  $('btn-panel-noresult').classList.toggle('active', managePanel === 'noresult');
+  $('btn-panel-pending').classList.toggle('active', managePanel === 'pending');
+  $('count-noresult').textContent = noresult.length;
+  $('count-pending').textContent = pending.length;
 }
 
 /* ================= Tab Lọc & Xuất PDF ================= */
@@ -1185,6 +1201,8 @@ function init() {
   $('btn-apply-filter').addEventListener('click', applyExport);
   $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
   $('btn-export-csv').addEventListener('click', exportCsv);
+  $('btn-panel-noresult').addEventListener('click', () => setManagePanel('noresult'));
+  $('btn-panel-pending').addEventListener('click', () => setManagePanel('pending'));
   $('btn-types').addEventListener('click', openTypes);
   $('btn-types-back').addEventListener('click', () => switchView(mainView));
   $('btn-type-add').addEventListener('click', () => openTypeForm(null));

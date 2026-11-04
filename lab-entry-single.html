@@ -380,7 +380,7 @@ svg { width: 24px; height: 24px; display: block; }
 /* Chừa khoảng trống cuối danh sách để dòng cuối luôn cuộn lên khỏi nút +,
    không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px).
    Ở tab Quản lý, danh sách nằm cuối là Chờ phát hành (từ v21, nhóm Chưa kết quả ở trên). */
-#list-today, #list-pending { padding-bottom: 148px; }
+#list-today, #list-noresult, #list-pending { padding-bottom: 148px; }
 
 /* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
 #scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }
@@ -466,6 +466,23 @@ svg { width: 24px; height: 24px; display: block; }
   margin: -4px 0 10px; text-align: left;
 }
 
+/* ---------- Tab Quản lý: nút chuyển khung (v23) ---------- */
+.manage-switch {
+  display: flex; gap: 8px; padding: 12px 16px 4px;
+}
+.switch-btn {
+  flex: 1; padding: 10px 8px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--card);
+  color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+.switch-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.switch-count {
+  background: rgba(0, 0, 0, .12); border-radius: 999px;
+  min-width: 24px; padding: 1px 7px; font-size: 13.5px; text-align: center;
+}
+.switch-btn.active .switch-count { background: rgba(255, 255, 255, .25); }
+
 /* print.css — Khi in/xuất PDF: chỉ hiện bảng kết quả đã lọc */
 @media print {
   body { padding: 0; background: #fff; max-width: none; border: none; }
@@ -489,7 +506,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v22</span>
+    <span class="app-version">LabEntry v23</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -542,13 +559,22 @@ svg { width: 24px; height: 24px; display: block; }
     <div class="stat"><span class="stat-num ok" id="stat-released">0</span><span class="stat-label">Phát hành hôm nay</span></div>
   </div>
 
-  <h2 class="group-title">Chưa kết quả</h2>
-  <ul id="list-noresult" class="record-list"></ul>
-  <div id="empty-noresult" class="empty-msg hidden">Không có kết quả</div>
+  <div class="manage-switch">
+    <button type="button" id="btn-panel-noresult" class="switch-btn active">Chưa kết quả <span id="count-noresult" class="switch-count">0</span></button>
+    <button type="button" id="btn-panel-pending" class="switch-btn">Chờ phát hành <span id="count-pending" class="switch-count">0</span></button>
+  </div>
 
-  <h2 class="group-title">Chờ phát hành</h2>
-  <ul id="list-pending" class="record-list"></ul>
-  <div id="empty-pending" class="empty-msg hidden">Không có kết quả</div>
+  <div id="group-noresult">
+    <h2 class="group-title">Chưa kết quả</h2>
+    <ul id="list-noresult" class="record-list"></ul>
+    <div id="empty-noresult" class="empty-msg hidden">Không có kết quả</div>
+  </div>
+
+  <div id="group-pending" class="hidden">
+    <h2 class="group-title">Chờ phát hành</h2>
+    <ul id="list-pending" class="record-list"></ul>
+    <div id="empty-pending" class="empty-msg hidden">Không có kết quả</div>
+  </div>
 </section>
 
 <!-- ============ TAB: LỌC & XUẤT PDF ============ -->
@@ -1529,6 +1555,15 @@ function renderStats(all) {
   $('stat-released').textContent = released;
 }
 
+/* Tab Quản lý chỉ hiện MỘT khung tại một thời điểm (v23): mặc định là khung
+   Chưa kết quả (việc cần thao tác trước); khung Chờ phát hành ẩn, mở bằng nút chuyển. */
+let managePanel = 'noresult';
+
+function setManagePanel(panel) {
+  managePanel = panel === 'pending' ? 'pending' : 'noresult';
+  renderManage();
+}
+
 function renderManage() {
   const all = store.getAll();
   renderStats(all);
@@ -1540,6 +1575,13 @@ function renderManage() {
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
+  /* Áp dụng khung đang chọn + cập nhật số đếm trên 2 nút chuyển */
+  $('group-noresult').classList.toggle('hidden', managePanel !== 'noresult');
+  $('group-pending').classList.toggle('hidden', managePanel !== 'pending');
+  $('btn-panel-noresult').classList.toggle('active', managePanel === 'noresult');
+  $('btn-panel-pending').classList.toggle('active', managePanel === 'pending');
+  $('count-noresult').textContent = noresult.length;
+  $('count-pending').textContent = pending.length;
 }
 
 /* ================= Tab Lọc & Xuất PDF ================= */
@@ -2380,6 +2422,8 @@ function init() {
   $('btn-apply-filter').addEventListener('click', applyExport);
   $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
   $('btn-export-csv').addEventListener('click', exportCsv);
+  $('btn-panel-noresult').addEventListener('click', () => setManagePanel('noresult'));
+  $('btn-panel-pending').addEventListener('click', () => setManagePanel('pending'));
   $('btn-types').addEventListener('click', openTypes);
   $('btn-types-back').addEventListener('click', () => switchView(mainView));
   $('btn-type-add').addEventListener('click', () => openTypeForm(null));

@@ -457,7 +457,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const titles = [...document.querySelectorAll('#view-manage .group-title')].map((h) => h.textContent.trim());
     assert.deepStrictEqual(titles, ['Chưa kết quả', 'Chờ phát hành'], 'thứ tự nhóm phải là Chưa kết quả trước, Chờ phát hành sau');
     assert.strictEqual(window.getComputedStyle($('list-pending')).paddingBottom, '148px', 'danh sách cuối (Chờ phát hành) phải có khoảng trống để dòng cuối không bị nút + che');
-    assert.strictEqual(window.getComputedStyle($('list-noresult')).paddingBottom, '0px', 'danh sách Chưa kết quả ở giữa trang không cần khoảng trống đó nữa');
+    assert.strictEqual(window.getComputedStyle($('list-noresult')).paddingBottom, '148px', 'từ v23 mỗi khung hiện riêng một mình nên danh sách Chưa kết quả cũng cần khoảng trống này khi nó là khung đang hiện');
+  });
+
+  test('tab Quản lý: mặc định chỉ hiện khung Chưa kết quả; bấm nút chuyển mới hiện khung Chờ phát hành, số đếm trên nút khớp danh sách (v23)', () => {
+    document.querySelector('[data-view="manage"]').click();
+    assert.ok(!$('group-noresult').classList.contains('hidden'), 'mặc định hiện khung Chưa kết quả');
+    assert.ok($('group-pending').classList.contains('hidden'), 'mặc định ẩn khung Chờ phát hành');
+    assert.ok($('btn-panel-noresult').classList.contains('active'), 'nút Chưa kết quả ở trạng thái đang chọn');
+    assert.strictEqual(Number($('count-noresult').textContent), $('list-noresult').children.length, 'số đếm nút Chưa kết quả khớp danh sách');
+    assert.strictEqual(Number($('count-pending').textContent), $('list-pending').children.length, 'số đếm nút Chờ phát hành khớp danh sách');
+    $('btn-panel-pending').click();
+    assert.ok($('group-noresult').classList.contains('hidden'), 'sau khi chuyển: ẩn Chưa kết quả');
+    assert.ok(!$('group-pending').classList.contains('hidden'), 'sau khi chuyển: hiện Chờ phát hành');
+    assert.ok($('btn-panel-pending').classList.contains('active'));
+    $('btn-panel-noresult').click();
+    assert.ok(!$('group-noresult').classList.contains('hidden'), 'chuyển ngược lại được');
+    assert.ok($('group-pending').classList.contains('hidden'));
   });
 
   test('bấm giờ Máu ẩn: mỗi ID một đồng hồ riêng — bắt đầu, hủy, tới giờ báo đỏ và mở thẳng form nhập', () => {
