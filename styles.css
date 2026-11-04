@@ -371,8 +371,9 @@ svg { width: 24px; height: 24px; display: block; }
 }
 
 /* Chừa khoảng trống cuối danh sách để dòng cuối luôn cuộn lên khỏi nút +,
-   không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px) */
-#list-today, #list-noresult { padding-bottom: 148px; }
+   không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px).
+   Ở tab Quản lý, danh sách nằm cuối là Chờ phát hành (từ v21, nhóm Chưa kết quả ở trên). */
+#list-today, #list-pending { padding-bottom: 148px; }
 
 /* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
 #scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }

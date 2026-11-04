@@ -433,6 +433,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(Number($('stat-noresult').textContent), $('list-noresult').children.length, 'thống kê cập nhật khớp sau khi thêm mẫu cũ');
   });
 
+  test('tab Quản lý: nhóm Chưa kết quả nằm TRÊN, Chờ phát hành nằm DƯỚI (v21); khoảng trống chống che nút + dời sang danh sách cuối mới', () => {
+    document.querySelector('[data-view="manage"]').click();
+    const titles = [...document.querySelectorAll('#view-manage .group-title')].map((h) => h.textContent.trim());
+    assert.deepStrictEqual(titles, ['Chưa kết quả', 'Chờ phát hành'], 'thứ tự nhóm phải là Chưa kết quả trước, Chờ phát hành sau');
+    assert.strictEqual(window.getComputedStyle($('list-pending')).paddingBottom, '148px', 'danh sách cuối (Chờ phát hành) phải có khoảng trống để dòng cuối không bị nút + che');
+    assert.strictEqual(window.getComputedStyle($('list-noresult')).paddingBottom, '0px', 'danh sách Chưa kết quả ở giữa trang không cần khoảng trống đó nữa');
+  });
+
   test('bấm giờ Máu ẩn: mỗi ID một đồng hồ riêng — bắt đầu, hủy, tới giờ báo đỏ và mở thẳng form nhập', () => {
     document.querySelector('[data-view="manage"]').click();
     const addMauAn = (id) => {

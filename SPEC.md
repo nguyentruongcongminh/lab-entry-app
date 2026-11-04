@@ -42,10 +42,10 @@ App web HTML5/CSS/JavaScript (mobile-first, giao diện giống ảnh mẫu) đ�
 
 ### F3 — Tab "Quản lý"
 
-Hai nhóm danh sách:
+Hai nhóm danh sách (thứ tự hiển thị từ v21 theo yêu cầu của Minh: **Chưa kết quả nằm trên, Chờ phát hành nằm dưới** — nhóm cần thao tác nhập kết quả trước, nhóm chờ phát hành xử lý sau):
 
-- **Chờ phát hành**: đã có kết quả nhưng chưa có ngày giờ phát hành. Sắp xếp: mới nhất lên đầu.
 - **Chưa kết quả**: đã tạo ID nhưng chưa nhập trường kết quả nào. Sắp xếp theo **giờ nhận mẫu** (thời điểm nhập ID vào app, chính xác tới giây): **nhận trước lên đầu, nhận sau xuống cuối** — để xử lý theo thứ tự mẫu tới.
+- **Chờ phát hành**: đã có kết quả nhưng chưa có ngày giờ phát hành. Sắp xếp: mới nhất lên đầu.
 
 Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 

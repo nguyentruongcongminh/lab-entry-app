@@ -378,8 +378,9 @@ svg { width: 24px; height: 24px; display: block; }
 }
 
 /* Chừa khoảng trống cuối danh sách để dòng cuối luôn cuộn lên khỏi nút +,
-   không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px) */
-#list-today, #list-noresult { padding-bottom: 148px; }
+   không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px).
+   Ở tab Quản lý, danh sách nằm cuối là Chờ phát hành (từ v21, nhóm Chưa kết quả ở trên). */
+#list-today, #list-pending { padding-bottom: 148px; }
 
 /* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
 #scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }
@@ -482,7 +483,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v20</span>
+    <span class="app-version">LabEntry v21</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -535,13 +536,13 @@ svg { width: 24px; height: 24px; display: block; }
     <div class="stat"><span class="stat-num ok" id="stat-released">0</span><span class="stat-label">Phát hành hôm nay</span></div>
   </div>
 
-  <h2 class="group-title">Chờ phát hành</h2>
-  <ul id="list-pending" class="record-list"></ul>
-  <div id="empty-pending" class="empty-msg hidden">Không có kết quả</div>
-
   <h2 class="group-title">Chưa kết quả</h2>
   <ul id="list-noresult" class="record-list"></ul>
   <div id="empty-noresult" class="empty-msg hidden">Không có kết quả</div>
+
+  <h2 class="group-title">Chờ phát hành</h2>
+  <ul id="list-pending" class="record-list"></ul>
+  <div id="empty-pending" class="empty-msg hidden">Không có kết quả</div>
 </section>
 
 <!-- ============ TAB: LỌC & XUẤT PDF ============ -->
