@@ -130,11 +130,16 @@ function fieldDisplayValue(rec, f) {
   return v === '' ? '—' : v;
 }
 
+let summaryUid = null;
+
 function openSummary(uid) {
   const rec = store.getByUid(uid);
   if (!rec) return;
+  summaryUid = uid;
   const type = getTestType(rec.typeId);
   const status = store.statusOf(rec);
+  /* Trang xem có luôn nút Phát hành khi kết quả đang Chờ phát hành */
+  $('btn-summary-release').classList.toggle('hidden', status !== 'pending-release');
   $('sum-id').textContent = rec.testId;
   $('sum-type').textContent = type ? type.name : rec.typeId;
   const tag = $('sum-status');
@@ -157,6 +162,18 @@ function openSummary(uid) {
 
 function closeSummary() {
   $('summary-modal').classList.add('hidden');
+}
+
+/* Phát hành ngay từ trang xem tóm tắt — không hỏi lại, cập nhật luôn trang xem */
+function releaseFromSummary() {
+  if (!summaryUid) return;
+  const rec = store.getByUid(summaryUid);
+  if (!rec || store.statusOf(rec) !== 'pending-release') return;
+  const res = store.update(rec.uid, { releaseAt: new Date().toISOString() });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  toast('Đã phát hành kết quả ' + rec.testId);
+  refreshCurrent();
+  openSummary(rec.uid);
 }
 
 function refreshCurrent() {
@@ -315,7 +332,8 @@ function saveForm() {
     return;
   }
   toast('Đã lưu kết quả');
-  switchView('today');
+  /* Quay về đúng tab đang dùng trước khi mở form (vd Quản lý) — không nhảy về tab đầu */
+  switchView(mainView);
 }
 
 /* ================= Quét mã =================
@@ -461,8 +479,8 @@ function closeScanner() {
   scannerState = null;
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
-    /* Đã tiếp nhận trực tiếp từ form thêm mới -> về danh sách để xem mẫu vừa nhận */
-    if (fromFormNew) switchView('today'); else refreshCurrent();
+    /* Đã tiếp nhận trực tiếp từ form thêm mới -> về tab đang dùng để xem mẫu vừa nhận */
+    if (fromFormNew) switchView(mainView); else refreshCurrent();
   }
 }
 
@@ -511,6 +529,7 @@ function init() {
 
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
+  $('btn-summary-release').addEventListener('click', releaseFromSummary);
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 
   $('btn-apply-filter').addEventListener('click', applyExport);

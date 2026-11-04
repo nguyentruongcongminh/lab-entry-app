@@ -263,6 +263,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(fields.includes('Trichomonas') && fields.includes('(+)'), 'hiện đúng mức đã chọn');
     assert.ok(fields.includes('Nấm') && fields.includes('Âm tính'), 'trường bỏ trống hiện Âm tính');
     assert.ok($('sum-release').textContent.includes('Chưa phát hành'));
+    assert.ok(visible($('btn-summary-release')), 'đang chờ phát hành: trang Xem có luôn nút Phát hành');
     $('btn-summary-close').click();
     assert.ok(!visible($('summary-modal')));
     document.querySelector('[data-view="manage"]').click();
@@ -271,21 +272,43 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     document.querySelector('[data-view="today"]').click();
   });
 
-  test('nút Phát hành: chỉ có ở bản ghi Chờ phát hành, bấm là phát hành ngay, KHÔNG hỏi lại', () => {
+  test('Phát hành: từ trang Xem và từ nút trên dòng — đều ngay lập tức, KHÔNG hỏi lại', () => {
     let confirmCalls = 0;
     window.confirm = () => { confirmCalls += 1; return true; };
+    /* (a) Phát hành ngay trong trang Xem tóm tắt */
+    document.querySelector('[data-view="today"]').click();
     const li = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
-    const relBtn = li.querySelector('[data-action="release"]');
-    assert.ok(relBtn, 'bản ghi chờ phát hành có nút phát hành');
-    relBtn.click();
-    assert.strictEqual(confirmCalls, 0, 'không được hiện hộp hỏi xác nhận khi phát hành');
+    assert.ok(li.querySelector('[data-action="release"]'), 'bản ghi chờ phát hành có nút phát hành trên dòng');
+    li.querySelector('[data-action="view"]').click();
+    assert.ok(visible($('summary-modal')));
+    assert.ok(visible($('btn-summary-release')), 'trang Xem có nút Phát hành khi đang chờ phát hành');
+    $('btn-summary-release').click();
+    assert.strictEqual(confirmCalls, 0, 'phát hành từ trang Xem không hỏi lại');
+    assert.ok($('sum-status').textContent.includes('Đã phát hành'), 'trang Xem cập nhật trạng thái ngay');
+    assert.ok(!$('sum-release').textContent.includes('Chưa phát hành'), 'trang Xem hiện giờ phát hành');
+    assert.ok(!visible($('btn-summary-release')), 'đã phát hành thì trang Xem ẩn nút Phát hành');
+    $('btn-summary-close').click();
     const li2 = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
     assert.ok(li2.textContent.includes('Đã phát hành'));
-    assert.strictEqual(li2.querySelector('[data-action="release"]'), null, 'đã phát hành thì mất nút');
+    assert.strictEqual(li2.querySelector('[data-action="release"]'), null, 'đã phát hành thì mất nút trên dòng');
     document.querySelector('[data-view="manage"]').click();
     assert.strictEqual($('list-pending').children.length, 0, 'rời nhóm Chờ phát hành');
     const noRes = [...$('list-noresult').children].find((x) => x.textContent.includes('2611042001'));
     assert.strictEqual(noRes.querySelector('[data-action="release"]'), null, 'chưa có kết quả thì không có nút phát hành');
+    /* (b) Phát hành từ nút trên dòng cho một bản ghi mới */
+    document.querySelector('[data-view="today"]').click();
+    $('fab-add').click();
+    setSelect($('select-type'), 'sp');
+    setInput($('input-testid'), '2611042600');
+    setInput($('fields-container').querySelector('[data-field="kySinhTrung"]'), 'Không thấy');
+    $('btn-save').click();
+    const liB = [...$('list-today').children].find((x) => x.textContent.includes('2611042600'));
+    const relBtn = liB.querySelector('[data-action="release"]');
+    assert.ok(relBtn, 'bản ghi mới chờ phát hành có nút phát hành');
+    relBtn.click();
+    assert.strictEqual(confirmCalls, 0, 'phát hành từ nút trên dòng cũng không hỏi lại');
+    const liB2 = [...$('list-today').children].find((x) => x.textContent.includes('2611042600'));
+    assert.ok(liB2.textContent.includes('Đã phát hành'));
   });
 
   test('quét liên tục từ tab Hôm nay: chỉ quét camera (không còn ô nhập tay), khóa loại sau mã đầu, trùng thì bỏ qua', () => {
@@ -333,6 +356,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual($('input-testid').value, '8888');
     $('btn-cancel').click();
     assert.strictEqual($('list-today').children.length, before, 'không tạo thêm bản ghi');
+  });
+
+  test('lưu kết quả khi đang ở tab Quản lý: giữ nguyên tab Quản lý, không nhảy về tab đầu', () => {
+    document.querySelector('[data-view="manage"]').click();
+    const li = [...$('list-noresult').children].find((x) => x.textContent.includes('2611043001'));
+    li.querySelector('[data-action="edit"]').click();
+    assert.ok(visible($('view-form')));
+    setInput($('fields-container').querySelector('[data-field="kySinhTrung"]'), 'Không thấy KST');
+    $('btn-save').click();
+    assert.ok(visible($('view-manage')), 'sau khi lưu vẫn ở tab Quản lý');
+    assert.ok(!visible($('view-today')), 'không bị nhảy về tab Hôm nay');
+    const pend = [...$('list-pending').children].find((x) => x.textContent.includes('2611043001'));
+    assert.ok(pend, 'mẫu vừa nhập kết quả đã sang nhóm Chờ phát hành của tab Quản lý');
   });
 
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');

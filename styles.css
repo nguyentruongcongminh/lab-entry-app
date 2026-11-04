@@ -323,3 +323,15 @@ svg { width: 24px; height: 24px; display: block; }
   #scanner-modal { padding: 24px; align-items: center; justify-content: center; }
   .scanner-box { max-width: 460px; height: auto; max-height: 94vh; border-radius: 20px; }
 }
+
+/* Hàng nút trong trang xem tóm tắt: Phát hành + Đóng */
+.summary-actions { display: flex; gap: 10px; }
+.summary-actions .primary-btn { flex: 1.5; width: auto; }
+.summary-actions .release-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.summary-actions .release-action svg { width: 19px; height: 19px; }
+.summary-actions .release-action.hidden { display: none; }
+.secondary-btn {
+  flex: 1; background: #eceff1; color: var(--text); border-radius: 8px;
+  padding: 13px; font-size: 16px; font-weight: 600;
+}
+.secondary-btn:active { background: #cfd8dc; }
