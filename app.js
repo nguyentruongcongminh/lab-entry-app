@@ -354,6 +354,9 @@ function openScanner(source) {
   $('scanner-title').textContent = single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu';
   $('scanner-subtitle').textContent = single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận';
   $('scanner-session').classList.toggle('hidden', single);
+  /* Chế độ quét liên tục: chỉ quét bằng camera, không hiện ô nhập tay + nút Nhận mẫu.
+     Ô nhập tay chỉ còn ở chế độ 1 mã (mở từ form sửa) làm đường dự phòng. */
+  $('scanner-manual').classList.toggle('hidden', !single);
   updateScanCount();
   $('scanner-modal').classList.remove('hidden');
   setScanMsg(single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...');
@@ -408,7 +411,11 @@ function acceptScanCode(rawCode) {
 async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('scan-frame').classList.add('hidden');
-    setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera — nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu" (vẫn nhận liên tục).', 'err');
+    if (scannerState && scannerState.single) {
+      setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera — nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu".', 'err');
+    } else {
+      setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera. Hãy mở app bằng Chrome trên điện thoại để bắn mã liên tục.', 'err');
+    }
     return;
   }
   try {
@@ -437,7 +444,11 @@ async function startCamera() {
     }, 400);
   } catch (e) {
     $('scan-frame').classList.add('hidden');
-    setScanMsg('Không mở được camera (' + e.name + '). Nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu".', 'err');
+    if (scannerState && scannerState.single) {
+      setScanMsg('Không mở được camera (' + e.name + '). Nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu".', 'err');
+    } else {
+      setScanMsg('Không mở được camera (' + e.name + '). Hãy kiểm tra quyền camera của trình duyệt rồi mở lại màn hình quét.', 'err');
+    }
   }
 }
 

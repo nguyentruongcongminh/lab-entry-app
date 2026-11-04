@@ -21,7 +21,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   const { window } = dom;
   const { document } = window;
-  await sleep(150);
+  /* Chờ app khởi tạo xong thật rồi mới test: các file JS ngoài nạp bất đồng bộ,
+     chờ tới khi dropdown loại XN có options (dấu hiệu init đã chạy). */
+  for (let i = 0; i < 60 && document.getElementById('select-type').options.length === 0; i++) await sleep(50);
+  assert.ok(document.getElementById('select-type').options.length > 0, 'app phải khởi tạo xong trước khi test');
   window.confirm = () => true;
   window.scrollTo = () => {};
   const $ = (id) => document.getElementById(id);
@@ -280,22 +283,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(noRes.querySelector('[data-action="release"]'), null, 'chưa có kết quả thì không có nút phát hành');
   });
 
-  test('quét liên tục từ tab Hôm nay (đường nhập tay dự phòng): nhận nhiều mã, khóa loại sau mã đầu, trùng thì bỏ qua', () => {
+  test('quét liên tục từ tab Hôm nay: chỉ quét camera (không còn ô nhập tay), khóa loại sau mã đầu, trùng thì bỏ qua', () => {
     document.querySelector('[data-view="today"]').click();
     const before = $('list-today').children.length;
     $('btn-scan-today').click();
     assert.ok(visible($('scanner-modal')));
+    assert.ok($('scanner-manual').classList.contains('hidden'), 'chế độ liên tục không hiện ô nhập tay + nút Nhận mẫu');
     assert.ok(!$('scanner-type-select').disabled, 'chưa quét mã nào: loại còn đổi được');
     setSelect($('scanner-type-select'), 'sp');
-    const manualAdd = (code) => { $('scanner-input').value = code; $('btn-scanner-add').click(); };
-    manualAdd('2611043001');
+    assert.strictEqual(typeof window.acceptScanCode, 'function');
+    const scan = (code) => window.acceptScanCode(code); // đúng hàm vòng lặp camera gọi khi phát hiện mã
+    scan('2611043001');
     assert.ok($('scanner-count').textContent.includes('1'));
     assert.strictEqual($('scanner-list').children.length, 1);
     assert.ok($('scanner-type-select').disabled, 'sau mã đầu tiên: loại bị khóa, giữ nguyên cả phiên');
-    manualAdd('2611043001'); // trùng ID + loại
+    scan('2611043001'); // trùng ID + loại
     assert.ok($('scanner-msg').textContent.includes('Đã tồn tại'));
     assert.ok($('scanner-count').textContent.includes('1'), 'trùng không tính thêm');
-    manualAdd('2611043002');
+    scan('2611043002');
     assert.ok($('scanner-count').textContent.includes('2'));
     $('btn-scanner-close').click(); // người dùng chủ động dừng
     assert.ok(!visible($('scanner-modal')));
@@ -314,6 +319,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-form')));
     $('btn-scan').click();
     assert.ok(visible($('scanner-modal')));
+    assert.ok(!$('scanner-manual').classList.contains('hidden'), 'chế độ 1 mã vẫn còn ô nhập tay dự phòng');
     $('scanner-input').value = '8888';
     $('btn-scanner-add').click();
     assert.ok(!visible($('scanner-modal')), 'nhận 1 mã xong tự đóng');

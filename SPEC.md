@@ -65,7 +65,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Quét liên tục**: camera giữ mở và nhận mã nối tiếp nhau; mỗi mã hợp lệ tạo **ngay một bản ghi "Chưa kết quả"** với thời điểm nhận là hiện tại (phục vụ xếp thứ tự chờ nhập kết quả theo giờ nhận). Vòng quét **chỉ dừng khi người dùng bấm "Dừng quét"**.
 - **Danh mục (loại xét nghiệm) giữ nguyên cả phiên**: chọn loại trước khi quét; sau khi nhận thành công mã đầu tiên, ô chọn loại bị **khóa** — muốn đổi loại phải dừng phiên và mở phiên mới.
 - Mã **trùng ID + loại** trong lúc quét: báo "Đã tồn tại — bỏ qua", không tạo thêm, phiên vẫn tiếp tục.
-- Có **ô nhập tay dự phòng** (nhập ID + bấm "Nhận mẫu", hoặc phím Enter) hoạt động y hệt quét camera khi thiết bị không hỗ trợ camera/quét — vẫn liên tục.
+- **Chỉ quét bằng camera** (bản v9, theo yêu cầu của Minh): màn hình quét liên tục **không còn ô nhập tay + nút "Nhận mẫu"** — gọn và tập trung vào bắn mã. Ô nhập tay chỉ còn ở chế độ quét 1 mã từ form sửa. Máy/trình duyệt không hỗ trợ quét camera thì màn hình báo rõ và hướng dẫn mở bằng Chrome trên điện thoại.
 - **Giao diện màn hình quét (bản v7)**: màn hình chuyên dụng **nền tối** kiểu ứng dụng quét mã chuyên nghiệp — tiêu đề phiên + chấm trạng thái "đang quét" nhấp nháy, **khung ngắm camera có 4 góc định vị và vạch quét chạy**, dòng trạng thái dạng băng màu (xanh khi nhận thành công, đỏ khi trùng/lỗi), khi loại bị khóa hiện **dòng chú thích khóa** kèm icon, danh sách mẫu đã nhận trong phiên nằm trong một thẻ riêng có dấu ✓ và giờ nhận, nút **Dừng quét màu đỏ** lớn ở cuối. Máy không hỗ trợ camera thì khung camera ẩn đi, chỉ còn ô nhập tay.
 - **Bố cục chống tràn (bản v8)**: màn hình quét cố định toàn màn hình theo cột dọc — phần đầu, khung camera (giới hạn chiều cao 32% màn hình), băng trạng thái và ô nhập tay cố định; **chỉ danh sách mẫu của phiên cuộn** ở khoảng giữa; **nút Dừng quét luôn ghim ở đáy màn hình**, không bao giờ bị đẩy ra ngoài khung (bản v7 bị tràn, không thấy nút dừng trên điện thoại).
 - Ngoại lệ: mở quét từ **form sửa** một bản ghi thì là chế độ 1 mã — nhận mã xong điền vào ô ID của form và tự đóng, không tạo bản ghi mới.
@@ -117,7 +117,7 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm là bản ghi thành Đã phát hành ngay với ngày giờ phát hành là hiện tại (**không hiện hộp hỏi xác nhận**) và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
 17. Nút Xem lớn chỉ hiện ở bản ghi đã có kết quả; bấm mở bảng tóm tắt đúng ID, loại XN, trạng thái, từng giá trị kết quả (mức độ bỏ trống = "Âm tính"), ghi chú, giờ nhận/phát hành; đóng được bằng nút Đóng.
 15. Bấm vào dòng/ID không mở form sửa; chỉ nút cây bút mới mở được.
-16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN khóa sau mã đầu tiên; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; nhập tay dự phòng hoạt động tương đương; mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng.
+16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN khóa sau mã đầu tiên; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; màn hình liên tục không có ô nhập tay/nút Nhận mẫu (chỉ quét camera); mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng (ở chế độ này còn ô nhập tay dự phòng).
 
 ## 5. Kiến trúc đề xuất
 
