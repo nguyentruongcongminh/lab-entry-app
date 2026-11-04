@@ -476,6 +476,31 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v24 và precache đúng URL ?v=24 (v24)', () => {
+    const link = document.querySelector('link[rel="manifest"]');
+    assert.ok(link, 'phải có thẻ link manifest');
+    assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
+    const theme = document.querySelector('meta[name="theme-color"]');
+    assert.ok(theme && theme.getAttribute('content') === '#1e88e5', 'phải có theme-color #1e88e5');
+    assert.ok(document.querySelector('link[rel="apple-touch-icon"]'), 'phải có apple-touch-icon cho iOS');
+    const root = path.join(__dirname, '..');
+    const man = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
+    assert.strictEqual(man.short_name, 'LabEntry');
+    assert.strictEqual(man.display, 'standalone');
+    assert.strictEqual(man.theme_color, '#1e88e5');
+    const sizes = man.icons.map((i) => i.sizes);
+    assert.ok(sizes.includes('192x192') && sizes.includes('512x512'), 'manifest phải có icon 192 và 512');
+    assert.ok(man.icons.some((i) => i.purpose === 'maskable'), 'manifest phải có icon maskable');
+    for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
+    assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
+    const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+    assert.ok(sw.includes("const VERSION = 'v24'"), 'sw.js phải gắn VERSION v24');
+    for (const a of ['styles.css?v=24', 'print.css?v=24', 'config.js?v=24', 'store.js?v=24', 'app.js?v=24', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+      assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
+    }
+    assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
+  });
+
   test('bấm giờ Máu ẩn: mỗi ID một đồng hồ riêng — bắt đầu, hủy, tới giờ báo đỏ và mở thẳng form nhập', () => {
     document.querySelector('[data-view="manage"]').click();
     const addMauAn = (id) => {

@@ -126,6 +126,13 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Người gõ tay chậm vào ô nhập tay không bị nhận nhầm thành mã quét; khi đang thao tác với ô chọn loại (select) app cũng không can thiệp.
 - Giới hạn thật: máy quét phải ở chế độ gửi Enter (CR) sau mã — chế độ mặc định của hầu hết máy quét; test tự động kiểm chứng bằng chuỗi phím mô phỏng theo đúng ngưỡng thời gian, phần cứng máy quét thật cần thử tại khoa.
 
+### F14 — Cài đặt như ứng dụng (PWA) (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 2 trong gói giới thiệu)
+
+- App đáp ứng chuẩn PWA: `manifest.webmanifest` (tên LabEntry, hiển thị standalone, theme #1e88e5, icon 192/512 + maskable) + `sw.js` (service worker) + apple-touch-icon cho iOS. Người dùng mở địa chỉ HTTPS → trình duyệt cho **Cài đặt ứng dụng** lên màn hình chính, mở toàn màn hình như app thật, và **chạy offline hoàn toàn** sau lần mở đầu (mọi file chương trình được cache; dữ liệu vẫn là localStorage riêng của từng máy, không nằm trong cache này).
+- Cập nhật: số phiên bản trong `sw.js` (`VERSION`) và danh sách precache `?v=N` **phải khớp số bản phát hành** — đây là bước bắt buộc trong quy trình ra bản. SW mới kích hoạt ngay (skipWaiting + clients.claim), cache của bản cũ bị xóa; phía trang (app.js `registerServiceWorker`) nghe `controllerchange` và tự tải lại đúng một lần **chỉ khi đang rảnh** (không mở form/quét/xem) — đang thao tác dở thì bản mới áp dụng ở lần mở kế tiếp. Điều hướng mở app là network-first nên có mạng là nhận bản mới nhất.
+- Chia sẻ cho người khác = gửi địa chỉ HTTPS; mỗi người tự cài trên máy mình và bắt đầu với dữ liệu trống của riêng họ. Bản 1 file (`lab-entry-single.html`) không phải PWA (không cài đặt được, chỉ mở xem/dùng trong trình duyệt).
+- Giới hạn thật: cài đặt PWA cần HTTPS (bản GitHub Pages đạt); quét QR bằng camera vẫn cần BarcodeDetector (Chrome Android) và nhập giọng nói vẫn cần Chrome — PWA không thay đổi các giới hạn nền tảng đó; jsdom không chạy được service worker nên test tự động chỉ kiểm chứng khai báo manifest/icon/phiên bản SW và app vẫn chạy bình thường khi trình duyệt không có service worker — hành vi cài đặt/offline thật cần thử trên điện thoại.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

@@ -1266,4 +1266,29 @@ function init() {
   }, 60000);
 }
 
+/* ---------- PWA: đăng ký Service Worker ----------
+ * Chỉ đăng ký khi chạy qua https (hoặc localhost) — mở từ file:// thì bỏ qua.
+ * Khi có bản mới: SW mới kích hoạt ngay (skipWaiting trong sw.js); nếu trang
+ * đang rảnh (không mở form/quét/xem) thì tự tải lại đúng một lần để dùng bản
+ * mới ngay trong lần mở này; đang bận thì bản mới áp dụng ở lần mở kế tiếp. */
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    const idle = $('view-form').classList.contains('hidden') &&
+      $('scanner-modal').classList.contains('hidden') &&
+      $('summary-modal').classList.contains('hidden');
+    if (!idle) return;
+    reloaded = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js')
+    .then((reg) => { reg.update(); })
+    .catch(() => {});
+}
+
 document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', registerServiceWorker);
