@@ -139,6 +139,67 @@ const LabStore = (() => {
       return records.slice();
     }
 
+    /* ---------- Sao lưu / phục hồi (F8) ----------
+       Sao lưu = 1 file JSON chứa toàn bộ bản ghi. Phục hồi = THAY TOÀN BỘ
+       dữ liệu hiện tại bằng dữ liệu trong file (sau khi đã kiểm tra hợp lệ). */
+
+    function exportBackup(now) {
+      const t = now || new Date();
+      return JSON.stringify({
+        app: 'LabEntry',
+        kind: 'labentry-backup',
+        version: 1,
+        exportedAt: t.toISOString(),
+        records: records.map((r) => Object.assign({}, r, { results: Object.assign({}, r.results || {}) })),
+      }, null, 2);
+    }
+
+    /* Đọc + kiểm tra file sao lưu. Ném Error (tiếng Việt) nếu file không dùng được. */
+    function parseBackup(text) {
+      let data;
+      try { data = JSON.parse(text); } catch (e) { throw new Error('file không phải định dạng JSON hợp lệ'); }
+      const list = Array.isArray(data) ? data : (data && Array.isArray(data.records) ? data.records : null);
+      if (!list) throw new Error('file không chứa danh sách bản ghi');
+      const okDate = (v) => (typeof v === 'string' && !isNaN(Date.parse(v)) ? v : null);
+      const seenUids = new Set();
+      const seenKeys = new Set();
+      const out = list.map((raw, i) => {
+        if (!raw || typeof raw !== 'object') throw new Error('bản ghi thứ ' + (i + 1) + ' không hợp lệ');
+        const testId = typeof raw.testId === 'string' ? raw.testId.trim() : '';
+        if (!testId) throw new Error('bản ghi thứ ' + (i + 1) + ' thiếu ID Xét Nghiệm');
+        if (!getTestTypeFn(raw.typeId)) throw new Error('bản ghi ' + testId + ' có loại xét nghiệm không hợp lệ');
+        const dupKey = testId + '|' + raw.typeId;
+        if (seenKeys.has(dupKey)) throw new Error('file có 2 bản ghi trùng ID ' + testId + ' cùng loại xét nghiệm');
+        seenKeys.add(dupKey);
+        let uid = (typeof raw.uid === 'string' && raw.uid && !seenUids.has(raw.uid)) ? raw.uid : makeUid(new Date());
+        seenUids.add(uid);
+        const results = {};
+        if (raw.results && typeof raw.results === 'object') {
+          Object.keys(raw.results).forEach((k) => { if (typeof raw.results[k] === 'string') results[k] = raw.results[k]; });
+        }
+        const createdAt = okDate(raw.createdAt) || new Date().toISOString();
+        return {
+          uid,
+          testId,
+          typeId: raw.typeId,
+          results,
+          note: typeof raw.note === 'string' ? raw.note : '',
+          releaseAt: okDate(raw.releaseAt),
+          timerEndsAt: okDate(raw.timerEndsAt),
+          createdAt,
+          updatedAt: okDate(raw.updatedAt) || createdAt,
+        };
+      });
+      return { records: out, exportedAt: data && typeof data.exportedAt === 'string' ? data.exportedAt : null };
+    }
+
+    function importBackup(text) {
+      const parsed = parseBackup(text);
+      records = parsed.records;
+      persist();
+      return { count: records.length };
+    }
+
     function getByUid(uid) {
       return records.find((r) => r.uid === uid) || null;
     }
@@ -183,7 +244,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, STORAGE_KEY };
   }
 
   function localDayKey(d) {

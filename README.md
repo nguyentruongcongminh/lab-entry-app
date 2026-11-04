@@ -36,6 +36,14 @@ Dữ liệu lưu trong **localStorage của trình duyệt trên chính thiết 
 
 Muốn thêm/bớt loại xét nghiệm hay trường: chỉ sửa `config.js` (có hướng dẫn trong file), không cần đụng code còn lại.
 
+## Sao lưu & phục hồi dữ liệu
+
+Dữ liệu nằm trong localStorage của trình duyệt trên từng máy — mất cache/đổi máy là mất dữ liệu. Ở cuối tab **Lọc & Xuất PDF** có khối **Sao lưu & phục hồi dữ liệu**:
+
+- **Tải file sao lưu**: tải về 1 file JSON (`labentry-sao-luu-*.json`) chứa toàn bộ dữ liệu. Hãy giữ file ở nơi an toàn (Drive, Zalo tự gửi cho mình…) và sao lưu định kỳ, ví dụ cuối mỗi ngày.
+- **Phục hồi từ file…**: chọn file sao lưu đã tải — app kiểm tra file hợp lệ, hỏi xác nhận (nêu số bản ghi + thời gian xuất) rồi **thay toàn bộ** dữ liệu hiện tại bằng dữ liệu trong file. File hỏng/không đúng định dạng sẽ bị từ chối, dữ liệu hiện tại không đổi.
+- File sao lưu cũng dùng để **chuyển dữ liệu sang máy/điện thoại khác**: tải file ở máy cũ, mở app ở máy mới rồi phục hồi từ file đó.
+
 ## Cấu trúc file
 
 - `index.html` — khung giao diện 3 tab + form + vùng in.
@@ -48,8 +56,8 @@ Muốn thêm/bớt loại xét nghiệm hay trường: chỉ sửa `config.js` (
 
 ## Kết quả kiểm thử (chạy thật ngày 2026-11-04)
 
-- `node tests/logic.test.js` — **16/16 đạt**: cấu hình đủ 6 loại/đúng bộ trường; chặn lưu khi thiếu ID hoặc sai loại; 3 trạng thái đúng đặc tả; sửa/xóa; lọc theo ID/loại/trạng thái/ngày; lưu–đọc lại qua storage (mô phỏng tải lại trang); chặn trùng ID + loại XN (kể cả khi sửa sang ID/loại của bản ghi khác).
-- `node tests/ui.test.js` và `node tests/ui-single.test.js` — **26/26 đạt** cho cả bản nhiều file lẫn bản 1 file (nạp trang thật vào jsdom, thao tác như người dùng): thêm đủ loại, đổi loại đổi bộ trường, chip chọn/đổi/bỏ chọn, chặn lưu thiếu ID, chặn nhập trùng qua form, thứ tự nhóm Chưa kết quả theo giờ nhận, sửa + phát hành đổi trạng thái, nút Xem lớn + bảng tóm tắt kết quả (chỉ ở bản ghi đã có kết quả, giá trị đúng, chip trống = "Âm tính"), nút Phát hành trên dòng phát hành ngay không hỏi lại (chỉ ở bản ghi chờ phát hành), bấm vào dòng/ID không mở sửa — chỉ nút bút mới mở, phân nhóm Quản lý, tìm kiếm, chọn nhiều + xóa, xóa từng dòng, lọc & bảng in PDF (kể cả "Âm tính" cho trường chip bỏ trống), quét liên tục tiếp nhận mẫu bằng camera — mô phỏng đúng hàm nhận mã của vòng quét (không còn ô nhập tay ở chế độ liên tục, khóa loại sau mã đầu, trùng bỏ qua, dừng theo yêu cầu), chế độ quét 1 mã từ form sửa, phát hành ngay trong trang Xem tóm tắt, lưu form giữ nguyên tab đang dùng (không nhảy về tab đầu).
+- `node tests/logic.test.js` — **20/20 đạt**: cấu hình đủ 6 loại/đúng bộ trường; chặn lưu khi thiếu ID hoặc sai loại; 3 trạng thái đúng đặc tả; sửa/xóa; lọc theo ID/loại/trạng thái/ngày; lưu–đọc lại qua storage (mô phỏng tải lại trang); chặn trùng ID + loại XN (kể cả khi sửa sang ID/loại của bản ghi khác); hẹn giờ bấm giờ; sao lưu/phục hồi (xuất–nhập cho lại đúng dữ liệu, phục hồi thay toàn bộ, file hỏng bị từ chối và giữ nguyên dữ liệu).
+- `node tests/ui.test.js` và `node tests/ui-single.test.js` — **27/27 đạt** cho cả bản nhiều file lẫn bản 1 file (nạp trang thật vào jsdom, thao tác như người dùng): thêm đủ loại, đổi loại đổi bộ trường, chip chọn/đổi/bỏ chọn, chặn lưu thiếu ID, chặn nhập trùng qua form, thứ tự nhóm Chưa kết quả theo giờ nhận, sửa + phát hành đổi trạng thái, nút Xem lớn + bảng tóm tắt kết quả (chỉ ở bản ghi đã có kết quả, giá trị đúng, chip trống = "Âm tính"), nút Phát hành trên dòng phát hành ngay không hỏi lại (chỉ ở bản ghi chờ phát hành), bấm vào dòng/ID không mở sửa — chỉ nút bút mới mở, phân nhóm Quản lý, tìm kiếm, chọn nhiều + xóa, xóa từng dòng, lọc & bảng in PDF (kể cả "Âm tính" cho trường chip bỏ trống), quét liên tục tiếp nhận mẫu bằng camera — mô phỏng đúng hàm nhận mã của vòng quét (không còn ô nhập tay ở chế độ liên tục, đổi loại được giữa phiên (không khóa), trùng bỏ qua, dừng theo yêu cầu), chế độ quét 1 mã từ form sửa, phát hành ngay trong trang Xem tóm tắt, lưu form giữ nguyên tab đang dùng (không nhảy về tab đầu). sao lưu & phục hồi qua giao diện (nhập file hợp lệ thay dữ liệu và hiện lên danh sách, file hỏng bị từ chối).
 - Kiểm tra chéo: toàn bộ 53 id phần tử mà `app.js` tham chiếu đều tồn tại trong `index.html`; `node --check` sạch cho cả 3 file JS.
 
 Chạy lại test: `node tests/logic.test.js` (không cần cài gì thêm) và `cd tests && npm install && node ui.test.js` (cần jsdom).

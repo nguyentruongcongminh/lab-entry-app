@@ -382,6 +382,54 @@ function applyExport() {
   return recs;
 }
 
+/* ================= Sao lưu / phục hồi (F8) ================= */
+function exportBackupFile() {
+  const text = store.exportBackup();
+  const count = store.getAll().length;
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  const name = 'labentry-sao-luu-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+  try {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+  } catch (e) { /* môi trường không hỗ trợ tải file (vd môi trường test) */ }
+  toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
+}
+
+/* Nạp dữ liệu từ nội dung file sao lưu (đồng bộ, tách riêng để test được).
+   Trả về true nếu đã phục hồi. */
+function importBackupText(text) {
+  let parsed;
+  try {
+    parsed = store.parseBackup(text);
+  } catch (e) {
+    alert('Không đọc được file sao lưu: ' + e.message);
+    return false;
+  }
+  const when = parsed.exportedAt ? fmtFull(parsed.exportedAt) : 'không rõ thời gian';
+  if (!confirm('File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?')) return false;
+  const res = store.importBackup(text);
+  refreshCurrent();
+  toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
+  return true;
+}
+
+async function handleBackupFile(file) {
+  if (!file) return false;
+  let text;
+  try { text = await file.text(); } catch (e) { alert('Không đọc được file đã chọn.'); return false; }
+  return importBackupText(text);
+}
+
 /* ================= Form nhập / sửa ================= */
 let formState = { uid: null, typeId: null, results: {}, createdAt: null };
 
@@ -691,6 +739,13 @@ function init() {
 
   $('btn-apply-filter').addEventListener('click', applyExport);
   $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
+  $('btn-backup-export').addEventListener('click', exportBackupFile);
+  $('btn-backup-import').addEventListener('click', () => $('backup-file').click());
+  $('backup-file').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    await handleBackupFile(file);
+  });
   window.addEventListener('beforeprint', applyExport);
 
   $('btn-back').addEventListener('click', () => switchView(mainView));

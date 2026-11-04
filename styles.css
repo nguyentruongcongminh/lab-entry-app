@@ -376,3 +376,13 @@ svg { width: 24px; height: 24px; display: block; }
 
 /* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
 #scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }
+
+/* ---------- Sao lưu & phục hồi (tab Lọc & Xuất) ---------- */
+.backup-card {
+  margin: 20px 16px 28px; padding: 14px 16px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+}
+.backup-card h3 { margin: 0 0 6px; font-size: 16px; }
+.backup-note { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
+.backup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.backup-actions .primary-btn { flex: 1; min-width: 150px; }

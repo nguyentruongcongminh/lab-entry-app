@@ -87,6 +87,13 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Tới giờ**: chuông báo riêng (3 tiếng bíp + rung dài + thông báo hiện tên ID), dòng mẫu **sáng đỏ nhấp nháy**, nút đổi thành **"Nhập KQ ngay"** — bấm mở thẳng form nhập kết quả của mẫu đó.
 - Nhập kết quả cho mẫu xong thì đồng hồ của mẫu tự xóa.
 
+### F8 — Sao lưu & phục hồi dữ liệu cục bộ (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Ở cuối tab "Lọc & Xuất": khối **"Sao lưu & phục hồi dữ liệu"** với 2 nút — **Tải file sao lưu** và **Phục hồi từ file…**
+- File sao lưu là JSON (`labentry-sao-luu-YYYYMMDD-HHmm.json`) chứa toàn bộ bản ghi kèm mốc thời gian xuất; giữ nguyên mọi trường (kết quả, giờ phát hành, hẹn giờ bấm giờ…).
+- **Phục hồi = thay toàn bộ** dữ liệu hiện tại trên máy bằng dữ liệu trong file, sau hộp xác nhận nêu rõ số bản ghi + thời gian xuất của file. File phải qua kiểm tra hợp lệ (JSON đúng cấu trúc, mọi bản ghi có ID + loại XN hợp lệ, không trùng ID + loại trong nội bộ file); file hỏng/không hợp lệ bị từ chối và **không đụng vào dữ liệu hiện tại**.
+- Mục đích: tự bảo vệ khi mất dữ liệu/xóa nhầm cache, đổi máy hoặc cài lại trình duyệt (trước đây Minh đã bỏ qua gợi ý này ở v14, nay chủ động yêu cầu thêm).
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

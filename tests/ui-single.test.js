@@ -477,6 +477,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(pend, 'nhập kết quả xong mẫu sang nhóm Chờ phát hành');
   });
 
+  test('sao lưu & phục hồi: có đủ nút ở tab Lọc & Xuất; nhập file hợp lệ thay dữ liệu và hiện lên danh sách; file hỏng bị từ chối (test này chạy cuối vì nó thay toàn bộ dữ liệu)', () => {
+    document.querySelector('[data-view="export"]').click();
+    assert.ok($('btn-backup-export'), 'có nút Tải file sao lưu');
+    assert.ok($('btn-backup-import'), 'có nút Phục hồi từ file');
+    assert.ok($('backup-file'), 'có ô chọn file sao lưu');
+    assert.strictEqual(typeof window.importBackupText, 'function');
+    const backupJson = JSON.stringify({
+      app: 'LabEntry', kind: 'labentry-backup', version: 1, exportedAt: new Date().toISOString(),
+      records: [{ uid: 'bk-uid-1', testId: 'BK-0001', typeId: 'sp', results: { hongCau: '(+)' }, note: '', releaseAt: null, timerEndsAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
+    });
+    const oldConfirm = window.confirm;
+    window.confirm = () => true;
+    const okImport = window.importBackupText(backupJson);
+    window.confirm = oldConfirm;
+    assert.strictEqual(okImport, true, 'nhập file hợp lệ + đồng ý ghi đè -> phục hồi thành công');
+    document.querySelector('[data-view="today"]').click();
+    const todayRow = (id) => [...$('list-today').children].find((x) => x.textContent.includes(id));
+    assert.ok(todayRow('BK-0001'), 'bản ghi vừa phục hồi phải hiện ở danh sách Hôm nay');
+    assert.strictEqual(window.importBackupText('{khong phai json'), false, 'file hỏng phải bị từ chối');
+    assert.ok(todayRow('BK-0001'), 'phục hồi hỏng không làm mất dữ liệu vừa phục hồi');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

@@ -191,4 +191,48 @@ test('timerEndsAt (đồng hồ bấm giờ): lưu khi thêm, giữ nguyên khi 
   assert.strictEqual(c.record.timerEndsAt, null);
 });
 
+/* ---------- Sao lưu / phục hồi (F8) ---------- */
+test('sao lưu: xuất JSON rồi phục hồi vào kho trống cho lại đúng dữ liệu (kể cả hẹn giờ + phát hành)', () => {
+  const s1 = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const ends = new Date(Date.now() + 20 * 60000).toISOString();
+  s1.add({ testId: 'BK1', typeId: 'mau-an', results: {}, timerEndsAt: ends });
+  s1.add({ testId: 'BK2', typeId: 'sp', results: { hongCau: '(+)' }, releaseAt: '2026-11-04T09:00:00.000Z' });
+  const text = s1.exportBackup(D('2026-11-04T10:00:00+07:00'));
+  const meta = JSON.parse(text);
+  assert.strictEqual(meta.app, 'LabEntry');
+  assert.strictEqual(meta.records.length, 2);
+  const s2 = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const res = s2.importBackup(text);
+  assert.strictEqual(res.count, 2);
+  const all = s2.getAll();
+  const bk1 = all.find((r) => r.testId === 'BK1');
+  const bk2 = all.find((r) => r.testId === 'BK2');
+  assert.strictEqual(bk1.timerEndsAt, ends, 'hẹn giờ phải còn nguyên sau phục hồi');
+  assert.strictEqual(bk2.results.hongCau, '(+)');
+  assert.strictEqual(s2.statusOf(bk2), 'released');
+});
+
+test('phục hồi THAY TOÀN BỘ dữ liệu hiện tại, không trộn với dữ liệu cũ', () => {
+  const sA = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  sA.add({ testId: 'A-ONLY', typeId: 'sp', results: {} });
+  const backup = sA.exportBackup();
+  const sB = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  sB.add({ testId: 'B-OLD', typeId: 'sp', results: {} });
+  sB.importBackup(backup);
+  assert.deepStrictEqual(sB.getAll().map((r) => r.testId), ['A-ONLY'], 'dữ liệu cũ B-OLD phải bị thay hẳn');
+});
+
+test('file sao lưu hỏng/không hợp lệ bị từ chối và dữ liệu hiện tại không đổi', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  s.add({ testId: 'KEEP', typeId: 'sp', results: {} });
+  assert.throws(() => s.importBackup('{khong phai json'), /JSON/);
+  assert.throws(() => s.importBackup(JSON.stringify({ records: [{ testId: 'X', typeId: 'loai-la' }] })), /loại xét nghiệm không hợp lệ/);
+  assert.throws(() => s.importBackup(JSON.stringify({ records: [
+    { testId: 'DUP', typeId: 'sp', results: {} },
+    { testId: 'DUP', typeId: 'sp', results: {} },
+  ] })), /trùng ID/);
+  assert.throws(() => s.importBackup(JSON.stringify({ foo: 1 })), /danh sách bản ghi/);
+  assert.deepStrictEqual(s.getAll().map((r) => r.testId), ['KEEP'], 'phục hồi thất bại không được đụng vào dữ liệu hiện tại');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');
