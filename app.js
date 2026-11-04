@@ -135,9 +135,15 @@ function setSelectMode(on) {
 
 /* ================= Tab Quản lý ================= */
 function renderManage() {
-  const all = store.getAll().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  fillList($('list-pending'), $('empty-pending'), all.filter((r) => store.statusOf(r) === 'pending-release'), {});
-  fillList($('list-noresult'), $('empty-noresult'), all.filter((r) => store.statusOf(r) === 'no-result'), {});
+  const all = store.getAll();
+  /* Chờ phát hành: mới nhất lên đầu */
+  const pending = all.filter((r) => store.statusOf(r) === 'pending-release')
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  /* Chưa kết quả (chờ nhập KQ): xếp theo giờ nhận mẫu — nhận trước lên đầu, nhận sau xuống cuối */
+  const noresult = all.filter((r) => store.statusOf(r) === 'no-result')
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  fillList($('list-pending'), $('empty-pending'), pending, {});
+  fillList($('list-noresult'), $('empty-noresult'), noresult, {});
 }
 
 /* ================= Tab Lọc & Xuất PDF ================= */

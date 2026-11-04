@@ -193,6 +193,37 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-today')));
   });
 
+  test('nhập trùng ID + loại XN qua form -> báo Đã tồn tại, không thêm bản ghi', () => {
+    document.querySelector('[data-view="today"]').click();
+    const before = $('list-today').children.length;
+    $('fab-add').click(); // loại mặc định: Cạo tìm nấm — ID 2611041225 đã có loại này
+    setInput($('input-testid'), '2611041225');
+    setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Nhập lại lần nữa');
+    $('btn-save').click();
+    assert.ok(visible($('view-form')), 'vẫn ở form, không cho lưu');
+    assert.ok($('form-error').textContent.includes('Đã tồn tại'));
+    $('btn-cancel').click();
+    assert.strictEqual($('list-today').children.length, before);
+  });
+
+  test('nhóm Chưa kết quả xếp theo giờ nhận: nhập trước lên đầu, nhập sau xuống cuối', async () => {
+    document.querySelector('[data-view="today"]').click();
+    $('fab-add').click();
+    setSelect($('select-type'), 'sp');
+    setInput($('input-testid'), '2611042001');
+    $('btn-save').click();
+    await sleep(40); // lệch thời điểm tạo để thứ tự giờ rõ ràng
+    $('fab-add').click();
+    setSelect($('select-type'), 'sp');
+    setInput($('input-testid'), '2611042002');
+    $('btn-save').click();
+    document.querySelector('[data-view="manage"]').click();
+    const rows = [...$('list-noresult').children];
+    assert.strictEqual(rows.length, 2);
+    assert.ok(rows[0].textContent.includes('2611042001'), 'ID nhập trước ở đầu danh sách');
+    assert.ok(rows[1].textContent.includes('2611042002'), 'ID nhập sau ở cuối danh sách');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

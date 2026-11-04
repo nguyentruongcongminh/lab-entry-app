@@ -145,4 +145,36 @@ test('lọc theo ID (một phần, không phân biệt hoa thường), loại, t
   assert.strictEqual(s.filter(null, { typeId: 'sp', from: '2026-11-04', to: '2026-11-04' }).length, 1);
 });
 
+/* ---------- Chặn trùng ID + loại XN ---------- */
+test('cùng ID + cùng loại XN -> báo Đã tồn tại, không cho nhập', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r1 = s.add({ testId: '2611041225', typeId: 'sp', results: { hongCau: '(+)' } });
+  assert.strictEqual(r1.ok, true);
+  const r2 = s.add({ testId: '2611041225', typeId: 'sp', results: { hongCau: '(++)' } });
+  assert.strictEqual(r2.ok, false);
+  assert.ok(r2.errors.some((e) => e.includes('Đã tồn tại')));
+  assert.strictEqual(s.getAll().length, 1);
+  assert.ok(s.findDuplicate({ testId: '2611041225', typeId: 'sp' }));
+  assert.strictEqual(s.findDuplicate({ testId: '2611041225', typeId: 'mau-an' }), null);
+});
+
+test('cùng ID nhưng khác loại XN -> vẫn nhập được; khác ID cùng loại -> được', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  assert.strictEqual(s.add({ testId: 'X1', typeId: 'sp', results: {} }).ok, true);
+  assert.strictEqual(s.add({ testId: 'X1', typeId: 'mau-an', results: {} }).ok, true);
+  assert.strictEqual(s.add({ testId: 'X2', typeId: 'sp', results: {} }).ok, true);
+  assert.strictEqual(s.getAll().length, 3);
+});
+
+test('sửa: đổi sang ID+loại đã có của bản ghi khác -> bị chặn; sửa chính bản ghi đó -> được', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const a = s.add({ testId: 'Y1', typeId: 'sp', results: {} }).record;
+  const b = s.add({ testId: 'Y2', typeId: 'mau-an', results: {} }).record;
+  const clash = s.update(b.uid, { testId: 'Y1', typeId: 'sp' });
+  assert.strictEqual(clash.ok, false);
+  const self = s.update(a.uid, { results: { hongCau: '(+++)' } });
+  assert.strictEqual(self.ok, true);
+  assert.strictEqual(s.statusOf(self.record), 'pending-release');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

@@ -65,13 +65,25 @@ const LabStore = (() => {
       store.setItem(STORAGE_KEY, JSON.stringify(records));
     }
 
-    function validate(rec) {
+    /* Trùng = đã có bản ghi KHÁC cùng ID Xét Nghiệm + cùng loại xét nghiệm */
+    function findDuplicate(rec, excludeUid) {
+      if (!rec || typeof rec.testId !== 'string') return null;
+      const id = rec.testId.trim();
+      if (!id) return null;
+      return records.find((r) => r.uid !== excludeUid && r.testId.trim() === id && r.typeId === rec.typeId) || null;
+    }
+
+    function validate(rec, excludeUid) {
       const errors = [];
       if (!rec || typeof rec.testId !== 'string' || rec.testId.trim() === '') {
         errors.push('Thiếu ID Xét Nghiệm');
       }
       if (!rec || !getTestTypeFn(rec.typeId)) {
         errors.push('Loại xét nghiệm không hợp lệ');
+      }
+      if (errors.length === 0 && findDuplicate(rec, excludeUid)) {
+        const type = getTestTypeFn(rec.typeId);
+        errors.push('Đã tồn tại: ID ' + rec.testId.trim() + ' đã có kết quả loại "' + (type ? type.name : rec.typeId) + '". Không nhập trùng được.');
       }
       return errors;
     }
@@ -107,7 +119,7 @@ const LabStore = (() => {
         releaseAt: input.releaseAt !== undefined ? input.releaseAt : records[idx].releaseAt,
         updatedAt: t.toISOString(),
       });
-      const errors = validate(rec);
+      const errors = validate(rec, uid);
       if (errors.length) return { ok: false, errors };
       records[idx] = rec;
       persist();
@@ -169,7 +181,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, hasResult, statusOf, filter, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, STORAGE_KEY };
   }
 
   function localDayKey(d) {

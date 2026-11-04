@@ -13,7 +13,8 @@ Dữ liệu lưu trong **localStorage của trình duyệt trên chính thiết 
 
 - **Kết quả hôm nay**: danh sách kết quả nhập trong ngày. Nút **+** thêm mới; icon bút = sửa, thùng rác = xóa (có hỏi xác nhận); kính lúp = tìm theo ID; icon ô vuông có dấu tick = chọn nhiều để xóa hàng loạt; icon vòng xoáy = làm mới; icon lọc (góc trái) = sang tab Lọc & Xuất PDF.
 - **Form nhập**: nhập **ID Xét Nghiệm** (bắt buộc) hoặc bấm icon mã để quét QR/barcode bằng camera (chỉ khi trình duyệt hỗ trợ, xem Giới hạn). Chọn **Loại Xét Nghiệm** thì bộ trường kết quả đổi theo. Trường dạng nút (+), (++), (+++): bấm để chọn mức, bấm lại chính nút đó để bỏ chọn. **Ngày Giờ** tự điền thời điểm nhập. Điền **Ngày giờ phát hành** khi phát hành kết quả. Bấm **Lưu**.
-- **Quản lý**: tự chia 2 nhóm — *Chờ phát hành* (đã có kết quả, chưa điền ngày giờ phát hành) và *Chưa kết quả* (chưa nhập trường kết quả nào). Bấm vào một dòng để sửa từ tab Kết quả hôm nay/Quản lý.
+- **Chống nhập trùng**: nếu đã có kết quả khác **cùng ID + cùng loại xét nghiệm**, app báo **"Đã tồn tại"** và không cho lưu (cùng ID nhưng loại khác thì vẫn nhập được).
+- **Quản lý**: tự chia 2 nhóm — *Chờ phát hành* (đã có kết quả, chưa điền ngày giờ phát hành; mới nhất lên đầu) và *Chưa kết quả* (chưa nhập trường kết quả nào; xếp theo giờ nhận mẫu — **nhận trước lên đầu, nhận sau xuống cuối** — để làm theo thứ tự mẫu tới). Bấm vào một dòng để sửa từ tab Kết quả hôm nay/Quản lý.
 - **Lọc & Xuất kết quả PDF**: chọn khoảng ngày, loại xét nghiệm, trạng thái, hoặc một phần ID → **Lọc** để xem → **Xuất PDF** mở hộp thoại in của trình duyệt, chọn "Save as PDF / Lưu dưới dạng PDF". Trong bản in, trường dạng nút (+)/(++)/(+++) nào không chọn sẽ hiện **Âm tính**.
 
 ## 6 loại xét nghiệm (khai báo trong `config.js`)
@@ -41,8 +42,8 @@ Muốn thêm/bớt loại xét nghiệm hay trường: chỉ sửa `config.js` (
 
 ## Kết quả kiểm thử (chạy thật ngày 2026-11-04)
 
-- `node tests/logic.test.js` — **13/13 đạt**: cấu hình đủ 6 loại/đúng bộ trường; chặn lưu khi thiếu ID hoặc sai loại; 3 trạng thái đúng đặc tả; sửa/xóa; lọc theo ID/loại/trạng thái/ngày; lưu–đọc lại qua storage (mô phỏng tải lại trang).
-- `node tests/ui.test.js` — **14/14 đạt** (nạp trang thật vào jsdom, thao tác như người dùng): thêm đủ loại, đổi loại đổi bộ trường, chip chọn/đổi/bỏ chọn, chặn lưu thiếu ID, sửa + phát hành đổi trạng thái, phân nhóm Quản lý, tìm kiếm, chọn nhiều + xóa, xóa từng dòng, lọc & bảng in PDF (kể cả "Âm tính" cho trường chip bỏ trống), nút quét mã báo rõ khi trình duyệt không hỗ trợ.
+- `node tests/logic.test.js` — **16/16 đạt**: cấu hình đủ 6 loại/đúng bộ trường; chặn lưu khi thiếu ID hoặc sai loại; 3 trạng thái đúng đặc tả; sửa/xóa; lọc theo ID/loại/trạng thái/ngày; lưu–đọc lại qua storage (mô phỏng tải lại trang); chặn trùng ID + loại XN (kể cả khi sửa sang ID/loại của bản ghi khác).
+- `node tests/ui.test.js` và `node tests/ui-single.test.js` — **16/16 đạt** cho cả bản nhiều file lẫn bản 1 file (nạp trang thật vào jsdom, thao tác như người dùng): thêm đủ loại, đổi loại đổi bộ trường, chip chọn/đổi/bỏ chọn, chặn lưu thiếu ID, chặn nhập trùng qua form, thứ tự nhóm Chưa kết quả theo giờ nhận, sửa + phát hành đổi trạng thái, phân nhóm Quản lý, tìm kiếm, chọn nhiều + xóa, xóa từng dòng, lọc & bảng in PDF (kể cả "Âm tính" cho trường chip bỏ trống), nút quét mã báo rõ khi trình duyệt không hỗ trợ.
 - Kiểm tra chéo: toàn bộ 53 id phần tử mà `app.js` tham chiếu đều tồn tại trong `index.html`; `node --check` sạch cho cả 3 file JS.
 
 Chạy lại test: `node tests/logic.test.js` (không cần cài gì thêm) và `cd tests && npm install && node ui.test.js` (cần jsdom).

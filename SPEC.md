@@ -34,12 +34,17 @@ App web HTML5/CSS/JavaScript (mobile-first, giao diện giống ảnh mẫu) đ�
 - **Ngày Giờ** — thời điểm nhập, app tự điền sẵn.
 - Nút **Hủy** (không lưu) / **Lưu** (lưu kết quả).
 
+### F2b — Chặn nhập trùng (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Nếu đã tồn tại một kết quả khác có **cùng ID Xét Nghiệm + cùng loại xét nghiệm** thì hệ thống báo **"Đã tồn tại"** và **không cho lưu**. Cùng ID nhưng khác loại (hoặc khác ID cùng loại) thì vẫn nhập bình thường.
+- Áp dụng cả khi sửa: đổi một kết quả sang ID + loại của kết quả khác cũng bị chặn; sửa nội dung của chính kết quả đó thì không bị coi là trùng.
+
 ### F3 — Tab "Quản lý"
 
 Hai nhóm danh sách:
 
-- **Chờ phát hành**: đã có kết quả nhưng chưa có ngày giờ phát hành.
-- **Chưa kết quả**: đã tạo ID nhưng chưa nhập trường kết quả nào.
+- **Chờ phát hành**: đã có kết quả nhưng chưa có ngày giờ phát hành. Sắp xếp: mới nhất lên đầu.
+- **Chưa kết quả**: đã tạo ID nhưng chưa nhập trường kết quả nào. Sắp xếp theo **giờ nhận mẫu** (thời điểm nhập ID vào app, chính xác tới giây): **nhận trước lên đầu, nhận sau xuống cuối** — để xử lý theo thứ tự mẫu tới.
 
 Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
@@ -84,6 +89,8 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 8. Lọc theo ngày/loại/trạng thái đúng; xuất PDF mở được bản in đúng nội dung đã lọc.
 9. Tải lại trang (F5) → dữ liệu vẫn còn (lưu trữ trình duyệt).
 10. Giao diện hiển thị đúng trên khung điện thoại (chiều dọc, giống ảnh mẫu).
+11. Nhập trùng ID + loại XN → báo "Đã tồn tại", không thêm bản ghi; cùng ID khác loại vẫn nhập được; sửa sang ID + loại của bản ghi khác cũng bị chặn.
+12. Nhóm "Chưa kết quả" xếp theo giờ nhập tăng dần: bản ghi nhập trước nằm trên, nhập sau nằm dưới.
 
 ## 5. Kiến trúc đề xuất
 
