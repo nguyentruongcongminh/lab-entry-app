@@ -53,6 +53,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 - Mỗi kết quả ở trạng thái **Chờ phát hành** có thêm **nút Phát hành** (icon gửi, màu xanh) ngay trên dòng: bấm → ghi **Ngày giờ phát hành = thời điểm hiện tại** ngay lập tức — **không hỏi xác nhận lại** (bỏ hộp confirm theo yêu cầu của Minh) — kết quả chuyển sang Đã phát hành và rời nhóm Chờ phát hành. Kết quả chưa có nội dung (Chưa kết quả) hoặc đã phát hành thì không hiện nút này.
 - **Muốn sửa phải bấm nút cây bút** trên dòng. Bấm trực tiếp vào dòng hoặc vào ID **không** mở form sửa.
+- **Nút + có ở cả tab Quản lý** (bổ sung theo yêu cầu của Minh, 2026-11-04): nút + là nút dùng chung, hiện ở tab Kết quả hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất PDF và khi đang mở form.
 - **Lưu xong giữ nguyên tab đang dùng**: bấm Lưu (hoặc Hủy) ở form thì quay về đúng tab trước khi mở form (đang ở Quản lý thì ở lại Quản lý) — không tự chuyển về tab "Kết quả hôm nay" (bổ sung theo yêu cầu của Minh, 2026-11-04).
 
 ### F3d — Nút Xem lớn + bảng tóm tắt kết quả (bổ sung theo yêu cầu của Minh, 2026-11-04)

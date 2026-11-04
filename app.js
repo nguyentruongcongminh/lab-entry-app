@@ -45,6 +45,8 @@ let mainView = 'today';
 function switchView(name) {
   ['today', 'manage', 'export', 'form'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
   $('bottom-nav').style.display = name === 'form' ? 'none' : 'flex';
+  /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và trong form */
+  $('fab-add').classList.toggle('hidden', name === 'form' || name === 'export');
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
   if (name !== 'form') mainView = name;
   if (name === 'today') renderToday();

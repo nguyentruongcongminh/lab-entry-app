@@ -387,6 +387,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(row, 'mẫu vừa nhận nằm trong nhóm Chưa kết quả của tab Quản lý');
   });
 
+  test('tab Quản lý cũng có nút + thêm mới như tab Hôm nay; tab Lọc và form thì không', () => {
+    document.querySelector('[data-view="manage"]').click();
+    assert.ok(!($('fab-add').classList.contains('hidden')), 'ở Quản lý: nút + hiện');
+    assert.notStrictEqual(window.getComputedStyle($('fab-add')).display, 'none');
+    $('fab-add').click();
+    assert.ok(visible($('view-form')), 'bấm + ở Quản lý mở được form thêm mới');
+    assert.ok($('fab-add').classList.contains('hidden'), 'trong form: nút + ẩn');
+    $('btn-cancel').click();
+    assert.ok(visible($('view-manage')), 'hủy form quay lại Quản lý');
+    document.querySelector('[data-view="export"]').click();
+    assert.ok($('fab-add').classList.contains('hidden'), 'ở tab Lọc & Xuất: nút + ẩn');
+    document.querySelector('[data-view="today"]').click();
+    assert.ok(!($('fab-add').classList.contains('hidden')), 'ở Hôm nay: nút + hiện');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);
