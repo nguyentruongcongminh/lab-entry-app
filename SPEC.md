@@ -66,6 +66,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Danh mục (loại xét nghiệm) giữ nguyên cả phiên**: chọn loại trước khi quét; sau khi nhận thành công mã đầu tiên, ô chọn loại bị **khóa** — muốn đổi loại phải dừng phiên và mở phiên mới.
 - Mã **trùng ID + loại** trong lúc quét: báo "Đã tồn tại — bỏ qua", không tạo thêm, phiên vẫn tiếp tục.
 - Có **ô nhập tay dự phòng** (nhập ID + bấm "Nhận mẫu", hoặc phím Enter) hoạt động y hệt quét camera khi thiết bị không hỗ trợ camera/quét — vẫn liên tục.
+- **Giao diện màn hình quét (bản v7)**: màn hình chuyên dụng **nền tối** kiểu ứng dụng quét mã chuyên nghiệp — tiêu đề phiên + chấm trạng thái "đang quét" nhấp nháy, **khung ngắm camera có 4 góc định vị và vạch quét chạy**, dòng trạng thái dạng băng màu (xanh khi nhận thành công, đỏ khi trùng/lỗi), khi loại bị khóa hiện **dòng chú thích khóa** kèm icon, danh sách mẫu đã nhận trong phiên nằm trong một thẻ riêng có dấu ✓ và giờ nhận, nút **Dừng quét màu đỏ** lớn ở cuối. Máy không hỗ trợ camera thì khung camera ẩn đi, chỉ còn ô nhập tay.
 - Ngoại lệ: mở quét từ **form sửa** một bản ghi thì là chế độ 1 mã — nhận mã xong điền vào ô ID của form và tự đóng, không tạo bản ghi mới.
 
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
