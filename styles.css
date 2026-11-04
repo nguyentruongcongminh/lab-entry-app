@@ -296,3 +296,30 @@ svg { width: 24px; height: 24px; display: block; }
 @media (prefers-reduced-motion: reduce) {
   .scan-line, .live-dot, .scanner-box { animation: none; }
 }
+
+/* ---------- Sửa tràn khung màn hình quét (v8): cố định toàn màn hình,
+   chỉ danh sách mẫu cuộn ở giữa, nút Dừng quét luôn ghim ở đáy ---------- */
+#scanner-modal { padding: 0; align-items: stretch; justify-content: stretch; }
+.scanner-box {
+  width: 100%; max-width: none; height: 100%; max-height: none;
+  border-radius: 0; overflow: hidden;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column;
+}
+.scanner-box > * { flex: 0 0 auto; }
+.scan-frame video { max-height: 32vh; }
+#scanner-modal .scanner-session {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+#scanner-modal .scanner-list { max-height: none; }
+.stop-btn { margin-top: 14px; }
+@media (max-height: 620px) {
+  .scan-frame video { max-height: 24vh; }
+  .scanner-subtitle { display: none; }
+  .scanner-head { margin-bottom: 10px; }
+}
+@media (min-width: 560px) {
+  #scanner-modal { padding: 24px; align-items: center; justify-content: center; }
+  .scanner-box { max-width: 460px; height: auto; max-height: 94vh; border-radius: 20px; }
+}
