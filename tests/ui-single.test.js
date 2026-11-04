@@ -400,6 +400,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('fab-add').classList.contains('hidden'), 'ở tab Lọc & Xuất: nút + ẩn');
     document.querySelector('[data-view="today"]').click();
     assert.ok(!($('fab-add').classList.contains('hidden')), 'ở Hôm nay: nút + hiện');
+    assert.strictEqual(window.getComputedStyle($('fab-add')).width, '48px', 'nút + đã thu nhỏ còn 48px');
+    assert.strictEqual(window.getComputedStyle($('list-today')).paddingBottom, '148px', 'cuối danh sách có khoảng trống để dòng cuối không bị nút + che');
   });
 
   test('thống kê tab Quản lý khớp danh sách; mẫu chờ quá 60 phút bị tô đỏ; tiếng bíp an toàn khi máy không có âm thanh', () => {
