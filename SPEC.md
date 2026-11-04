@@ -73,6 +73,12 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Bố cục chống tràn (bản v8)**: màn hình quét cố định toàn màn hình theo cột dọc — phần đầu, khung camera (giới hạn chiều cao 32% màn hình), băng trạng thái và ô nhập tay cố định; **chỉ danh sách mẫu của phiên cuộn** ở khoảng giữa; **nút Dừng quét luôn ghim ở đáy màn hình**, không bao giờ bị đẩy ra ngoài khung (bản v7 bị tràn, không thấy nút dừng trên điện thoại).
 - Ngoại lệ: mở quét từ **form sửa** một bản ghi thì là chế độ 1 mã — nhận mã xong điền vào ô ID của form và tự đóng, không tạo bản ghi mới.
 
+### F6 — Thống kê ngày, cảnh báo chờ lâu, tiếng bíp khi quét (bổ sung theo lựa chọn của Minh, 2026-11-04)
+
+- **Thanh thống kê đầu tab Quản lý**: 4 ô — *Nhận hôm nay*, *Chưa kết quả* (tổng đang tồn), *Chờ phát hành* (tổng đang tồn), *Phát hành hôm nay*. Cập nhật mỗi lần mở/refresh tab.
+- **Cảnh báo chờ lâu**: mẫu ở trạng thái Chưa kết quả hoặc Chờ phát hành mà đã chờ quá **60 phút** (cấu hình `overdueMinutes` trong config.js) kể từ giờ nhận sẽ bị **tô đỏ** kèm dòng "Đã chờ X giờ Y phút" trong cả tab Hôm nay và Quản lý. App tự làm mới danh sách mỗi phút (khi đang không thao tác) để mẫu vừa quá ngưỡng tự chuyển đỏ.
+- **Tiếng bíp khi bắn mã** (WebAudio, không cần file nhạc): nhận thành công = 1 bíp cao ngắn (1320 Hz, 90 ms); quét trùng/lỗi = 1 bíp trầm dài hơn (240 Hz, 200 ms); kèm rung như trước. Máy không hỗ trợ âm thanh thì bỏ qua êm, không lỗi.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

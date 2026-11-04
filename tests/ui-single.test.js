@@ -402,6 +402,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(!($('fab-add').classList.contains('hidden')), 'ở Hôm nay: nút + hiện');
   });
 
+  test('thống kê tab Quản lý khớp danh sách; mẫu chờ quá 60 phút bị tô đỏ; tiếng bíp an toàn khi máy không có âm thanh', () => {
+    assert.strictEqual(typeof window.beepOk, 'function');
+    window.beepOk(); window.beepErr(); // jsdom không có AudioContext: không được văng lỗi
+    document.querySelector('[data-view="manage"]').click();
+    assert.strictEqual(Number($('stat-noresult').textContent), $('list-noresult').children.length, 'số Chưa kết quả khớp danh sách');
+    assert.strictEqual(Number($('stat-pending').textContent), $('list-pending').children.length, 'số Chờ phát hành khớp danh sách');
+    assert.ok(Number($('stat-received').textContent) >= $('list-today').children.length);
+    /* Tạo một mẫu đã nhận cách đây 90 phút mà chưa có kết quả */
+    const added = window.eval("store.add({ testId: '261104OLD1', typeId: 'sp', results: {} }, new Date(Date.now() - 90 * 60000))");
+    assert.ok(added && added.ok);
+    document.querySelector('[data-view="today"]').click();
+    document.querySelector('[data-view="manage"]').click();
+    const oldRow = [...$('list-noresult').children].find((x) => x.textContent.includes('261104OLD1'));
+    assert.ok(oldRow.classList.contains('overdue'), 'mẫu chờ 90 phút phải bị tô đỏ cảnh báo');
+    assert.ok(oldRow.textContent.includes('Đã chờ'), 'hiện rõ thời gian đã chờ');
+    const freshRow = [...$('list-noresult').children].find((x) => x.textContent.includes('2611043003'));
+    assert.ok(freshRow && !freshRow.classList.contains('overdue'), 'mẫu mới nhận không bị cảnh báo');
+    assert.strictEqual(Number($('stat-noresult').textContent), $('list-noresult').children.length, 'thống kê cập nhật khớp sau khi thêm mẫu cũ');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

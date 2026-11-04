@@ -56,10 +56,23 @@ function switchView(name) {
 }
 
 /* ================= Danh sách dùng chung ================= */
+/* Thời gian đã chờ, dạng gọn: "45 phút", "1 giờ 05 phút", "3 giờ" */
+function fmtWait(iso) {
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return mins + ' phút';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h + ' giờ' + (m > 0 ? ' ' + (m < 10 ? '0' : '') + m + ' phút' : '');
+}
+
 function recordItemHTML(rec, opts) {
   const o = opts || {};
   const type = getTestType(rec.typeId);
   const status = store.statusOf(rec);
+  /* Mẫu đang chờ mà quá ngưỡng (mặc định 60 phút) -> cảnh báo để không sót mẫu */
+  const isOverdue = (status === 'no-result' || status === 'pending-release') &&
+    (Date.now() - new Date(rec.createdAt).getTime() > (LAB_CONFIG.overdueMinutes || 60) * 60000);
+  const waitLine = isOverdue ? '<div class="record-wait">Đã chờ ' + esc(fmtWait(rec.createdAt)) + '</div>' : '';
   const checkbox = o.selectable
     ? '<input type="checkbox" data-select="' + rec.uid + '"' + (selectedUids.has(rec.uid) ? ' checked' : '') + '>'
     : '';
@@ -79,9 +92,9 @@ function recordItemHTML(rec, opts) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
   const actions = (!viewBtn && o.readonly) ? '' :
     '<div class="record-actions">' + viewBtn + releaseBtn + editDeleteBtns + '</div>';
-  return '<li class="record-item">' + checkbox +
+  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + '</div>' +
-    '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div></div>' +
+    '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
     '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' + actions + '</div></li>';
 }
@@ -210,8 +223,27 @@ function setSelectMode(on) {
 }
 
 /* ================= Tab Quản lý ================= */
+/* Thanh thống kê ở đầu tab Quản lý: nhận/phát hành tính theo hôm nay, tồn chờ tính tổng */
+function renderStats(all) {
+  const dayKey = (iso) => { if (!iso) return ''; const d = new Date(iso); return d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate(); };
+  const today = dayKey(new Date().toISOString());
+  let received = 0, released = 0, noresult = 0, pending = 0;
+  all.forEach((r) => {
+    const st = store.statusOf(r);
+    if (st === 'no-result') noresult += 1;
+    if (st === 'pending-release') pending += 1;
+    if (dayKey(r.createdAt) === today) received += 1;
+    if (r.releaseAt && dayKey(r.releaseAt) === today) released += 1;
+  });
+  $('stat-received').textContent = received;
+  $('stat-noresult').textContent = noresult;
+  $('stat-pending').textContent = pending;
+  $('stat-released').textContent = released;
+}
+
 function renderManage() {
   const all = store.getAll();
+  renderStats(all);
   /* Chờ phát hành: mới nhất lên đầu */
   const pending = all.filter((r) => store.statusOf(r) === 'pending-release')
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
@@ -349,6 +381,38 @@ let scanStream = null;
 let scanTimer = null;
 let scannerState = null;
 
+/* ---- Tiếng bíp khi bắn mã (WebAudio, không cần file âm thanh) ---- */
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) { /* thiết bị không hỗ trợ: bỏ qua */ }
+}
+function beep(freq, ms) {
+  try {
+    if (!audioCtx) unlockAudio();
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + ms / 1000 + 0.05);
+  } catch (e) { /* bỏ qua nếu không phát được tiếng */ }
+}
+function beepOk() { beep(1320, 90); }   /* nhận thành công: bíp cao, ngắn */
+function beepErr() { beep(240, 200); }  /* quét trùng/lỗi: bíp trầm, dài hơn */
+
 function setScanMsg(text, kind) {
   const msg = $('scanner-msg');
   msg.textContent = text;
@@ -379,6 +443,7 @@ function openScanner(source) {
   $('scanner-manual').classList.toggle('hidden', !single);
   updateScanCount();
   $('scanner-modal').classList.remove('hidden');
+  unlockAudio();
   setScanMsg(single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...');
   startCamera();
 }
@@ -398,6 +463,7 @@ function acceptScanCode(rawCode) {
 
   if (scannerState.single) {
     $('input-testid').value = code;
+    beepOk();
     toast('Đã quét mã: ' + code);
     closeScanner();
     return true;
@@ -407,12 +473,14 @@ function acceptScanCode(rawCode) {
   const type = getTestType(typeId);
   if (store.findDuplicate({ testId: code, typeId })) {
     setScanMsg('Đã tồn tại: ' + code + ' (' + (type ? type.name : typeId) + ') — bỏ qua, quét mã tiếp theo', 'err');
+    beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
     return false;
   }
   const res = store.add({ testId: code, typeId, results: {} });
   if (!res.ok) {
     setScanMsg(res.errors.join('. '), 'err');
+    beepErr();
     return false;
   }
   lockScannerType();
@@ -423,6 +491,7 @@ function acceptScanCode(rawCode) {
   const list = $('scanner-list');
   list.insertBefore(li, list.firstChild);
   setScanMsg('Đã nhận mẫu: ' + code + ' — quét mã tiếp theo, hoặc bấm "Dừng quét"', 'ok');
+  beepOk();
   if (navigator.vibrate) navigator.vibrate(60);
   refreshCurrent();
   return true;
@@ -560,6 +629,15 @@ function init() {
   });
 
   switchView('today');
+
+  /* Mỗi phút tự làm mới danh sách (khi đang rảnh) để mẫu vừa quá ngưỡng chờ
+     tự chuyển sang trạng thái cảnh báo mà không cần tải lại trang */
+  setInterval(() => {
+    const idle = $('view-form').classList.contains('hidden') &&
+      $('scanner-modal').classList.contains('hidden') &&
+      $('summary-modal').classList.contains('hidden') && !selectMode;
+    if (idle && (mainView === 'today' || mainView === 'manage')) refreshCurrent();
+  }, 60000);
 }
 
 document.addEventListener('DOMContentLoaded', init);

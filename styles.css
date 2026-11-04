@@ -335,3 +335,22 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 13px; font-size: 16px; font-weight: 600;
 }
 .secondary-btn:active { background: #cfd8dc; }
+
+/* Thanh thống kê ở đầu tab Quản lý */
+.stats-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  padding: 12px 12px 2px; background: var(--card);
+}
+.stat {
+  background: #f5f8fb; border: 1px solid #e3ecf3; border-radius: 10px;
+  padding: 9px 4px 7px; text-align: center;
+}
+.stat-num { display: block; font-size: 22px; font-weight: 800; line-height: 1.1; }
+.stat-num.warn { color: #e65100; }
+.stat-num.warn2 { color: #1565c0; }
+.stat-num.ok { color: #2e7d32; }
+.stat-label { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.25; }
+
+/* Mẫu chờ quá ngưỡng: tô đỏ cảnh báo */
+.record-item.overdue { background: #fff5f5; box-shadow: inset 4px 0 0 #ef5350; }
+.record-wait { color: #d32f2f; font-size: 13px; font-weight: 700; margin-top: 2px; }

@@ -11,6 +11,8 @@
  *            (bấm lại nút đang chọn để bỏ chọn = không ghi nhận)
  */
 const LAB_CONFIG = {
+  /* Mẫu chờ (chưa có kết quả hoặc chờ phát hành) quá số phút này sẽ bị tô đỏ cảnh báo */
+  overdueMinutes: 60,
   testTypes: [
     {
       id: 'cao-tim-nam',
