@@ -1,0 +1,109 @@
+# ĐẶC TẢ + KIẾN TRÚC — App nhập kết quả xét nghiệm soi (LabEntry)
+
+Nguồn yêu cầu: 9 ảnh chụp màn hình app mẫu do Minh gửi 2026-11-04.
+Trạng thái: Minh ĐÃ DUYỆT ngày 2026-11-04 ("Duyệt, bắt đầu code") — đã code xong, test thật 27/27 đạt, đã đóng gói giao (xem README.md).
+
+---
+
+## 1. Mục đích
+
+App web HTML5/CSS/JavaScript (mobile-first, giao diện giống ảnh mẫu) để kỹ thuật viên:
+
+- Nhập kết quả các xét nghiệm soi/ký sinh theo từng loại xét nghiệm.
+- Quản lý kết quả trong ngày: sửa, xóa, tìm kiếm.
+- Theo dõi trạng thái: chưa có kết quả / chờ phát hành / đã phát hành.
+- Lọc và xuất kết quả ra PDF.
+
+## 2. Chức năng trích từ ảnh mẫu
+
+### F1 — Tab "Kết quả hôm nay" (màn hình chính)
+
+- Danh sách kết quả đã nhập trong ngày, mỗi dòng: **ID Xét nghiệm** (đậm), **Loại xét nghiệm**, **thời gian nhập** (dd/mm/yyyy hh:mm).
+- Thao tác từng dòng: **Xóa** (icon thùng rác), **Sửa** (icon bút).
+- Thanh công cụ trên: menu/lọc, **tìm kiếm**, **chọn nhiều**, **làm mới**.
+- Nút **"+"** (FAB góc phải dưới) mở form thêm mới.
+- Thanh điều hướng dưới 3 tab: **Kết quả hôm nay** | **Quản lý** | **Lọc & Xuất kết quả PDF**.
+
+### F2 — Form nhập/sửa kết quả (khung chung)
+
+- **ID Xét Nghiệm \*** (bắt buộc) — ô nhập kèm nút quét mã QR/barcode.
+- **Loại Xét Nghiệm** — dropdown; đổi loại thì bộ trường kết quả bên dưới thay đổi theo.
+- Các trường kết quả riêng theo loại (mục 3).
+- **Ghi chú chung** — text tự do.
+- **Ngày giờ phát hành** — chọn ngày giờ (để trống = chưa phát hành).
+- **Ngày Giờ** — thời điểm nhập, app tự điền sẵn.
+- Nút **Hủy** (không lưu) / **Lưu** (lưu kết quả).
+
+### F3 — Tab "Quản lý"
+
+Hai nhóm danh sách:
+
+- **Chờ phát hành**: đã có kết quả nhưng chưa có ngày giờ phát hành.
+- **Chưa kết quả**: đã tạo ID nhưng chưa nhập trường kết quả nào.
+
+Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
+
+### F4 — Tab "Lọc & Xuất kết quả PDF"
+
+- Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.
+- Xuất danh sách sau lọc ra PDF (bản in để lưu/ký).
+
+### F5 — Quy tắc trạng thái (suy ra từ ảnh mẫu, chờ Minh xác nhận)
+
+| Điều kiện | Trạng thái |
+|---|---|
+| Chưa nhập trường kết quả nào | Chưa kết quả |
+| Đã có kết quả, chưa có ngày giờ phát hành | Chờ phát hành |
+| Đã có kết quả và ngày giờ phát hành | Đã phát hành |
+
+## 3. Sáu loại xét nghiệm và bộ trường kết quả (theo ảnh)
+
+Trường dạng **chip** = nút chọn một trong các mức (+), (++), (+++); bấm lại để bỏ chọn.
+Trường dạng **text** = ô nhập tự do.
+
+| # | Loại xét nghiệm | Trường kết quả |
+|---|---|---|
+| 1 | Cạo tìm nấm | Kết quả (text) |
+| 2 | Soi nhuộm mực tàu DNT | Kết quả (text) |
+| 3 | Soi tinh thể dịch | Kết quả (text) |
+| 4 | Soi tươi huyết trắng | Nấm (chip 3 mức) · Tạp trùng (chip 3 mức) · Trichomonas (chip 3 mức) · Bạch cầu (text) · Tế bào (text) · Hồng cầu (chip 3 mức) · Clue cell (chip 1 mức: (+)) · Lactobaccilli (chip 2 mức: (+), (++)) · Khác (text) |
+| 5 | Máu ẩn | Kết quả (text) |
+| 6 | SP (soi phân) | Hồng cầu (chip 3 mức) · Bạch cầu (chip 3 mức) · Ký sinh trùng (text) · Khác (text) |
+
+Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Giờ (tự điền).
+
+## 4. Tiêu chí nghiệm thu (test trước khi giao — phải chạy thật, có bằng chứng)
+
+1. Thêm mới đủ 6 loại XN; đổi dropdown thì bộ trường đổi đúng theo bảng mục 3.
+2. Thiếu ID → không cho lưu, báo lỗi rõ.
+3. Chip (+)/(++)/(+++): chọn 1 mức, đổi mức, bấm lại để bỏ chọn — hoạt động đúng.
+4. Lưu xong hiện đúng trong "Kết quả hôm nay" với ID, loại, giờ nhập.
+5. Sửa một kết quả → nội dung cập nhật đúng; Xóa → mất khỏi danh sách (có hỏi xác nhận trước khi xóa).
+6. Phân loại trạng thái đúng bảng F5: bản ghi rỗng kết quả vào "Chưa kết quả"; có kết quả chưa phát hành vào "Chờ phát hành"; điền ngày giờ phát hành thì rời nhóm chờ.
+7. Tìm kiếm theo ID ra đúng kết quả; làm mới tải lại danh sách.
+8. Lọc theo ngày/loại/trạng thái đúng; xuất PDF mở được bản in đúng nội dung đã lọc.
+9. Tải lại trang (F5) → dữ liệu vẫn còn (lưu trữ trình duyệt).
+10. Giao diện hiển thị đúng trên khung điện thoại (chiều dọc, giống ảnh mẫu).
+
+## 5. Kiến trúc đề xuất
+
+- **Công nghệ**: HTML5 + CSS + JavaScript thuần (không framework, không cần server, không cần internet) — mở file `index.html` là chạy, hoặc đặt lên hosting tĩnh.
+- **Cấu trúc file**:
+  - `index.html` — khung 3 tab + form.
+  - `styles.css` — giao diện mobile giống mẫu (nền trắng/xám nhạt, nút xanh dương, bottom nav).
+  - `config.js` — khai báo 6 loại XN và bộ trường (thêm/bớt loại chỉ sửa file này).
+  - `store.js` — lưu/đọc dữ liệu bằng localStorage, suy ra trạng thái.
+  - `app.js` — điều khiển giao diện: danh sách, form động, tìm kiếm, lọc, quản lý.
+  - `print.css` — định dạng bản in/PDF.
+- **Mô hình dữ liệu** (mỗi bản ghi): `{ maID, loaiXN, ketQua: {tênTrường: giá trị}, ghiChu, ngayGioPhatHanh (null nếu chưa), ngayGioNhap, thoiDiemSuaCuoi }`. Trạng thái suy ra theo F5, không lưu cứng.
+- **Xuất PDF**: dùng cửa sổ in của trình duyệt (Save as PDF) với `print.css` — không cần thư viện ngoài, chạy offline.
+- **Bảo mật/dữ liệu**: dữ liệu chỉ nằm trên máy người dùng (localStorage); không gửi đi đâu. Có nút xuất/nhập file JSON để sao lưu (đề xuất thêm).
+- **Test**: bộ test tự động cho logic (kiểm tra bắt buộc ID, suy ra trạng thái, lọc) chạy bằng Node + kiểm tra giao diện bằng trình duyệt headless (mở trang, chụp màn hình, thao tác thử) — kết quả test ghi vào README khi giao.
+
+## 6. Câu hỏi mở — mặc định đề xuất, Minh chốt khi duyệt
+
+1. **Lưu trữ**: mặc định lưu trên 1 máy (localStorage). Nếu cần nhiều máy dùng chung/đồng bộ server thì phải thêm backend — ngoài phạm vi bản này.
+2. **Chip không chọn** (vd Nấm không bấm mức nào): mặc định hiểu là "âm tính/không ghi nhận"; khi in PDF hiển thị "Âm tính". Nếu khoa có quy ước khác, báo lại.
+3. **Nút quét QR/barcode** ở ô ID: mặc định làm quét bằng camera điện thoại nếu trình duyệt hỗ trợ, nhập tay vẫn là chính. Nếu chỉ cần trang trí giống mẫu thì bỏ qua chức năng quét.
+4. **Danh sách loại XN**: giữ đúng 6 loại như ảnh; thêm loại khác (nhuộm Gram, soi tươi dịch...) thì liệt kê thêm khi duyệt.
+5. **PDF**: mặc định xuất bảng tổng hợp các kết quả đã lọc; nếu cần mỗi bệnh nhân một phiếu riêng thì làm thêm mẫu phiếu.

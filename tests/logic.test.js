@@ -1,0 +1,148 @@
+'use strict';
+/* Test logic nghiệp vụ (config + store) bằng Node:  node tests/logic.test.js */
+const assert = require('node:assert');
+const { LAB_CONFIG, getTestType } = require('../config.js');
+const LabStore = require('../store.js');
+
+let passed = 0;
+function test(name, fn) {
+  fn();
+  passed += 1;
+  console.log('PASS  ' + name);
+}
+
+const D = (s) => new Date(s);
+
+/* ---------- Cấu hình 6 loại xét nghiệm ---------- */
+test('config có đúng 6 loại xét nghiệm, id không trùng', () => {
+  assert.strictEqual(LAB_CONFIG.testTypes.length, 6);
+  const ids = LAB_CONFIG.testTypes.map((t) => t.id);
+  assert.strictEqual(new Set(ids).size, 6);
+  ['Cạo tìm nấm', 'Soi nhuộm mực tàu DNT', 'Soi tinh thể dịch', 'Soi tươi huyết trắng', 'Máu ẩn', 'SP']
+    .forEach((n) => assert.ok(LAB_CONFIG.testTypes.some((t) => t.name === n), n));
+});
+
+test('Soi tươi huyết trắng có đủ 9 trường đúng dạng', () => {
+  const t = getTestType('soi-tuoi-huyet-trang');
+  assert.strictEqual(t.fields.length, 9);
+  const byKey = Object.fromEntries(t.fields.map((f) => [f.key, f]));
+  assert.deepStrictEqual(byKey.nam.levels, ['(+)', '(++)', '(+++)']);
+  assert.deepStrictEqual(byKey.tapTrung.levels, ['(+)', '(++)', '(+++)']);
+  assert.deepStrictEqual(byKey.trichomonas.levels, ['(+)', '(++)', '(+++)']);
+  assert.deepStrictEqual(byKey.hongCau.levels, ['(+)', '(++)', '(+++)']);
+  assert.deepStrictEqual(byKey.clueCell.levels, ['(+)']);
+  assert.deepStrictEqual(byKey.lactobacilli.levels, ['(+)', '(++)']);
+  assert.strictEqual(byKey.bachCau.type, 'text');
+  assert.strictEqual(byKey.teBao.type, 'text');
+  assert.strictEqual(byKey.khac.type, 'text');
+});
+
+test('SP có 4 trường: 2 chips 3 mức + Ký sinh trùng + Khác', () => {
+  const t = getTestType('sp');
+  assert.strictEqual(t.fields.length, 4);
+  const byKey = Object.fromEntries(t.fields.map((f) => [f.key, f]));
+  assert.deepStrictEqual(byKey.hongCau.levels, ['(+)', '(++)', '(+++)']);
+  assert.deepStrictEqual(byKey.bachCau.levels, ['(+)', '(++)', '(+++)']);
+  assert.strictEqual(byKey.kySinhTrung.type, 'text');
+  assert.strictEqual(byKey.khac.type, 'text');
+});
+
+test('3 loại đơn + Máu ẩn: mỗi loại 1 trường Kết quả dạng text', () => {
+  ['cao-tim-nam', 'soi-muc-tau-dnt', 'soi-tinh-the-dich', 'mau-an'].forEach((id) => {
+    const t = getTestType(id);
+    assert.strictEqual(t.fields.length, 1, id);
+    assert.strictEqual(t.fields[0].key, 'ketQua');
+    assert.strictEqual(t.fields[0].type, 'text');
+  });
+});
+
+/* ---------- Kiểm tra hợp lệ ---------- */
+test('thiếu ID Xét Nghiệm -> không cho lưu', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: '   ', typeId: 'sp', results: {} });
+  assert.strictEqual(r.ok, false);
+  assert.ok(r.errors.length >= 1);
+  assert.strictEqual(s.getAll().length, 0);
+});
+
+test('loại xét nghiệm không tồn tại -> không cho lưu', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: '2611041000', typeId: 'khong-co', results: {} });
+  assert.strictEqual(r.ok, false);
+});
+
+/* ---------- Thêm + lưu trữ bền ---------- */
+test('thêm kết quả và đọc lại từ storage (mô phỏng tải lại trang)', () => {
+  const storage = LabStore.memoryStorage();
+  const s1 = LabStore.createStore(storage, getTestType);
+  const r = s1.add({ testId: '2611041225', typeId: 'soi-tuoi-huyet-trang', results: { nam: '(++)' } }, D('2026-11-04T07:52:00'));
+  assert.strictEqual(r.ok, true);
+  const s2 = LabStore.createStore(storage, getTestType);
+  assert.strictEqual(s2.getAll().length, 1);
+  assert.strictEqual(s2.getAll()[0].testId, '2611041225');
+  assert.strictEqual(s2.getAll()[0].results.nam, '(++)');
+});
+
+/* ---------- Trạng thái (đặc tả F5) ---------- */
+test('chưa nhập trường kết quả nào -> Chưa kết quả (ghi chú không tính)', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'A1', typeId: 'sp', results: { hongCau: '', kySinhTrung: '  ' }, note: 'có ghi chú' });
+  assert.strictEqual(s.statusOf(r.record), 'no-result');
+});
+
+test('có kết quả, chưa phát hành -> Chờ phát hành', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'A2', typeId: 'sp', results: { hongCau: '(+)' } });
+  assert.strictEqual(s.statusOf(r.record), 'pending-release');
+});
+
+test('có kết quả + ngày giờ phát hành -> Đã phát hành', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'A3', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' }, releaseAt: '2026-11-04T09:00:00.000Z' });
+  assert.strictEqual(s.statusOf(r.record), 'released');
+});
+
+/* ---------- Sửa / Xóa ---------- */
+test('sửa kết quả làm đổi trạng thái; điền phát hành thì rời nhóm chờ', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'A4', typeId: 'mau-an', results: {} });
+  assert.strictEqual(s.statusOf(r.record), 'no-result');
+  const u1 = s.update(r.record.uid, { results: { ketQua: 'Dương tính' } });
+  assert.strictEqual(u1.ok, true);
+  assert.strictEqual(s.statusOf(u1.record), 'pending-release');
+  const u2 = s.update(r.record.uid, { releaseAt: '2026-11-04T10:00:00.000Z' });
+  assert.strictEqual(s.statusOf(u2.record), 'released');
+  const bad = s.update('uid-khong-ton-tai', { results: {} });
+  assert.strictEqual(bad.ok, false);
+});
+
+test('sửa mà xóa trắng ID -> bị chặn; xóa bản ghi hoạt động đúng', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'A5', typeId: 'sp', results: { bachCau: '(+)' } });
+  const bad = s.update(r.record.uid, { testId: ' ' });
+  assert.strictEqual(bad.ok, false);
+  assert.strictEqual(s.remove('khong-co'), false);
+  assert.strictEqual(s.remove(r.record.uid), true);
+  assert.strictEqual(s.getAll().length, 0);
+});
+
+/* ---------- Lọc / tìm kiếm ---------- */
+test('lọc theo ID (một phần, không phân biệt hoa thường), loại, trạng thái, ngày', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  s.add({ testId: '2611041225', typeId: 'soi-tuoi-huyet-trang', results: { nam: '(+)' } }, D('2026-11-04T07:52:00'));
+  s.add({ testId: '2611041050', typeId: 'soi-tuoi-huyet-trang', results: {} }, D('2026-11-04T07:55:00'));
+  s.add({ testId: '2611041238', typeId: 'sp', results: { hongCau: '(+++)' }, releaseAt: '2026-11-04T08:30:00.000Z' }, D('2026-11-04T07:58:00'));
+  s.add({ testId: '2611039999', typeId: 'sp', results: { khac: 'x' } }, D('2026-11-03T15:00:00'));
+
+  assert.strictEqual(s.filter(null, { query: '41225' }).length, 1);
+  assert.strictEqual(s.filter(null, { query: '261104' }).length, 3);
+  assert.strictEqual(s.filter(null, { typeId: 'sp' }).length, 2);
+  assert.strictEqual(s.filter(null, { status: 'no-result' }).length, 1);
+  assert.strictEqual(s.filter(null, { status: 'pending-release' }).length, 2);
+  assert.strictEqual(s.filter(null, { status: 'released' }).length, 1);
+  assert.strictEqual(s.filter(null, { from: '2026-11-04', to: '2026-11-04' }).length, 3);
+  assert.strictEqual(s.filter(null, { from: '2026-11-03', to: '2026-11-03' }).length, 1);
+  assert.strictEqual(s.filter(null, { typeId: 'sp', from: '2026-11-04', to: '2026-11-04' }).length, 1);
+});
+
+console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

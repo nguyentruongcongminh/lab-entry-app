@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Nhập kết quả xét nghiệm</title>
+<style>
+/* styles.css — Giao diện mobile theo ảnh mẫu: nền xám nhạt, thẻ trắng, điểm nhấn xanh dương */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #1e88e5;
+  --blue-dark: #1565c0;
+  --text: #212121;
+  --muted: #616161;
+  --line: #e0e0e0;
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --danger: #d32f2f;
+}
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: 76px;
+}
+.hidden { display: none !important; }
+button { font: inherit; background: none; border: none; cursor: pointer; color: inherit; }
+input, select { font: inherit; color: inherit; }
+svg { width: 24px; height: 24px; display: block; }
+
+/* ---------- Thanh công cụ + danh sách ---------- */
+.toolbar {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--card); padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5;
+}
+.toolbar-spacer { flex: 1; }
+.icon-btn { padding: 8px; border-radius: 8px; color: #37474f; }
+.icon-btn:active { background: #eceff1; }
+.icon-btn.ghost { visibility: hidden; }
+
+.search-bar, .select-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card); padding: 8px 12px; border-bottom: 1px solid var(--line);
+}
+.search-bar input {
+  flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px;
+}
+.select-bar { font-size: 15px; }
+.text-btn { color: var(--blue); font-weight: 600; padding: 6px 4px; }
+.text-btn.danger { color: var(--danger); }
+
+.record-list { list-style: none; background: var(--card); }
+.record-item {
+  display: flex; gap: 10px; padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line); align-items: flex-start;
+}
+.record-item input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--blue); }
+.record-main { flex: 1; min-width: 0; }
+.record-id { font-weight: 700; font-size: 17px; }
+.record-type { color: var(--muted); margin-top: 3px; font-size: 15px; }
+.record-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.record-time { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+.record-actions { display: flex; gap: 4px; }
+.record-actions .icon-btn { padding: 5px; color: #546e7a; }
+.record-actions svg { width: 21px; height: 21px; }
+.status-tag { font-size: 12.5px; padding: 2px 8px; border-radius: 10px; background: #e3f2fd; color: var(--blue-dark); white-space: nowrap; }
+.status-tag.no-result { background: #f3e5f5; color: #6a1b9a; }
+.status-tag.released { background: #e8f5e9; color: #2e7d32; }
+
+.empty-msg { text-align: center; color: var(--muted); padding: 34px 16px; font-size: 16px; background: var(--card); }
+
+.fab {
+  position: fixed; right: 18px; bottom: 92px; z-index: 20;
+  width: 58px; height: 58px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+}
+.fab svg { width: 30px; height: 30px; }
+
+.group-title {
+  font-size: 20px; font-weight: 600; padding: 16px 16px 10px;
+  background: var(--card); margin-top: 10px;
+}
+.group-title:first-of-type { margin-top: 0; }
+.page-title { font-size: 20px; font-weight: 600; padding: 18px 16px 6px; }
+
+/* ---------- Điều hướng dưới ---------- */
+#bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; background: var(--card); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 2px 7px; color: var(--muted); font-size: 12.5px; text-align: center;
+}
+.nav-btn svg { width: 23px; height: 23px; }
+.nav-btn.active { color: var(--blue); box-shadow: inset 0 -3px 0 var(--blue); }
+
+/* ---------- Form nhập ---------- */
+.entry-form { background: var(--card); padding: 6px 16px 18px; }
+.form-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid #f0f0f0;
+}
+.form-label { width: 34%; color: var(--muted); font-size: 15.5px; line-height: 1.35; }
+.form-label .required { color: var(--blue); }
+.form-row input[type="text"], .form-row select, .form-row input[type="datetime-local"] {
+  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px;
+  padding: 11px 10px; background: #fff; font-size: 16px;
+}
+.form-row select:focus, .form-row input:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+.id-input-wrap { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.id-input-wrap input { flex: 1; }
+.scan-btn { padding: 8px; color: #37474f; }
+.scan-btn svg { width: 26px; height: 26px; }
+.created-display {
+  flex: 1; border: 1px solid var(--line); border-radius: 6px;
+  padding: 11px 10px; color: var(--muted); background: #fafafa; font-size: 16px;
+}
+.form-error {
+  margin-top: 14px; color: var(--danger); background: #fdecea;
+  border: 1px solid #f5c6c2; border-radius: 6px; padding: 10px 12px; font-size: 15px;
+}
+.form-actions {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; background: var(--card); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.cancel-btn, .save-btn { flex: 1; padding: 16px; font-size: 17.5px; }
+.save-btn { color: var(--blue); font-weight: 700; }
+
+/* Nút chọn mức (+), (++), (+++) */
+.chips { flex: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  flex: 1; min-width: 64px; padding: 12px 4px; text-align: center;
+  border: 1px solid var(--line); border-radius: 6px; background: #fafafa;
+  font-size: 16.5px; color: #37474f;
+}
+.chip.selected { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+
+/* ---------- Lọc & xuất PDF ---------- */
+.filter-form { background: var(--card); padding: 8px 16px 16px; }
+.filter-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.filter-row span { width: 34%; color: var(--muted); font-size: 15.5px; }
+.filter-row input, .filter-row select {
+  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: #fff;
+}
+.filter-actions { display: flex; gap: 10px; margin-top: 16px; }
+.primary-btn {
+  flex: 1; background: var(--blue); color: #fff; border-radius: 6px;
+  padding: 12px; font-size: 16.5px; font-weight: 600;
+}
+.primary-btn.outline { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+.export-count { padding: 14px 16px 4px; color: var(--muted); font-size: 15px; }
+
+/* ---------- Quét mã + toast ---------- */
+.modal {
+  position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-box { background: #fff; border-radius: 10px; padding: 16px; width: 100%; max-width: 420px; text-align: center; }
+.modal-box video { width: 100%; border-radius: 8px; background: #000; }
+.scanner-msg { padding: 12px 4px; color: var(--muted); }
+.modal-box .primary-btn { width: 100%; }
+.toast {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60;
+  background: #323232; color: #fff; padding: 11px 18px; border-radius: 22px;
+  font-size: 15px; max-width: 88vw; text-align: center;
+}
+
+#print-area { display: none; }
+
+@media (min-width: 720px) {
+  body { max-width: 560px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  #bottom-nav, .form-actions { max-width: 560px; left: 50%; right: auto; transform: translateX(-50%); width: 100%; }
+  .fab { right: calc(50% - 262px); }
+}
+
+/* print.css — Khi in/xuất PDF: chỉ hiện bảng kết quả đã lọc */
+@media print {
+  body { padding: 0; background: #fff; max-width: none; border: none; }
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; font-family: Arial, sans-serif; color: #000; }
+  #print-area h1 { font-size: 18px; text-align: center; margin-bottom: 14px; }
+  #print-area table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  #print-area th, #print-area td {
+    border: 1px solid #444; padding: 5px 6px; text-align: left; vertical-align: top;
+  }
+  #print-area th { background: #e8e8e8; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ TAB: KẾT QUẢ HÔM NAY ============ -->
+<section id="view-today" class="view">
+  <header class="toolbar">
+    <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
+      <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
+    </button>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-search" class="icon-btn" title="Tìm kiếm" aria-label="Tìm kiếm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+    </button>
+    <button id="btn-select" class="icon-btn" title="Chọn nhiều" aria-label="Chọn nhiều">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 12.5l2.5 2.5 5-6"/></svg>
+    </button>
+    <button id="btn-refresh" class="icon-btn" title="Làm mới" aria-label="Làm mới">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3v4h-4"/></svg>
+    </button>
+  </header>
+
+  <div id="search-bar" class="search-bar hidden">
+    <input id="input-search" type="search" placeholder="Nhập ID xét nghiệm cần tìm...">
+    <button id="btn-search-close" class="text-btn">Đóng</button>
+  </div>
+
+  <div id="select-bar" class="select-bar hidden">
+    <span id="selected-count">Đã chọn 0</span>
+    <button id="btn-delete-selected" class="text-btn danger">Xóa đã chọn</button>
+    <button id="btn-cancel-select" class="text-btn">Đóng</button>
+  </div>
+
+  <ul id="list-today" class="record-list"></ul>
+  <div id="empty-today" class="empty-msg hidden">Không có kết quả</div>
+
+  <button id="fab-add" class="fab" title="Thêm kết quả" aria-label="Thêm kết quả">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</section>
+
+<!-- ============ TAB: QUẢN LÝ ============ -->
+<section id="view-manage" class="view hidden">
+  <header class="toolbar">
+    <button class="icon-btn ghost" aria-hidden="true"></button>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-search-manage" class="icon-btn" title="Tìm kiếm" aria-label="Tìm kiếm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.8-3.8"/></svg>
+    </button>
+    <button id="btn-refresh-manage" class="icon-btn" title="Làm mới" aria-label="Làm mới">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 3v4h-4"/></svg>
+    </button>
+  </header>
+
+  <h2 class="group-title">Chờ phát hành</h2>
+  <ul id="list-pending" class="record-list"></ul>
+  <div id="empty-pending" class="empty-msg hidden">Không có kết quả</div>
+
+  <h2 class="group-title">Chưa kết quả</h2>
+  <ul id="list-noresult" class="record-list"></ul>
+  <div id="empty-noresult" class="empty-msg hidden">Không có kết quả</div>
+</section>
+
+<!-- ============ TAB: LỌC & XUẤT PDF ============ -->
+<section id="view-export" class="view hidden">
+  <h2 class="page-title">Lọc &amp; Xuất kết quả PDF</h2>
+  <form id="filter-form" class="filter-form">
+    <label class="filter-row"><span>Từ ngày</span><input id="f-from" type="date"></label>
+    <label class="filter-row"><span>Đến ngày</span><input id="f-to" type="date"></label>
+    <label class="filter-row"><span>Loại xét nghiệm</span><select id="f-type"><option value="">Tất cả</option></select></label>
+    <label class="filter-row"><span>Trạng thái</span>
+      <select id="f-status">
+        <option value="">Tất cả</option>
+        <option value="no-result">Chưa kết quả</option>
+        <option value="pending-release">Chờ phát hành</option>
+        <option value="released">Đã phát hành</option>
+      </select>
+    </label>
+    <label class="filter-row"><span>ID xét nghiệm</span><input id="f-query" type="search" placeholder="Nhập một phần ID..."></label>
+    <div class="filter-actions">
+      <button type="button" id="btn-apply-filter" class="primary-btn">Lọc</button>
+      <button type="button" id="btn-print" class="primary-btn outline">Xuất PDF</button>
+    </div>
+  </form>
+  <div id="export-count" class="export-count"></div>
+  <ul id="list-export" class="record-list"></ul>
+  <div id="empty-export" class="empty-msg hidden">Không có kết quả</div>
+</section>
+
+<!-- ============ FORM NHẬP / SỬA ============ -->
+<section id="view-form" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-back" class="icon-btn" title="Quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+  </header>
+
+  <form id="entry-form" class="entry-form" novalidate>
+    <div class="form-row">
+      <label class="form-label" for="input-testid">ID Xét Nghiệm <span class="required">*</span></label>
+      <div class="id-input-wrap">
+        <input id="input-testid" type="text" autocomplete="off">
+        <button type="button" id="btn-scan" class="scan-btn" title="Quét mã" aria-label="Quét mã">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="select-type">Loại Xét Nghiệm</label>
+      <select id="select-type"></select>
+    </div>
+
+    <div id="fields-container"></div>
+
+    <div class="form-row">
+      <label class="form-label" for="input-note">Ghi chú chung</label>
+      <input id="input-note" type="text" autocomplete="off">
+    </div>
+
+    <div class="form-row">
+      <label class="form-label" for="input-release">Ngày giờ phát hành</label>
+      <input id="input-release" type="datetime-local">
+    </div>
+
+    <div class="form-row">
+      <span class="form-label">Ngày Giờ</span>
+      <div id="created-display" class="created-display"></div>
+    </div>
+
+    <div id="form-error" class="form-error hidden"></div>
+  </form>
+
+  <div class="form-actions">
+    <button id="btn-cancel" class="cancel-btn">Hủy</button>
+    <button id="btn-save" class="save-btn">Lưu</button>
+  </div>
+</section>
+
+<!-- ============ THANH ĐIỀU HƯỚNG DƯỚI ============ -->
+<nav id="bottom-nav">
+  <button class="nav-btn active" data-view="today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+    <span>Kết quả hôm nay</span>
+  </button>
+  <button class="nav-btn" data-view="manage">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12l9-8 9 8-9 8z"/><circle cx="8" cy="10" r="1.4" fill="currentColor"/></svg>
+    <span>Quản lý</span>
+  </button>
+  <button class="nav-btn" data-view="export">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/></svg>
+    <span>Lọc &amp; Xuất kết quả PDF</span>
+  </button>
+</nav>
+
+<!-- ============ QUÉT MÃ ============ -->
+<div id="scanner-modal" class="modal hidden">
+  <div class="modal-box">
+    <video id="scanner-video" playsinline muted></video>
+    <div id="scanner-msg" class="scanner-msg">Đang mở camera...</div>
+    <button id="btn-scanner-close" class="primary-btn">Đóng</button>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- ============ VÙNG IN PDF ============ -->
+<div id="print-area">
+  <h1 id="print-title">Danh sách kết quả xét nghiệm</h1>
+  <table>
+    <thead>
+      <tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Kết quả</th><th>Ghi chú</th><th>Ngày giờ nhập</th><th>Ngày giờ phát hành</th></tr>
+    </thead>
+    <tbody id="print-table-body"></tbody>
+  </table>
+</div>
+
+<script>
+'use strict';
+/*
+ * config.js — Khai báo các loại xét nghiệm và bộ trường kết quả.
+ * Muốn thêm/bớt loại xét nghiệm hoặc trường: chỉ sửa file này.
+ *
+ * Mỗi trường (field):
+ *   key    : khóa lưu trong dữ liệu (không dấu, không khoảng trắng)
+ *   label  : nhãn hiển thị (phần sau dấu ":" trong form mẫu)
+ *   type   : 'text'  -> ô nhập tự do
+ *            'chips' -> các nút chọn mức, ví dụ ['(+)', '(++)', '(+++)']
+ *            (bấm lại nút đang chọn để bỏ chọn = không ghi nhận)
+ */
+const LAB_CONFIG = {
+  testTypes: [
+    {
+      id: 'cao-tim-nam',
+      name: 'Cạo tìm nấm',
+      fields: [
+        { key: 'ketQua', label: 'Kết quả', type: 'text' },
+      ],
+    },
+    {
+      id: 'soi-muc-tau-dnt',
+      name: 'Soi nhuộm mực tàu DNT',
+      fields: [
+        { key: 'ketQua', label: 'Kết quả', type: 'text' },
+      ],
+    },
+    {
+      id: 'soi-tinh-the-dich',
+      name: 'Soi tinh thể dịch',
+      fields: [
+        { key: 'ketQua', label: 'Kết quả', type: 'text' },
+      ],
+    },
+    {
+      id: 'soi-tuoi-huyet-trang',
+      name: 'Soi tươi huyết trắng',
+      fields: [
+        { key: 'nam', label: 'Nấm', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'tapTrung', label: 'Tạp trùng', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'trichomonas', label: 'Trichomonas', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'bachCau', label: 'Bạch cầu', type: 'text' },
+        { key: 'teBao', label: 'Tế bào', type: 'text' },
+        { key: 'hongCau', label: 'Hồng cầu', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'clueCell', label: 'Clue cell', type: 'chips', levels: ['(+)'] },
+        { key: 'lactobacilli', label: 'Lactobaccilli', type: 'chips', levels: ['(+)', '(++)'] },
+        { key: 'khac', label: 'Khác', type: 'text' },
+      ],
+    },
+    {
+      id: 'mau-an',
+      name: 'Máu ẩn',
+      fields: [
+        { key: 'ketQua', label: 'Kết quả', type: 'text' },
+      ],
+    },
+    {
+      id: 'sp',
+      name: 'SP',
+      fields: [
+        { key: 'hongCau', label: 'Hồng cầu', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'bachCau', label: 'Bạch cầu', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
+        { key: 'kySinhTrung', label: 'Ký sinh trùng', type: 'text' },
+        { key: 'khac', label: 'Khác', type: 'text' },
+      ],
+    },
+  ],
+};
+
+function getTestType(typeId) {
+  return LAB_CONFIG.testTypes.find((t) => t.id === typeId) || null;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { LAB_CONFIG, getTestType };
+}
+
+</script>
+<script>
+'use strict';
+/*
+ * store.js — Lưu trữ + logic nghiệp vụ của app LabEntry.
+ * Chạy được cả trên trình duyệt (window.LabStore) và trong Node (module.exports)
+ * để test tự động. Dữ liệu lưu bằng localStorage; khi test thì truyền bộ nhớ giả.
+ *
+ * Bản ghi (record):
+ *   {
+ *     uid: string,              // khóa nội bộ duy nhất
+ *     testId: string,           // ID Xét Nghiệm do kỹ thuật viên nhập/quét
+ *     typeId: string,           // id loại xét nghiệm (xem config.js)
+ *     results: { fieldKey: string },  // giá trị từng trường; '' = chưa nhập/không chọn
+ *     note: string,             // ghi chú chung
+ *     releaseAt: string|null,   // ISO datetime phát hành; null = chưa phát hành
+ *     createdAt: string,        // ISO datetime nhập
+ *     updatedAt: string,        // ISO datetime sửa cuối
+ *   }
+ */
+const LabStore = (() => {
+  const STORAGE_KEY = 'labentry.records.v1';
+
+  function memoryStorage() {
+    const m = new Map();
+    return {
+      getItem: (k) => (m.has(k) ? m.get(k) : null),
+      setItem: (k, v) => m.set(k, String(v)),
+      removeItem: (k) => m.delete(k),
+    };
+  }
+
+  function defaultStorage() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const probe = '__labentry_probe__';
+        localStorage.setItem(probe, '1');
+        localStorage.removeItem(probe);
+        return localStorage;
+      }
+    } catch (e) { /* localStorage bị chặn -> dùng bộ nhớ tạm */ }
+    return memoryStorage();
+  }
+
+  let uidCounter = 0;
+  function makeUid(now) {
+    uidCounter += 1;
+    return 'r' + now.getTime().toString(36) + uidCounter.toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  }
+
+  function createStore(storage, getTestTypeFn) {
+    const store = storage || defaultStorage();
+    let records = load();
+
+    function load() {
+      try {
+        const raw = store.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function persist() {
+      store.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function validate(rec) {
+      const errors = [];
+      if (!rec || typeof rec.testId !== 'string' || rec.testId.trim() === '') {
+        errors.push('Thiếu ID Xét Nghiệm');
+      }
+      if (!rec || !getTestTypeFn(rec.typeId)) {
+        errors.push('Loại xét nghiệm không hợp lệ');
+      }
+      return errors;
+    }
+
+    function add(input, now) {
+      const t = now || new Date();
+      const rec = {
+        uid: makeUid(t),
+        testId: (input.testId || '').trim(),
+        typeId: input.typeId,
+        results: Object.assign({}, input.results || {}),
+        note: input.note || '',
+        releaseAt: input.releaseAt || null,
+        createdAt: t.toISOString(),
+        updatedAt: t.toISOString(),
+      };
+      const errors = validate(rec);
+      if (errors.length) return { ok: false, errors };
+      records.push(rec);
+      persist();
+      return { ok: true, record: rec };
+    }
+
+    function update(uid, input, now) {
+      const t = now || new Date();
+      const idx = records.findIndex((r) => r.uid === uid);
+      if (idx < 0) return { ok: false, errors: ['Không tìm thấy kết quả'] };
+      const rec = Object.assign({}, records[idx], {
+        testId: (input.testId !== undefined ? input.testId : records[idx].testId || '').trim(),
+        typeId: input.typeId !== undefined ? input.typeId : records[idx].typeId,
+        results: input.results !== undefined ? Object.assign({}, input.results) : records[idx].results,
+        note: input.note !== undefined ? input.note : records[idx].note,
+        releaseAt: input.releaseAt !== undefined ? input.releaseAt : records[idx].releaseAt,
+        updatedAt: t.toISOString(),
+      });
+      const errors = validate(rec);
+      if (errors.length) return { ok: false, errors };
+      records[idx] = rec;
+      persist();
+      return { ok: true, record: rec };
+    }
+
+    function remove(uid) {
+      const before = records.length;
+      records = records.filter((r) => r.uid !== uid);
+      if (records.length !== before) persist();
+      return records.length !== before;
+    }
+
+    function getAll() {
+      return records.slice();
+    }
+
+    function getByUid(uid) {
+      return records.find((r) => r.uid === uid) || null;
+    }
+
+    /* Có ít nhất một trường kết quả được nhập/chọn? (ghi chú không tính) */
+    function hasResult(rec) {
+      const type = getTestTypeFn(rec.typeId);
+      if (!type) return false;
+      return type.fields.some((f) => {
+        const v = rec.results ? rec.results[f.key] : undefined;
+        return typeof v === 'string' && v.trim() !== '';
+      });
+    }
+
+    /* Trạng thái suy ra theo đặc tả F5 */
+    function statusOf(rec) {
+      if (!hasResult(rec)) return 'no-result';
+      if (!rec.releaseAt) return 'pending-release';
+      return 'released';
+    }
+
+    /*
+     * Lọc danh sách:
+     *   query  : khớp một phần ID Xét Nghiệm (không phân biệt hoa thường)
+     *   typeId : đúng loại
+     *   status : 'no-result' | 'pending-release' | 'released'
+     *   from/to: 'yyyy-mm-dd' — so theo ngày nhập (createdAt, giờ địa phương)
+     */
+    function filter(list, criteria) {
+      const c = criteria || {};
+      const q = (c.query || '').trim().toLowerCase();
+      return (list || records).filter((rec) => {
+        if (q && rec.testId.toLowerCase().indexOf(q) < 0) return false;
+        if (c.typeId && rec.typeId !== c.typeId) return false;
+        if (c.status && statusOf(rec) !== c.status) return false;
+        if (c.from || c.to) {
+          const day = localDayKey(new Date(rec.createdAt));
+          if (c.from && day < c.from) return false;
+          if (c.to && day > c.to) return false;
+        }
+        return true;
+      });
+    }
+
+    return { add, update, remove, getAll, getByUid, validate, hasResult, statusOf, filter, STORAGE_KEY };
+  }
+
+  function localDayKey(d) {
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  return { createStore, memoryStorage, localDayKey };
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = LabStore;
+}
+
+</script>
+<script>
+'use strict';
+/* app.js — Điều khiển giao diện LabEntry. Logic nghiệp vụ nằm ở store.js, khai báo loại XN ở config.js */
+
+const store = LabStore.createStore(null, getTestType);
+
+const $ = (id) => document.getElementById(id);
+const pad2 = (n) => String(n).padStart(2, '0');
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* dd/mm/yyyy hh:mm — dùng cho danh sách */
+function fmtList(iso) {
+  const d = new Date(iso);
+  return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+/* hh:mm:ss dd/mm/yyyy — giống ô "Ngày Giờ" trong form mẫu */
+function fmtFull(iso) {
+  const d = new Date(iso);
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + ' ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+function todayKey() { return LabStore.localDayKey(new Date()); }
+
+const STATUS_LABEL = { 'no-result': 'Chưa kết quả', 'pending-release': 'Chờ phát hành', 'released': 'Đã phát hành' };
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add('hidden'), 2200);
+}
+
+/* ================= Điều hướng ================= */
+let mainView = 'today';
+function switchView(name) {
+  ['today', 'manage', 'export', 'form'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  $('bottom-nav').style.display = name === 'form' ? 'none' : 'flex';
+  document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
+  if (name !== 'form') mainView = name;
+  if (name === 'today') renderToday();
+  if (name === 'manage') renderManage();
+  if (name === 'export') applyExport();
+  window.scrollTo(0, 0);
+}
+
+/* ================= Danh sách dùng chung ================= */
+function recordItemHTML(rec, opts) {
+  const o = opts || {};
+  const type = getTestType(rec.typeId);
+  const status = store.statusOf(rec);
+  const checkbox = o.selectable
+    ? '<input type="checkbox" data-select="' + rec.uid + '"' + (selectedUids.has(rec.uid) ? ' checked' : '') + '>'
+    : '';
+  const actions = o.readonly ? '' :
+    '<div class="record-actions">' +
+      '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
+      '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>' +
+    '</div>';
+  return '<li class="record-item">' + checkbox +
+    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + '</div>' +
+    '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div></div>' +
+    '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
+    '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' + actions + '</div></li>';
+}
+
+function fillList(ulEl, emptyEl, recs, opts) {
+  ulEl.innerHTML = recs.map((r) => recordItemHTML(r, opts)).join('');
+  emptyEl.classList.toggle('hidden', recs.length > 0);
+}
+
+function handleListClick(e) {
+  const btn = e.target.closest('[data-action]');
+  if (btn) {
+    const uid = btn.dataset.uid;
+    if (btn.dataset.action === 'edit') openForm(uid);
+    if (btn.dataset.action === 'delete') {
+      const rec = store.getByUid(uid);
+      if (rec && confirm('Xóa kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')?')) {
+        store.remove(uid);
+        selectedUids.delete(uid);
+        toast('Đã xóa');
+        refreshCurrent();
+      }
+    }
+    return;
+  }
+  const cb = e.target.closest('[data-select]');
+  if (cb) {
+    if (cb.checked) selectedUids.add(cb.dataset.select); else selectedUids.delete(cb.dataset.select);
+    updateSelectBar();
+  }
+}
+
+function refreshCurrent() {
+  if (!$('view-today').classList.contains('hidden')) renderToday();
+  if (!$('view-manage').classList.contains('hidden')) renderManage();
+  if (!$('view-export').classList.contains('hidden')) applyExport();
+}
+
+/* ================= Tab Kết quả hôm nay ================= */
+let selectMode = false;
+const selectedUids = new Set();
+
+function renderToday() {
+  const q = $('input-search').value.trim();
+  let recs = store.filter(null, { from: todayKey(), to: todayKey() });
+  if (q) recs = store.filter(recs, { query: q });
+  recs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  fillList($('list-today'), $('empty-today'), recs, { selectable: selectMode });
+  updateSelectBar();
+}
+
+function updateSelectBar() {
+  $('select-bar').classList.toggle('hidden', !selectMode);
+  $('selected-count').textContent = 'Đã chọn ' + selectedUids.size;
+}
+
+function setSelectMode(on) {
+  selectMode = on;
+  if (!on) selectedUids.clear();
+  renderToday();
+}
+
+/* ================= Tab Quản lý ================= */
+function renderManage() {
+  const all = store.getAll().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  fillList($('list-pending'), $('empty-pending'), all.filter((r) => store.statusOf(r) === 'pending-release'), {});
+  fillList($('list-noresult'), $('empty-noresult'), all.filter((r) => store.statusOf(r) === 'no-result'), {});
+}
+
+/* ================= Tab Lọc & Xuất PDF ================= */
+function resultSummary(rec) {
+  const type = getTestType(rec.typeId);
+  if (!type) return '';
+  return type.fields.map((f) => {
+    const v = (rec.results && rec.results[f.key]) || '';
+    const shown = f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : (v === '' ? '—' : v);
+    return esc(f.label) + ': ' + esc(shown);
+  }).join('<br>');
+}
+
+function currentExportCriteria() {
+  return {
+    from: $('f-from').value || '',
+    to: $('f-to').value || '',
+    typeId: $('f-type').value || '',
+    status: $('f-status').value || '',
+    query: $('f-query').value || '',
+  };
+}
+
+function applyExport() {
+  const c = currentExportCriteria();
+  const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  fillList($('list-export'), $('empty-export'), recs, { readonly: true });
+  $('export-count').textContent = 'Có ' + recs.length + ' kết quả';
+  $('print-title').textContent = 'Danh sách kết quả xét nghiệm' +
+    (c.from || c.to ? ' (' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '');
+  $('print-table-body').innerHTML = recs.map((rec, i) => {
+    const type = getTestType(rec.typeId);
+    return '<tr><td>' + (i + 1) + '</td><td>' + esc(rec.testId) + '</td><td>' + esc(type ? type.name : rec.typeId) + '</td>' +
+      '<td>' + resultSummary(rec) + '</td><td>' + esc(rec.note || '') + '</td>' +
+      '<td>' + esc(fmtList(rec.createdAt)) + '</td><td>' + esc(rec.releaseAt ? fmtList(rec.releaseAt) : '—') + '</td></tr>';
+  }).join('');
+  return recs;
+}
+
+/* ================= Form nhập / sửa ================= */
+let formState = { uid: null, typeId: null, results: {}, createdAt: null };
+
+function buildTypeOptions(selectEl, includeAll) {
+  selectEl.innerHTML = (includeAll ? '<option value="">Tất cả</option>' : '') +
+    LAB_CONFIG.testTypes.map((t) => '<option value="' + t.id + '">' + esc(t.name) + '</option>').join('');
+}
+
+function openForm(uid) {
+  const rec = uid ? store.getByUid(uid) : null;
+  formState = {
+    uid: rec ? rec.uid : null,
+    typeId: rec ? rec.typeId : LAB_CONFIG.testTypes[0].id,
+    results: rec ? Object.assign({}, rec.results) : {},
+    createdAt: rec ? rec.createdAt : new Date().toISOString(),
+  };
+  $('input-testid').value = rec ? rec.testId : '';
+  $('select-type').value = formState.typeId;
+  $('input-note').value = rec ? rec.note : '';
+  $('input-release').value = rec ? toLocalInput(rec.releaseAt) : '';
+  $('created-display').textContent = fmtFull(formState.createdAt);
+  hideFormError();
+  renderFields();
+  switchView('form');
+}
+
+function renderFields() {
+  const type = getTestType(formState.typeId);
+  const wrap = $('fields-container');
+  wrap.innerHTML = type.fields.map((f) => {
+    const label = esc(type.name) + ': ' + esc(f.label);
+    if (f.type === 'text') {
+      return '<div class="form-row"><label class="form-label">' + label + '</label>' +
+        '<input type="text" data-field="' + f.key + '" value="' + esc(formState.results[f.key] || '') + '" autocomplete="off"></div>';
+    }
+    const chips = f.levels.map((lv) =>
+      '<button type="button" class="chip' + (formState.results[f.key] === lv ? ' selected' : '') + '" data-chip="' + f.key + '" data-value="' + esc(lv) + '">' + esc(lv) + '</button>').join('');
+    return '<div class="form-row"><span class="form-label">' + label + '</span><div class="chips">' + chips + '</div></div>';
+  }).join('');
+
+  wrap.querySelectorAll('[data-field]').forEach((inp) => {
+    inp.addEventListener('input', () => { formState.results[inp.dataset.field] = inp.value; });
+  });
+  wrap.querySelectorAll('[data-chip]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.chip;
+      formState.results[key] = formState.results[key] === btn.dataset.value ? '' : btn.dataset.value;
+      wrap.querySelectorAll('[data-chip="' + key + '"]').forEach((b) =>
+        b.classList.toggle('selected', formState.results[key] === b.dataset.value));
+    });
+  });
+}
+
+function showFormError(msg) {
+  const el = $('form-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function hideFormError() { $('form-error').classList.add('hidden'); }
+
+function saveForm() {
+  const releaseVal = $('input-release').value;
+  const payload = {
+    testId: $('input-testid').value,
+    typeId: formState.typeId,
+    results: formState.results,
+    note: $('input-note').value,
+    releaseAt: releaseVal ? new Date(releaseVal).toISOString() : null,
+  };
+  const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
+  if (!res.ok) {
+    showFormError(res.errors.join('. '));
+    return;
+  }
+  toast('Đã lưu kết quả');
+  switchView('today');
+}
+
+/* ================= Quét mã ================= */
+let scanStream = null;
+let scanTimer = null;
+
+async function openScanner() {
+  $('scanner-modal').classList.remove('hidden');
+  const msg = $('scanner-msg');
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    msg.textContent = 'Thiết bị/trình duyệt này không hỗ trợ quét mã. Vui lòng nhập ID bằng tay.';
+    return;
+  }
+  try {
+    msg.textContent = 'Đang mở camera...';
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = $('scanner-video');
+    video.srcObject = scanStream;
+    await video.play();
+    msg.textContent = 'Đưa mã QR/barcode của mẫu vào khung hình...';
+    const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
+    scanTimer = setInterval(async () => {
+      try {
+        const codes = await detector.detect(video);
+        if (codes && codes.length && codes[0].rawValue) {
+          $('input-testid').value = codes[0].rawValue;
+          closeScanner();
+          toast('Đã quét mã: ' + codes[0].rawValue);
+        }
+      } catch (e) { /* bỏ qua khung hình lỗi */ }
+    }, 400);
+  } catch (e) {
+    msg.textContent = 'Không mở được camera (' + e.name + '). Vui lòng nhập ID bằng tay.';
+  }
+}
+
+function closeScanner() {
+  $('scanner-modal').classList.add('hidden');
+  if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+  if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+}
+
+/* ================= Khởi tạo ================= */
+function init() {
+  buildTypeOptions($('select-type'), false);
+  buildTypeOptions($('f-type'), true);
+  $('f-from').value = todayKey();
+  $('f-to').value = todayKey();
+
+  document.querySelectorAll('.nav-btn').forEach((b) =>
+    b.addEventListener('click', () => switchView(b.dataset.view)));
+
+  $('fab-add').addEventListener('click', () => openForm(null));
+  $('btn-filter-nav').addEventListener('click', () => switchView('export'));
+  $('btn-refresh').addEventListener('click', () => { renderToday(); toast('Đã làm mới'); });
+  $('btn-refresh-manage').addEventListener('click', () => { renderManage(); toast('Đã làm mới'); });
+  $('btn-search-manage').addEventListener('click', () => {
+    switchView('today');
+    $('search-bar').classList.remove('hidden');
+    $('input-search').focus();
+  });
+
+  $('btn-search').addEventListener('click', () => {
+    $('search-bar').classList.toggle('hidden');
+    if (!$('search-bar').classList.contains('hidden')) $('input-search').focus();
+  });
+  $('btn-search-close').addEventListener('click', () => {
+    $('search-bar').classList.add('hidden');
+    $('input-search').value = '';
+    renderToday();
+  });
+  $('input-search').addEventListener('input', renderToday);
+
+  $('btn-select').addEventListener('click', () => setSelectMode(!selectMode));
+  $('btn-cancel-select').addEventListener('click', () => setSelectMode(false));
+  $('btn-delete-selected').addEventListener('click', () => {
+    if (!selectedUids.size) { toast('Chưa chọn kết quả nào'); return; }
+    if (!confirm('Xóa ' + selectedUids.size + ' kết quả đã chọn?')) return;
+    selectedUids.forEach((uid) => store.remove(uid));
+    selectedUids.clear();
+    setSelectMode(false);
+    toast('Đã xóa');
+  });
+
+  ['list-today', 'list-pending', 'list-noresult'].forEach((id) => $(id).addEventListener('click', handleListClick));
+
+  $('btn-apply-filter').addEventListener('click', applyExport);
+  $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
+  window.addEventListener('beforeprint', applyExport);
+
+  $('btn-back').addEventListener('click', () => switchView(mainView));
+  $('btn-cancel').addEventListener('click', () => switchView(mainView));
+  $('btn-save').addEventListener('click', saveForm);
+  $('select-type').addEventListener('change', () => {
+    formState.typeId = $('select-type').value;
+    formState.results = {};
+    renderFields();
+  });
+  $('btn-scan').addEventListener('click', openScanner);
+  $('btn-scanner-close').addEventListener('click', closeScanner);
+
+  switchView('today');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>

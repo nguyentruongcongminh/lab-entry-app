@@ -1,0 +1,12 @@
+/* print.css — Khi in/xuất PDF: chỉ hiện bảng kết quả đã lọc */
+@media print {
+  body { padding: 0; background: #fff; max-width: none; border: none; }
+  body > *:not(#print-area) { display: none !important; }
+  #print-area { display: block !important; font-family: Arial, sans-serif; color: #000; }
+  #print-area h1 { font-size: 18px; text-align: center; margin-bottom: 14px; }
+  #print-area table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  #print-area th, #print-area td {
+    border: 1px solid #444; padding: 5px 6px; text-align: left; vertical-align: top;
+  }
+  #print-area th { background: #e8e8e8; }
+}
