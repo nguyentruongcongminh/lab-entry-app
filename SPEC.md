@@ -51,8 +51,13 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 ### F3b — Nút Phát hành + cách mở sửa (bổ sung theo yêu cầu của Minh, 2026-11-04)
 
-- Mỗi kết quả ở trạng thái **Chờ phát hành** có thêm **nút Phát hành** (icon gửi, màu xanh) ngay trên dòng: bấm → hỏi xác nhận → ghi **Ngày giờ phát hành = thời điểm hiện tại**, kết quả chuyển sang Đã phát hành và rời nhóm Chờ phát hành. Kết quả chưa có nội dung (Chưa kết quả) hoặc đã phát hành thì không hiện nút này.
+- Mỗi kết quả ở trạng thái **Chờ phát hành** có thêm **nút Phát hành** (icon gửi, màu xanh) ngay trên dòng: bấm → ghi **Ngày giờ phát hành = thời điểm hiện tại** ngay lập tức — **không hỏi xác nhận lại** (bỏ hộp confirm theo yêu cầu của Minh) — kết quả chuyển sang Đã phát hành và rời nhóm Chờ phát hành. Kết quả chưa có nội dung (Chưa kết quả) hoặc đã phát hành thì không hiện nút này.
 - **Muốn sửa phải bấm nút cây bút** trên dòng. Bấm trực tiếp vào dòng hoặc vào ID **không** mở form sửa.
+
+### F3d — Nút Xem lớn + bảng tóm tắt kết quả (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Kết quả **đã có nội dung** (Chờ phát hành hoặc Đã phát hành) có thêm **nút "Xem" lớn, nền xanh, cạnh ID** — nổi bật hơn các nút icon còn lại. Kết quả Chưa kết quả thì không có nút này.
+- Bấm Xem mở **bảng tóm tắt** thiết kế gọn, chữ to, dễ đọc để nhìn và chép kết quả vào máy ở lab: ID (chữ rất lớn), loại XN, thẻ trạng thái, mỗi trường kết quả một dòng (nhãn bên trái, **giá trị chữ to đậm** bên phải; trường mức độ bỏ trống hiện "Âm tính", trường chữ bỏ trống hiện "—"), ghi chú nếu có, giờ nhận mẫu và giờ phát hành. Đóng bằng nút "Đóng" hoặc bấm ra ngoài bảng.
 
 ### F3c — Quét mã liên tục để tiếp nhận mẫu (bổ sung theo yêu cầu của Minh, 2026-11-04)
 
@@ -107,7 +112,8 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 11. Nhập trùng ID + loại XN → báo "Đã tồn tại", không thêm bản ghi; cùng ID khác loại vẫn nhập được; sửa sang ID + loại của bản ghi khác cũng bị chặn.
 12. Nhóm "Chưa kết quả" xếp theo giờ nhập tăng dần: bản ghi nhập trước nằm trên, nhập sau nằm dưới.
 13. Tab "Kết quả hôm nay" cũng xếp tăng dần theo giờ nhập: mới nhất nằm cuối danh sách.
-14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm (sau xác nhận) thì bản ghi thành Đã phát hành với ngày giờ phát hành là hiện tại và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
+14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm là bản ghi thành Đã phát hành ngay với ngày giờ phát hành là hiện tại (**không hiện hộp hỏi xác nhận**) và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
+17. Nút Xem lớn chỉ hiện ở bản ghi đã có kết quả; bấm mở bảng tóm tắt đúng ID, loại XN, trạng thái, từng giá trị kết quả (mức độ bỏ trống = "Âm tính"), ghi chú, giờ nhận/phát hành; đóng được bằng nút Đóng.
 15. Bấm vào dòng/ID không mở form sửa; chỉ nút cây bút mới mở được.
 16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN khóa sau mã đầu tiên; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; nhập tay dự phòng hoạt động tương đương; mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng.
 

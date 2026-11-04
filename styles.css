@@ -59,6 +59,35 @@ svg { width: 24px; height: 24px; display: block; }
 .record-actions { display: flex; gap: 4px; }
 .record-actions .icon-btn { padding: 5px; color: #546e7a; }
 .record-actions .release-btn { color: var(--blue); }
+/* Nút Xem lớn cạnh ID — nổi bật hơn các nút icon còn lại */
+.view-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--blue); color: #fff; border-radius: 8px;
+  padding: 8px 14px; font-size: 15.5px; font-weight: 700;
+  box-shadow: 0 2px 6px rgba(30,136,229,.35);
+}
+.view-btn svg { width: 21px; height: 21px; }
+.view-btn:active { background: var(--blue-dark); }
+
+/* ---------- Màn hình tóm tắt kết quả (để nhìn chép vào máy lab) ---------- */
+.summary-box { text-align: left; max-width: 520px; }
+.summary-head { border-bottom: 2px solid var(--blue); padding-bottom: 10px; margin-bottom: 6px; }
+.summary-id { font-size: 31px; font-weight: 800; letter-spacing: .3px; line-height: 1.15; }
+.summary-sub { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.summary-type { font-size: 16.5px; color: var(--muted); font-weight: 600; }
+.summary-fields { margin: 4px 0 8px; }
+.summary-row {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 10px 2px; border-bottom: 1px solid #eceff1;
+}
+.summary-row .s-label { width: 38%; color: var(--muted); font-size: 15.5px; line-height: 1.3; }
+.summary-row .s-value { flex: 1; font-size: 21px; font-weight: 700; text-align: right; line-height: 1.3; word-break: break-word; }
+.summary-note {
+  background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+  padding: 10px 12px; font-size: 16px; margin: 6px 0 10px;
+}
+.summary-meta { color: var(--muted); font-size: 14.5px; display: grid; gap: 3px; margin-bottom: 14px; }
+.summary-meta b { color: var(--text); }
 .record-actions svg { width: 21px; height: 21px; }
 .status-tag { font-size: 12.5px; padding: 2px 8px; border-radius: 10px; background: #e3f2fd; color: var(--blue-dark); white-space: nowrap; }
 .status-tag.no-result { background: #f3e5f5; color: #6a1b9a; }

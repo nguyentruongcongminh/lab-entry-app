@@ -242,11 +242,35 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-today')));
   });
 
-  test('nút Phát hành: chỉ có ở bản ghi Chờ phát hành, bấm là phát hành ngay với giờ hiện tại', () => {
+  test('nút Xem lớn: chỉ hiện khi đã có kết quả; tóm tắt hiện đúng nội dung, chữ to dễ chép', () => {
+    document.querySelector('[data-view="today"]').click();
+    const li = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
+    const viewBtn = li.querySelector('[data-action="view"]');
+    assert.ok(viewBtn && viewBtn.classList.contains('view-btn'), 'bản ghi có kết quả có nút Xem lớn');
+    viewBtn.click();
+    assert.ok(visible($('summary-modal')));
+    assert.strictEqual($('sum-id').textContent, '2611041999');
+    assert.ok($('sum-type').textContent.includes('Soi tươi huyết trắng'));
+    const fields = $('sum-fields').textContent;
+    assert.ok(fields.includes('Trichomonas') && fields.includes('(+)'), 'hiện đúng mức đã chọn');
+    assert.ok(fields.includes('Nấm') && fields.includes('Âm tính'), 'trường bỏ trống hiện Âm tính');
+    assert.ok($('sum-release').textContent.includes('Chưa phát hành'));
+    $('btn-summary-close').click();
+    assert.ok(!visible($('summary-modal')));
+    document.querySelector('[data-view="manage"]').click();
+    const noRes = [...$('list-noresult').children].find((x) => x.textContent.includes('2611042001'));
+    assert.strictEqual(noRes.querySelector('[data-action="view"]'), null, 'chưa có kết quả thì không có nút Xem');
+    document.querySelector('[data-view="today"]').click();
+  });
+
+  test('nút Phát hành: chỉ có ở bản ghi Chờ phát hành, bấm là phát hành ngay, KHÔNG hỏi lại', () => {
+    let confirmCalls = 0;
+    window.confirm = () => { confirmCalls += 1; return true; };
     const li = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
     const relBtn = li.querySelector('[data-action="release"]');
     assert.ok(relBtn, 'bản ghi chờ phát hành có nút phát hành');
-    relBtn.click(); // confirm đã stub = true
+    relBtn.click();
+    assert.strictEqual(confirmCalls, 0, 'không được hiện hộp hỏi xác nhận khi phát hành');
     const li2 = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
     assert.ok(li2.textContent.includes('Đã phát hành'));
     assert.strictEqual(li2.querySelector('[data-action="release"]'), null, 'đã phát hành thì mất nút');

@@ -65,13 +65,18 @@ function recordItemHTML(rec, opts) {
     ? '<button class="icon-btn release-btn" data-action="release" data-uid="' + rec.uid + '" title="Phát hành kết quả" aria-label="Phát hành kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z"/></svg></button>'
     : '';
-  const actions = o.readonly ? '' :
-    '<div class="record-actions">' + releaseBtn +
+  /* Nút Xem lớn — chỉ hiện khi bản ghi ĐÃ CÓ kết quả */
+  const viewBtn = store.hasResult(rec)
+    ? '<button class="view-btn" data-action="view" data-uid="' + rec.uid + '" title="Xem tóm tắt kết quả" aria-label="Xem tóm tắt kết quả">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Xem</button>'
+    : '';
+  const editDeleteBtns = o.readonly ? '' :
       '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>' +
-    '</div>';
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
+  const actions = (!viewBtn && o.readonly) ? '' :
+    '<div class="record-actions">' + viewBtn + releaseBtn + editDeleteBtns + '</div>';
   return '<li class="record-item">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div></div>' +
@@ -88,10 +93,11 @@ function handleListClick(e) {
   const btn = e.target.closest('[data-action]');
   if (btn) {
     const uid = btn.dataset.uid;
+    if (btn.dataset.action === 'view') openSummary(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
-      if (rec && store.statusOf(rec) === 'pending-release' &&
-          confirm('Phát hành kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ') ngay bây giờ?')) {
+      /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
+      if (rec && store.statusOf(rec) === 'pending-release') {
         const res = store.update(uid, { releaseAt: new Date().toISOString() });
         if (res.ok) { toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
         else toast(res.errors.join('. '));
@@ -114,6 +120,43 @@ function handleListClick(e) {
     if (cb.checked) selectedUids.add(cb.dataset.select); else selectedUids.delete(cb.dataset.select);
     updateSelectBar();
   }
+}
+
+/* ================= Xem tóm tắt kết quả =================
+ * Bảng tóm tắt chữ to, gọn, dễ đọc — để nhìn và chép kết quả vào máy ở lab. */
+function fieldDisplayValue(rec, f) {
+  const v = (rec.results && rec.results[f.key]) || '';
+  if (f.type === 'chips') return v === '' ? 'Âm tính' : v;
+  return v === '' ? '—' : v;
+}
+
+function openSummary(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return;
+  const type = getTestType(rec.typeId);
+  const status = store.statusOf(rec);
+  $('sum-id').textContent = rec.testId;
+  $('sum-type').textContent = type ? type.name : rec.typeId;
+  const tag = $('sum-status');
+  tag.textContent = STATUS_LABEL[status];
+  tag.className = 'status-tag ' + status;
+  $('sum-fields').innerHTML = (type ? type.fields : []).map((f) =>
+    '<div class="summary-row"><span class="s-label">' + esc(f.label) + '</span>' +
+    '<span class="s-value">' + esc(fieldDisplayValue(rec, f)) + '</span></div>').join('');
+  const noteEl = $('sum-note');
+  if (rec.note && rec.note.trim() !== '') {
+    noteEl.textContent = 'Ghi chú: ' + rec.note;
+    noteEl.classList.remove('hidden');
+  } else {
+    noteEl.classList.add('hidden');
+  }
+  $('sum-created').textContent = fmtFull(rec.createdAt);
+  $('sum-release').textContent = rec.releaseAt ? fmtFull(rec.releaseAt) : 'Chưa phát hành';
+  $('summary-modal').classList.remove('hidden');
+}
+
+function closeSummary() {
+  $('summary-modal').classList.add('hidden');
 }
 
 function refreshCurrent() {
@@ -445,7 +488,9 @@ function init() {
     toast('Đã xóa');
   });
 
-  ['list-today', 'list-pending', 'list-noresult'].forEach((id) => $(id).addEventListener('click', handleListClick));
+  ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
+  $('btn-summary-close').addEventListener('click', closeSummary);
+  $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 
   $('btn-apply-filter').addEventListener('click', applyExport);
   $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
