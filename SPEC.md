@@ -99,6 +99,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Nút ⚙ ở tab Quản lý mở màn hình **Loại xét nghiệm**: liệt kê danh mục đang dùng (số trường, phút bấm giờ, số bản ghi đang có), với **Sửa / Xóa** từng loại, nút **Thêm loại xét nghiệm** và **Khôi phục 6 loại mặc định**.
 - Form loại: tên loại, số phút bấm giờ (để trống = không bấm giờ), danh sách trường kết quả — mỗi trường gồm nhãn + dạng (**Ô nhập chữ** hoặc **Nút chọn mức (+)** với 1/2/3 mức). Sửa loại giữ nguyên mã loại và khóa các trường cũ nên bản ghi đã nhập không bị ảnh hưởng.
 - Ràng buộc an toàn: **không xóa được loại đang có bản ghi**; luôn giữ ít nhất 1 loại; khôi phục mặc định bị chặn khi còn bản ghi thuộc loại tự thêm.
+- Bố cục form loại (v20, sửa theo phản ánh tràn màn hình của Minh): hàng "Các trường kết quả" xếp **dọc** (nhãn / thẻ từng trường / nút thêm trường nét đứt) thay vì chen ngang một hàng flex với nhãn; mỗi thẻ trường gồm nhãn ở dòng riêng, dưới là ô chọn dạng trường + ô chọn số mức + nút xóa; ô số phút bấm giờ dùng chung kiểu với các ô nhập khác; thanh Lưu/Hủy có đệm và form chừa đáy 96px không bị thanh cố định che.
 - Danh mục tự tạo lưu ở localStorage (`labentry.types.v1`) của từng máy; chưa có thì dùng 6 loại mặc định trong config.js. File sao lưu (F8) từ bản này **kèm theo danh mục tự tạo**; phục hồi ở máy khác sẽ áp dụng cả danh mục trong file.
 
 ### F10 — Xuất CSV + thống kê thời gian trả kết quả (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 4)

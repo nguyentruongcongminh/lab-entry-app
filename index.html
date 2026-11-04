@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Nhập kết quả xét nghiệm</title>
-<link rel="stylesheet" href="styles.css?v=19">
-<link rel="stylesheet" href="print.css?v=19">
+<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="print.css?v=20">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v19</span>
+    <span class="app-version">LabEntry v20</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -152,13 +152,13 @@
       <label class="form-label" for="tf-wait">Bấm giờ chờ kết quả (phút)</label>
       <input id="tf-wait" type="number" min="0" step="1" inputmode="numeric" placeholder="Để trống nếu không cần bấm giờ">
     </div>
-    <div class="form-row">
+    <div class="form-row form-row-stack">
       <span class="form-label">Các trường kết quả</span>
       <div id="tf-fields"></div>
       <button type="button" id="btn-tf-add-field" class="primary-btn outline small">＋ Thêm trường kết quả</button>
     </div>
     <div id="tf-error" class="form-error hidden"></div>
-    <div class="form-actions">
+    <div class="form-actions padded-actions">
       <button type="button" id="btn-tf-cancel" class="primary-btn outline">Hủy</button>
       <button type="button" id="btn-tf-save" class="primary-btn">Lưu loại xét nghiệm</button>
     </div>
@@ -311,8 +311,8 @@
   </table>
 </div>
 
-<script src="config.js?v=19"></script>
-<script src="store.js?v=19"></script>
-<script src="app.js?v=19"></script>
+<script src="config.js?v=20"></script>
+<script src="store.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>
