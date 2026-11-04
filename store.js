@@ -252,7 +252,27 @@ const LabStore = (() => {
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
   }
 
-  return { createStore, memoryStorage, localDayKey };
+  /*
+   * Thống kê thời gian trả kết quả (turnaround time) trên một danh sách bản ghi:
+   * chỉ tính các bản ghi ĐÃ phát hành (releaseAt >= createdAt, cả hai hợp lệ).
+   * Trả về { count, avgMinutes, minMinutes, maxMinutes } — count = 0 thì các giá trị phút là null.
+   */
+  function tatStats(list) {
+    const minutes = (list || [])
+      .filter((r) => r && r.releaseAt && r.createdAt)
+      .map((r) => (new Date(r.releaseAt).getTime() - new Date(r.createdAt).getTime()) / 60000)
+      .filter((m) => isFinite(m) && m >= 0);
+    if (!minutes.length) return { count: 0, avgMinutes: null, minMinutes: null, maxMinutes: null };
+    const sum = minutes.reduce((a, b) => a + b, 0);
+    return {
+      count: minutes.length,
+      avgMinutes: sum / minutes.length,
+      minMinutes: Math.min.apply(null, minutes),
+      maxMinutes: Math.max.apply(null, minutes),
+    };
+  }
+
+  return { createStore, memoryStorage, localDayKey, tatStats };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {

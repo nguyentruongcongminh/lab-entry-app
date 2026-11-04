@@ -477,6 +477,96 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(pend, 'nhập kết quả xong mẫu sang nhóm Chờ phát hành');
   });
 
+  test('danh mục tự tạo: thêm loại xét nghiệm mới ngay trong app rồi nhập kết quả cho loại đó được luôn', () => {
+    window.alert = () => {};
+    document.querySelector('[data-view="manage"]').click();
+    $('btn-types').click();
+    assert.ok(visible($('view-types')));
+    assert.strictEqual($('types-list').children.length, 6, 'ban đầu là 6 loại mặc định');
+    $('btn-type-add').click();
+    assert.ok(visible($('view-typeform')));
+    setInput($('tf-name'), 'Soi phân tìm KST');
+    setInput($('tf-fields').querySelector('.tf-flabel'), 'Kết quả');
+    $('btn-tf-save').click();
+    assert.ok(visible($('view-types')), 'lưu xong quay về danh sách loại');
+    assert.strictEqual($('types-list').children.length, 7);
+    assert.ok($('types-list').textContent.includes('Soi phân tìm KST'));
+    $('btn-types-back').click();
+    $('fab-add').click();
+    const opt = [...$('select-type').options].find((o) => o.textContent === 'Soi phân tìm KST');
+    assert.ok(opt, 'loại mới phải có trong ô chọn loại của form nhập');
+    setSelect($('select-type'), opt.value);
+    setInput($('input-testid'), 'F1-0001');
+    const resInput = $('fields-container').querySelector('[data-field]');
+    assert.ok(resInput, 'loại mới có ô nhập kết quả');
+    setInput(resInput, 'Âm tính');
+    $('btn-save').click();
+    assert.ok([...$('list-pending').children].some((x) => x.textContent.includes('F1-0001')), 'bản ghi thuộc loại tự thêm phải lưu và hiện ở Chờ phát hành');
+  });
+
+  test('danh mục tự tạo: không xóa được loại đang có bản ghi; chưa khôi phục mặc định khi còn bản ghi thuộc loại tự thêm', () => {
+    document.querySelector('[data-view="manage"]').click();
+    $('btn-types').click();
+    const before = $('types-list').children.length;
+    const spLi = [...$('types-list').children].find((li) => li.querySelector('.type-name').textContent === 'SP');
+    assert.ok(spLi);
+    spLi.querySelector('[data-tdel]').click(); // SP đang có nhiều bản ghi -> alert chặn
+    assert.strictEqual($('types-list').children.length, before, 'loại đang có bản ghi không được bị xóa');
+    $('btn-types-reset').click(); // còn F1-0001 thuộc loại tự thêm -> alert chặn
+    assert.ok([...$('types-list').children].some((li) => li.querySelector('.type-name').textContent === 'Soi phân tìm KST'), 'loại tự thêm vẫn còn sau khi khôi phục mặc định bị chặn');
+    assert.strictEqual(window.validateTypeDefs(window.getTestTypes()).length, 0, 'danh mục hiện hành phải hợp lệ');
+    assert.ok(window.validateTypeDefs([]).length > 0, 'danh mục rỗng phải bị coi là không hợp lệ');
+  });
+
+  test('nhập giọng nói: trình duyệt không hỗ trợ thì tính năng tự ẩn + báo rõ, không văng lỗi (đường hỗ trợ cần Chrome thật)', () => {
+    assert.strictEqual(typeof window.startVoiceInput, 'function');
+    assert.strictEqual(window.voiceSupported(), false, 'môi trường test không có SpeechRecognition');
+    document.querySelector('[data-view="today"]').click();
+    $('fab-add').click();
+    assert.ok(visible($('view-form')));
+    assert.strictEqual(document.querySelectorAll('.mic-btn').length, 0, 'không hỗ trợ giọng nói thì không hiện nút micro nào');
+    assert.strictEqual(window.startVoiceInput($('input-note'), null), false, 'gọi nhập giọng nói khi không hỗ trợ phải trả về false thay vì văng lỗi');
+    $('btn-cancel').click();
+  });
+
+  test('xuất CSV + thống kê TAT: tab Lọc & Xuất hiện dòng thời gian trả kết quả; buildCsv có BOM, tách cột bằng ";", tính đúng số phút', () => {
+    document.querySelector('[data-view="export"]').click();
+    assert.ok($('btn-export-csv'), 'có nút Xuất CSV');
+    $('btn-apply-filter').click();
+    assert.ok($('export-stats').textContent.includes('Đã phát hành'), 'có dòng thống kê phát hành: ' + $('export-stats').textContent);
+    assert.ok($('export-stats').textContent.includes('Thời gian trả kết quả'), 'có thống kê thời gian trả kết quả');
+    assert.strictEqual(typeof window.buildCsv, 'function');
+    const t0 = new Date();
+    const csv = window.buildCsv([{
+      testId: 'CSV-1', typeId: 'sp', results: { hongCau: '(+)' }, note: 'ghi;chu',
+      createdAt: t0.toISOString(), releaseAt: new Date(t0.getTime() + 30 * 60000).toISOString(),
+    }]);
+    assert.strictEqual(csv.charCodeAt(0), 0xFEFF, 'CSV bắt đầu bằng BOM để Excel đọc đúng tiếng Việt');
+    assert.ok(csv.includes('CSV-1'));
+    assert.ok(csv.includes('Đã phát hành'));
+    assert.ok(csv.includes(';30'), 'cột thời gian trả kết quả = 30 phút');
+    assert.ok(csv.includes('"ghi;chu"'), 'ô chứa dấu ; phải được bọc ngoặc kép');
+    $('btn-export-csv').click(); // không được văng lỗi trong môi trường test
+  });
+
+  test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {
+    const extra = { id: 'xn-file', name: 'XN Từ File', fields: [{ key: 'ketQua', label: 'Kết quả', type: 'text' }] };
+    const types = window.getTestTypes().concat([extra]);
+    const nowIso = new Date().toISOString();
+    const fileJson = JSON.stringify({
+      app: 'LabEntry', version: 1, exportedAt: nowIso, types,
+      records: [{ uid: 'ft-1', testId: 'FILE-0001', typeId: 'xn-file', results: { ketQua: 'Dương tính' }, note: '', releaseAt: null, timerEndsAt: null, createdAt: nowIso, updatedAt: nowIso }],
+    });
+    const oldConfirm = window.confirm;
+    window.confirm = () => true;
+    const okImp = window.importBackupText(fileJson);
+    window.confirm = oldConfirm;
+    assert.strictEqual(okImp, true);
+    assert.ok(window.getTestType('xn-file'), 'loại trong file sao lưu phải được áp dụng trên máy này');
+    document.querySelector('[data-view="today"]').click();
+    assert.ok([...$('list-today').children].some((x) => x.textContent.includes('FILE-0001')), 'bản ghi thuộc loại trong file phải hiện lên được');
+  });
+
   test('sao lưu & phục hồi: có đủ nút ở tab Lọc & Xuất; nhập file hợp lệ thay dữ liệu và hiện lên danh sách; file hỏng bị từ chối (test này chạy cuối vì nó thay toàn bộ dữ liệu)', () => {
     document.querySelector('[data-view="export"]').click();
     assert.ok($('btn-backup-export'), 'có nút Tải file sao lưu');

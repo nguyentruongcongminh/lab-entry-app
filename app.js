@@ -43,15 +43,17 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  $('bottom-nav').style.display = name === 'form' ? 'none' : 'flex';
-  /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và trong form */
-  $('fab-add').classList.toggle('hidden', name === 'form' || name === 'export');
+  ['today', 'manage', 'export', 'form', 'types', 'typeform'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform';
+  $('bottom-nav').style.display = subView ? 'none' : 'flex';
+  /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
+  $('fab-add').classList.toggle('hidden', subView || name === 'export');
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
-  if (name !== 'form') mainView = name;
+  if (name === 'today' || name === 'manage' || name === 'export') mainView = name;
   if (name === 'today') renderToday();
   if (name === 'manage') renderManage();
   if (name === 'export') applyExport();
+  if (name === 'types') renderTypes();
   window.scrollTo(0, 0);
 }
 
@@ -366,11 +368,26 @@ function currentExportCriteria() {
   };
 }
 
+const STATUS_LABELS = { 'no-result': 'Chưa kết quả', 'pending-release': 'Chờ phát hành', 'released': 'Đã phát hành' };
+
+/* 75 -> "1 giờ 15 phút"; 40 -> "40 phút" */
+function fmtDur(minutes) {
+  const m = Math.round(minutes);
+  if (m < 60) return m + ' phút';
+  return Math.floor(m / 60) + ' giờ ' + (m % 60) + ' phút';
+}
+
 function applyExport() {
   const c = currentExportCriteria();
   const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   fillList($('list-export'), $('empty-export'), recs, { readonly: true });
   $('export-count').textContent = 'Có ' + recs.length + ' kết quả';
+  const tat = LabStore.tatStats(recs);
+  $('export-stats').textContent = !recs.length ? '' :
+    (tat.count === 0
+      ? 'Chưa có mẫu nào đã phát hành trong danh sách này nên chưa tính được thời gian trả kết quả.'
+      : 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
+        ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes));
   $('print-title').textContent = 'Danh sách kết quả xét nghiệm' +
     (c.from || c.to ? ' (' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '');
   $('print-table-body').innerHTML = recs.map((rec, i) => {
@@ -382,15 +399,51 @@ function applyExport() {
   return recs;
 }
 
+/* ================= Xuất CSV + thống kê TAT (F10) ================= */
+/* CSV ngăn cách bằng ";" + BOM UTF-8 để mở đúng tiếng Việt trong Excel trên Windows.
+   Nội dung xuất = đúng danh sách đang lọc ở tab Lọc & Xuất. */
+function buildCsv(recs) {
+  const cell = (v) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [['STT', 'ID Xét Nghiệm', 'Loại xét nghiệm', 'Kết quả', 'Ghi chú', 'Giờ nhận', 'Giờ phát hành', 'Trạng thái', 'Thời gian trả kết quả (phút)'].join(';')];
+  (recs || []).forEach((rec, i) => {
+    const type = getTestType(rec.typeId);
+    const tatMin = rec.releaseAt ? Math.round((new Date(rec.releaseAt) - new Date(rec.createdAt)) / 60000) : '';
+    lines.push([
+      i + 1,
+      rec.testId,
+      type ? type.name : rec.typeId,
+      resultSummary(rec),
+      rec.note || '',
+      fmtFull(rec.createdAt),
+      rec.releaseAt ? fmtFull(rec.releaseAt) : '',
+      STATUS_LABELS[store.statusOf(rec)] || '',
+      tatMin,
+    ].map(cell).join(';'));
+  });
+  return '\uFEFF' + lines.join('\r\n');
+}
+
+function exportCsv() {
+  const recs = applyExport();
+  if (!recs.length) { toast('Không có kết quả nào để xuất'); return; }
+  downloadTextFile(stampName('labentry-ket-qua', '.csv'), buildCsv(recs), 'text/csv;charset=utf-8');
+  toast('Đã xuất CSV: ' + recs.length + ' kết quả');
+}
+
 /* ================= Sao lưu / phục hồi (F8) ================= */
-function exportBackupFile() {
-  const text = store.exportBackup();
-  const count = store.getAll().length;
+function stampName(prefix, ext) {
   const d = new Date();
   const p = (n) => String(n).padStart(2, '0');
-  const name = 'labentry-sao-luu-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.json';
+  return prefix + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + ext;
+}
+
+/* Tải một nội dung text xuống thành file (dùng chung cho sao lưu + CSV) */
+function downloadTextFile(name, text, mime) {
   try {
-    const blob = new Blob([text], { type: 'application/json' });
+    const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     if (url) {
       const a = document.createElement('a');
@@ -402,22 +455,51 @@ function exportBackupFile() {
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     }
   } catch (e) { /* môi trường không hỗ trợ tải file (vd môi trường test) */ }
+}
+
+function exportBackupFile() {
+  const obj = JSON.parse(store.exportBackup());
+  if (typesCustom) obj.types = getTestTypes(); /* kèm danh mục tự tạo để sang máy khác phục hồi đủ loại */
+  const count = store.getAll().length;
+  downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
 }
 
 /* Nạp dữ liệu từ nội dung file sao lưu (đồng bộ, tách riêng để test được).
-   Trả về true nếu đã phục hồi. */
+   Trả về true nếu đã phục hồi.
+   File từ v19 có thể kèm "types" (danh mục tự tạo): danh mục trong file sẽ được
+   áp dụng + lưu lại trên máy này để các bản ghi dùng loại tự thêm đọc được. */
 function importBackupText(text) {
+  let fileTypes = null;
+  try {
+    const raw = JSON.parse(text);
+    if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
+  } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
+  if (fileTypes) {
+    const errs = validateTypeDefs(fileTypes);
+    if (errs.length) { alert('Danh mục xét nghiệm trong file sao lưu không hợp lệ: ' + errs[0]); return false; }
+  }
+  const prevTypes = getTestTypes();
+  const prevCustom = typesCustom;
+  const restoreTypes = () => { setTestTypes(prevCustom ? prevTypes : null); typesCustom = prevCustom; };
+  if (fileTypes) setTestTypes(fileTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục của file */
   let parsed;
   try {
     parsed = store.parseBackup(text);
   } catch (e) {
+    restoreTypes();
     alert('Không đọc được file sao lưu: ' + e.message);
     return false;
   }
   const when = parsed.exportedAt ? fmtFull(parsed.exportedAt) : 'không rõ thời gian';
-  if (!confirm('File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?')) return false;
+  const typeNote = fileTypes ? '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.' : '';
+  if (!confirm('File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?')) {
+    restoreTypes();
+    return false;
+  }
   const res = store.importBackup(text);
+  if (fileTypes) persistTypes();
+  refreshTypeSelects();
   refreshCurrent();
   toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
   return true;
@@ -430,19 +512,318 @@ async function handleBackupFile(file) {
   return importBackupText(text);
 }
 
+/* ================= Quản lý danh mục xét nghiệm (F9) =================
+   Danh mục tự tạo lưu ở localStorage (khóa labentry.types.v1), nạp lúc khởi động.
+   Chưa có danh mục tự tạo -> dùng 6 loại mặc định trong config.js. */
+const TYPES_KEY = 'labentry.types.v1';
+const LEVELS_PRESETS = { '1': ['(+)'], '2': ['(+)', '(++)'], '3': ['(+)', '(++)', '(+++)'] };
+let typesCustom = false;
+
+/* Kiểm tra một danh mục: trả về mảng lỗi (rỗng = hợp lệ) */
+function validateTypeDefs(list) {
+  const errors = [];
+  if (!Array.isArray(list) || !list.length) { errors.push('Danh mục phải có ít nhất 1 loại xét nghiệm'); return errors; }
+  const seenIds = new Set();
+  list.forEach((t, ti) => {
+    const where = 'Loại thứ ' + (ti + 1) + (t && t.name ? ' (' + t.name + ')' : '');
+    if (!t || typeof t.id !== 'string' || !t.id.trim()) { errors.push(where + ': thiếu mã loại'); return; }
+    if (seenIds.has(t.id)) errors.push(where + ': mã loại bị trùng');
+    seenIds.add(t.id);
+    if (typeof t.name !== 'string' || !t.name.trim()) errors.push(where + ': thiếu tên loại');
+    if (t.waitMinutes !== undefined && (!isFinite(t.waitMinutes) || t.waitMinutes < 1)) errors.push(where + ': số phút bấm giờ không hợp lệ');
+    if (!Array.isArray(t.fields) || !t.fields.length) { errors.push(where + ': phải có ít nhất 1 trường kết quả'); return; }
+    const seenKeys = new Set();
+    t.fields.forEach((f, fi) => {
+      const fw = where + ', trường thứ ' + (fi + 1);
+      if (!f || typeof f.key !== 'string' || !f.key.trim()) { errors.push(fw + ': thiếu khóa trường'); return; }
+      if (seenKeys.has(f.key)) errors.push(fw + ': khóa trường bị trùng');
+      seenKeys.add(f.key);
+      if (typeof f.label !== 'string' || !f.label.trim()) errors.push(fw + ': thiếu nhãn trường');
+      if (f.type !== 'text' && f.type !== 'chips') errors.push(fw + ': dạng trường phải là text hoặc chips');
+      if (f.type === 'chips' && (!Array.isArray(f.levels) || !f.levels.length || f.levels.some((lv) => typeof lv !== 'string' || !lv))) {
+        errors.push(fw + ': trường dạng nút chọn phải có ít nhất 1 mức');
+      }
+    });
+  });
+  return errors;
+}
+
+function loadSavedTypes() {
+  try {
+    const raw = localStorage.getItem(TYPES_KEY);
+    if (!raw) return;
+    const list = JSON.parse(raw);
+    if (!validateTypeDefs(list).length) {
+      setTestTypes(list);
+      typesCustom = true;
+    }
+  } catch (e) { /* danh mục lưu hỏng -> dùng mặc định */ }
+}
+
+function persistTypes() {
+  try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
+  typesCustom = true;
+}
+
+/* Dựng lại 3 ô chọn loại (form nhập, bộ lọc, máy quét) theo danh mục hiện hành, giữ lựa chọn cũ nếu còn */
+function refreshTypeSelects() {
+  [['select-type', false], ['f-type', true], ['scanner-type-select', false]].forEach(([id, includeAll]) => {
+    const el = $(id);
+    if (!el) return;
+    const prev = el.value;
+    buildTypeOptions(el, includeAll);
+    if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+  });
+}
+
+function openTypes() { switchView('types'); }
+
+function renderTypes() {
+  const ul = $('types-list');
+  const all = store.getAll();
+  ul.innerHTML = '';
+  getTestTypes().forEach((t) => {
+    const used = all.filter((r) => r.typeId === t.id).length;
+    const li = document.createElement('li');
+    li.innerHTML =
+      '<div class="type-info"><div class="type-name">' + esc(t.name) + '</div>' +
+      '<div class="type-meta">' + t.fields.length + ' trường kết quả' +
+      (t.waitMinutes ? ' · ⏱ bấm giờ ' + t.waitMinutes + ' phút' : '') +
+      (used ? ' · đang có ' + used + ' bản ghi' : '') + '</div></div>' +
+      '<div class="type-actions">' +
+      '<button type="button" class="mini-btn" data-tedit="' + esc(t.id) + '">Sửa</button>' +
+      '<button type="button" class="mini-btn danger" data-tdel="' + esc(t.id) + '">Xóa</button></div>';
+    ul.appendChild(li);
+  });
+  $('empty-types').classList.toggle('hidden', getTestTypes().length > 0);
+}
+
+function deleteType(typeId) {
+  const t = getTestType(typeId);
+  if (!t) return;
+  const used = store.getAll().filter((r) => r.typeId === typeId).length;
+  if (used > 0) {
+    alert('Không xóa được: đang có ' + used + ' bản ghi thuộc loại "' + t.name + '". Muốn xóa loại này, trước hết phải xóa/đổi các bản ghi đó.');
+    return;
+  }
+  if (getTestTypes().length <= 1) { alert('Phải giữ lại ít nhất 1 loại xét nghiệm.'); return; }
+  if (!confirm('Xóa loại xét nghiệm "' + t.name + '" khỏi danh mục?')) return;
+  setTestTypes(getTestTypes().filter((x) => x.id !== typeId));
+  persistTypes();
+  refreshTypeSelects();
+  renderTypes();
+  toast('Đã xóa loại ' + t.name);
+}
+
+function resetTypes() {
+  const defaults = LAB_CONFIG.testTypes;
+  const orphans = store.getAll().filter((r) => !defaults.some((t) => t.id === r.typeId)).length;
+  if (orphans > 0) {
+    alert('Chưa khôi phục mặc định được: đang có ' + orphans + ' bản ghi thuộc các loại tự thêm. Hãy xóa các bản ghi đó trước.');
+    return;
+  }
+  if (!confirm('Khôi phục danh mục về 6 loại mặc định ban đầu? Các loại tự thêm (chưa có bản ghi) sẽ bị xóa.')) return;
+  try { localStorage.removeItem(TYPES_KEY); } catch (e) { /* bỏ qua */ }
+  setTestTypes(null);
+  typesCustom = false;
+  refreshTypeSelects();
+  renderTypes();
+  toast('Đã khôi phục 6 loại mặc định');
+}
+
+/* ---- Form thêm/sửa một loại ---- */
+let typeFormState = null;
+
+function slugWords(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+}
+function uniqueKey(base, used) {
+  let k = base || 'truong';
+  let n = 2;
+  while (used.has(k)) { k = (base || 'truong') + (n++); }
+  used.add(k);
+  return k;
+}
+
+function openTypeForm(typeId) {
+  const src = typeId ? getTestType(typeId) : null;
+  typeFormState = src
+    ? { id: src.id, fields: src.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, levels: (f.levels || LEVELS_PRESETS['3']).slice() })) }
+    : { id: null, fields: [{ key: '', label: '', type: 'text', levels: LEVELS_PRESETS['3'].slice() }] };
+  $('tf-title').textContent = src ? 'Sửa loại xét nghiệm' : 'Thêm loại xét nghiệm';
+  $('tf-name').value = src ? src.name : '';
+  $('tf-wait').value = src && src.waitMinutes ? src.waitMinutes : '';
+  $('tf-error').classList.add('hidden');
+  renderTypeFieldRows();
+  switchView('typeform');
+}
+
+function renderTypeFieldRows() {
+  const wrap = $('tf-fields');
+  wrap.innerHTML = '';
+  typeFormState.fields.forEach((f, i) => {
+    const preset = f.type === 'chips' ? String(Math.min(3, Math.max(1, (f.levels || []).length))) : '3';
+    const row = document.createElement('div');
+    row.className = 'tf-field';
+    row.innerHTML =
+      '<input type="text" class="tf-flabel" placeholder="Nhãn trường, vd: Kết quả" value="' + esc(f.label) + '">' +
+      '<select class="tf-fkind">' +
+      '<option value="text"' + (f.type === 'text' ? ' selected' : '') + '>Ô nhập chữ</option>' +
+      '<option value="chips"' + (f.type === 'chips' ? ' selected' : '') + '>Nút chọn mức (+)</option></select>' +
+      '<select class="tf-flevels"' + (f.type === 'chips' ? '' : ' disabled') + '>' +
+      '<option value="1"' + (preset === '1' ? ' selected' : '') + '>1 mức: (+)</option>' +
+      '<option value="2"' + (preset === '2' ? ' selected' : '') + '>2 mức: (+), (++)</option>' +
+      '<option value="3"' + (preset === '3' ? ' selected' : '') + '>3 mức: (+), (++), (+++)</option></select>' +
+      '<button type="button" class="mini-btn danger tf-fdel" title="Xóa trường">✕</button>';
+    const labelInp = row.querySelector('.tf-flabel');
+    const kindSel = row.querySelector('.tf-fkind');
+    const levelsSel = row.querySelector('.tf-flevels');
+    labelInp.addEventListener('input', () => { typeFormState.fields[i].label = labelInp.value; });
+    kindSel.addEventListener('change', () => {
+      typeFormState.fields[i].type = kindSel.value;
+      levelsSel.disabled = kindSel.value !== 'chips';
+    });
+    levelsSel.addEventListener('change', () => { typeFormState.fields[i].levels = LEVELS_PRESETS[levelsSel.value].slice(); });
+    row.querySelector('.tf-fdel').addEventListener('click', () => {
+      if (typeFormState.fields.length <= 1) { toast('Mỗi loại cần ít nhất 1 trường kết quả'); return; }
+      typeFormState.fields.splice(i, 1);
+      renderTypeFieldRows();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function showTypeError(msg) {
+  const el = $('tf-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function saveTypeForm() {
+  const name = $('tf-name').value.trim();
+  if (!name) { showTypeError('Chưa nhập tên loại xét nghiệm'); return; }
+  const waitRaw = $('tf-wait').value.trim();
+  let waitMinutes = null;
+  if (waitRaw !== '') {
+    waitMinutes = parseInt(waitRaw, 10);
+    if (!isFinite(waitMinutes) || waitMinutes < 1) { showTypeError('Số phút bấm giờ phải là số nguyên từ 1 trở lên, hoặc để trống'); return; }
+  }
+  const labels = typeFormState.fields.map((f) => (f.label || '').trim());
+  if (labels.some((l) => !l)) { showTypeError('Còn trường chưa có nhãn — hãy đặt tên cho mọi trường kết quả'); return; }
+  const lower = labels.map((l) => l.toLowerCase());
+  if (new Set(lower).size !== lower.length) { showTypeError('Các trường đang trùng nhãn — mỗi trường cần một nhãn riêng'); return; }
+  const usedKeys = new Set();
+  const fields = typeFormState.fields.map((f, i) => {
+    const words = slugWords(labels[i]);
+    const camel = words.length ? words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('') : '';
+    const out = { key: f.key || uniqueKey(camel, usedKeys), label: labels[i], type: f.type };
+    if (f.key) usedKeys.add(f.key);
+    if (f.type === 'chips') out.levels = (f.levels && f.levels.length ? f.levels : LEVELS_PRESETS['3']).slice();
+    return out;
+  });
+  let id = typeFormState.id;
+  if (!id) {
+    const usedIds = new Set(getTestTypes().map((t) => t.id));
+    const base = slugWords(name).join('-') || 'loai-' + Date.now().toString(36);
+    id = base;
+    let n = 2;
+    while (usedIds.has(id)) { id = base + '-' + (n++); }
+  }
+  const def = { id, name, fields };
+  if (waitMinutes) def.waitMinutes = waitMinutes;
+  const newList = typeFormState.id
+    ? getTestTypes().map((t) => (t.id === typeFormState.id ? def : t))
+    : getTestTypes().concat([def]);
+  const errors = validateTypeDefs(newList);
+  if (errors.length) { showTypeError(errors[0]); return; }
+  setTestTypes(newList);
+  persistTypes();
+  refreshTypeSelects();
+  switchView('types');
+  toast(typeFormState.id ? 'Đã sửa loại xét nghiệm' : 'Đã thêm loại xét nghiệm: ' + name);
+}
+
+/* ================= Nhập bằng giọng nói (F11) =================
+   Dùng Web Speech API (Chrome trên Android hỗ trợ tiếng Việt, cần có mạng cho
+   dịch vụ nhận giọng của Google). Chỉ gắn cho các ô NHẬP CHỮ (trường kết quả
+   dạng text + ô ghi chú) — trường dạng nút chip thì chọn tay chính xác hơn.
+   Trình duyệt không hỗ trợ -> không hiện nút mic, tính năng tự ẩn. */
+let voiceRec = null;
+
+function voiceSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function startVoiceInput(inputEl, btnEl) {
+  if (!voiceSupported()) {
+    toast('Trình duyệt này không hỗ trợ nhập giọng nói — hãy dùng Chrome trên Android');
+    return false;
+  }
+  if (voiceRec) { /* đang nghe -> bấm lần nữa để dừng */
+    try { voiceRec.stop(); } catch (e) { /* bỏ qua */ }
+    voiceRec = null;
+    if (btnEl) btnEl.classList.remove('listening');
+    return true;
+  }
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new Ctor();
+  rec.lang = 'vi-VN';
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  voiceRec = rec;
+  if (btnEl) btnEl.classList.add('listening');
+  rec.onresult = (e) => {
+    const said = e.results && e.results[0] && e.results[0][0] ? (e.results[0][0].transcript || '').trim() : '';
+    if (said && inputEl) {
+      inputEl.value = inputEl.value && inputEl.value.trim() ? inputEl.value.trim() + ' ' + said : said;
+      inputEl.dispatchEvent(new window.Event('input', { bubbles: true }));
+    }
+  };
+  rec.onerror = () => { toast('Không nghe rõ — thử nói lại'); };
+  rec.onend = () => { voiceRec = null; if (btnEl) btnEl.classList.remove('listening'); };
+  try { rec.start(); } catch (e) {
+    voiceRec = null;
+    if (btnEl) btnEl.classList.remove('listening');
+    return false;
+  }
+  return true;
+}
+
+function makeMicBtn(inputEl) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'mic-btn';
+  b.title = 'Nhập bằng giọng nói';
+  b.setAttribute('aria-label', 'Nhập bằng giọng nói');
+  b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+  b.addEventListener('click', () => startVoiceInput(inputEl, b));
+  return b;
+}
+
+/* Bọc một ô input trong hàng flex kèm nút mic (chỉ khi trình duyệt hỗ trợ) */
+function wrapWithMic(inputEl) {
+  if (!inputEl || !inputEl.parentNode || !voiceSupported()) return;
+  const w = document.createElement('div');
+  w.className = 'mic-wrap';
+  inputEl.parentNode.insertBefore(w, inputEl);
+  w.appendChild(inputEl);
+  w.appendChild(makeMicBtn(inputEl));
+}
+
 /* ================= Form nhập / sửa ================= */
 let formState = { uid: null, typeId: null, results: {}, createdAt: null };
 
 function buildTypeOptions(selectEl, includeAll) {
   selectEl.innerHTML = (includeAll ? '<option value="">Tất cả</option>' : '') +
-    LAB_CONFIG.testTypes.map((t) => '<option value="' + t.id + '">' + esc(t.name) + '</option>').join('');
+    getTestTypes().map((t) => '<option value="' + t.id + '">' + esc(t.name) + '</option>').join('');
 }
 
 function openForm(uid) {
   const rec = uid ? store.getByUid(uid) : null;
   formState = {
     uid: rec ? rec.uid : null,
-    typeId: rec ? rec.typeId : LAB_CONFIG.testTypes[0].id,
+    typeId: rec ? rec.typeId : getTestTypes()[0].id,
     results: rec ? Object.assign({}, rec.results) : {},
     createdAt: rec ? rec.createdAt : new Date().toISOString(),
   };
@@ -472,6 +853,7 @@ function renderFields() {
 
   wrap.querySelectorAll('[data-field]').forEach((inp) => {
     inp.addEventListener('input', () => { formState.results[inp.dataset.field] = inp.value; });
+    wrapWithMic(inp); /* ô nhập chữ có thêm nút micro khi trình duyệt hỗ trợ giọng nói */
   });
   wrap.querySelectorAll('[data-chip]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -571,7 +953,7 @@ function openScanner(source) {
   scannerState = { source, single, count: 0, lastCode: '', lastAt: 0 };
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
-  typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || LAB_CONFIG.testTypes[0].id);
+  typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || getTestTypes()[0].id);
   $('scanner-list').innerHTML = '';
   $('scanner-input').value = '';
   $('scan-frame').classList.remove('hidden');
@@ -691,6 +1073,8 @@ function closeScanner() {
 
 /* ================= Khởi tạo ================= */
 function init() {
+  loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
+  wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
   buildTypeOptions($('scanner-type-select'), false);
@@ -739,6 +1123,25 @@ function init() {
 
   $('btn-apply-filter').addEventListener('click', applyExport);
   $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
+  $('btn-export-csv').addEventListener('click', exportCsv);
+  $('btn-types').addEventListener('click', openTypes);
+  $('btn-types-back').addEventListener('click', () => switchView(mainView));
+  $('btn-type-add').addEventListener('click', () => openTypeForm(null));
+  $('btn-types-reset').addEventListener('click', resetTypes);
+  $('types-list').addEventListener('click', (e) => {
+    const ed = e.target.closest('[data-tedit]');
+    if (ed) { openTypeForm(ed.dataset.tedit); return; }
+    const del = e.target.closest('[data-tdel]');
+    if (del) deleteType(del.dataset.tdel);
+  });
+  $('btn-tf-back').addEventListener('click', () => switchView('types'));
+  $('btn-tf-cancel').addEventListener('click', () => switchView('types'));
+  $('btn-tf-save').addEventListener('click', saveTypeForm);
+  $('btn-tf-add-field').addEventListener('click', () => {
+    typeFormState.fields.push({ key: '', label: '', type: 'text', levels: LEVELS_PRESETS['3'].slice() });
+    renderTypeFieldRows();
+  });
+
   $('btn-backup-export').addEventListener('click', exportBackupFile);
   $('btn-backup-import').addEventListener('click', () => $('backup-file').click());
   $('backup-file').addEventListener('change', async (e) => {

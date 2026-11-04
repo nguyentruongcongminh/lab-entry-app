@@ -94,6 +94,24 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Phục hồi = thay toàn bộ** dữ liệu hiện tại trên máy bằng dữ liệu trong file, sau hộp xác nhận nêu rõ số bản ghi + thời gian xuất của file. File phải qua kiểm tra hợp lệ (JSON đúng cấu trúc, mọi bản ghi có ID + loại XN hợp lệ, không trùng ID + loại trong nội bộ file); file hỏng/không hợp lệ bị từ chối và **không đụng vào dữ liệu hiện tại**.
 - Mục đích: tự bảo vệ khi mất dữ liệu/xóa nhầm cache, đổi máy hoặc cài lại trình duyệt (trước đây Minh đã bỏ qua gợi ý này ở v14, nay chủ động yêu cầu thêm).
 
+### F9 — Tự quản lý danh mục xét nghiệm trong app (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 1 trong gói giới thiệu)
+
+- Nút ⚙ ở tab Quản lý mở màn hình **Loại xét nghiệm**: liệt kê danh mục đang dùng (số trường, phút bấm giờ, số bản ghi đang có), với **Sửa / Xóa** từng loại, nút **Thêm loại xét nghiệm** và **Khôi phục 6 loại mặc định**.
+- Form loại: tên loại, số phút bấm giờ (để trống = không bấm giờ), danh sách trường kết quả — mỗi trường gồm nhãn + dạng (**Ô nhập chữ** hoặc **Nút chọn mức (+)** với 1/2/3 mức). Sửa loại giữ nguyên mã loại và khóa các trường cũ nên bản ghi đã nhập không bị ảnh hưởng.
+- Ràng buộc an toàn: **không xóa được loại đang có bản ghi**; luôn giữ ít nhất 1 loại; khôi phục mặc định bị chặn khi còn bản ghi thuộc loại tự thêm.
+- Danh mục tự tạo lưu ở localStorage (`labentry.types.v1`) của từng máy; chưa có thì dùng 6 loại mặc định trong config.js. File sao lưu (F8) từ bản này **kèm theo danh mục tự tạo**; phục hồi ở máy khác sẽ áp dụng cả danh mục trong file.
+
+### F10 — Xuất CSV + thống kê thời gian trả kết quả (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 4)
+
+- Tab Lọc & Xuất có thêm nút **Xuất CSV**: xuất đúng danh sách đang lọc ra file CSV (ngăn cách ";", BOM UTF-8 để Excel trên Windows đọc đúng tiếng Việt; cột cuối là thời gian trả kết quả tính bằng phút).
+- Dưới dòng đếm kết quả có dòng **thống kê TAT**: số mẫu đã phát hành / tổng số, thời gian trả kết quả (phát hành − nhận mẫu) trung bình / nhanh nhất / lâu nhất, tính bằng `LabStore.tatStats` trên đúng danh sách đang lọc.
+
+### F11 — Nhập kết quả bằng giọng nói tiếng Việt (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 5)
+
+- Các ô **nhập chữ** trong form (trường kết quả dạng text + ô Ghi chú chung) có thêm **nút micro tròn** khi trình duyệt hỗ trợ Web Speech API (Chrome trên Android): bấm để nói tiếng Việt, app điền chữ vào ô (nói tiếp thì nối thêm vào cuối); bấm lần nữa để dừng; đang nghe nút chuyển đỏ nhấp nháy.
+- Trường dạng nút chip không gắn micro (chọn tay chính xác hơn). Trình duyệt không hỗ trợ -> không hiện nút micro, app chạy bình thường.
+- Giới hạn thật: nhận giọng dùng dịch vụ của Google nên **cần có mạng**; độ chính xác tùy phát âm/môi trường — người dùng phải kiểm tra lại nội dung trước khi lưu. Môi trường test tự động (jsdom) không có SpeechRecognition nên chỉ kiểm chứng được đường "không hỗ trợ"; đường nhận giọng thật cần thử trên Chrome Android.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

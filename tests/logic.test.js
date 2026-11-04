@@ -191,6 +191,23 @@ test('timerEndsAt (đồng hồ bấm giờ): lưu khi thêm, giữ nguyên khi 
   assert.strictEqual(c.record.timerEndsAt, null);
 });
 
+/* ---------- Thống kê thời gian trả kết quả (F10) ---------- */
+test('tatStats: chỉ tính mẫu đã phát hành, cho trung bình/min/max đúng; rỗng thì count 0', () => {
+  const t0 = '2026-11-04T08:00:00.000Z';
+  const plus = (iso, min) => new Date(new Date(iso).getTime() + min * 60000).toISOString();
+  const stats = LabStore.tatStats([
+    { createdAt: t0, releaseAt: plus(t0, 30) },
+    { createdAt: t0, releaseAt: plus(t0, 90) },
+    { createdAt: t0, releaseAt: null },
+    { createdAt: t0, releaseAt: plus(t0, -5) },
+  ]);
+  assert.strictEqual(stats.count, 2);
+  assert.strictEqual(stats.avgMinutes, 60);
+  assert.strictEqual(stats.minMinutes, 30);
+  assert.strictEqual(stats.maxMinutes, 90);
+  assert.deepStrictEqual(LabStore.tatStats([]), { count: 0, avgMinutes: null, minMinutes: null, maxMinutes: null });
+});
+
 /* ---------- Sao lưu / phục hồi (F8) ---------- */
 test('sao lưu: xuất JSON rồi phục hồi vào kho trống cho lại đúng dữ liệu (kể cả hẹn giờ + phát hành)', () => {
   const s1 = LabStore.createStore(LabStore.memoryStorage(), getTestType);

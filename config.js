@@ -73,10 +73,26 @@ const LAB_CONFIG = {
   ],
 };
 
+/*
+ * Danh mục đang dùng: mặc định là LAB_CONFIG.testTypes ở trên.
+ * Từ v19, người dùng tự quản lý danh mục ngay trong app (thêm/sửa/xóa loại + trường);
+ * danh mục tự tạo được app nạp qua setTestTypes() và lưu ở localStorage của máy.
+ * getTestType()/getTestTypes() luôn tra trong danh mục đang dùng.
+ */
+let _activeTypes = null;
+
+function setTestTypes(list) {
+  _activeTypes = Array.isArray(list) && list.length ? list : null;
+}
+
+function getTestTypes() {
+  return _activeTypes || LAB_CONFIG.testTypes;
+}
+
 function getTestType(typeId) {
-  return LAB_CONFIG.testTypes.find((t) => t.id === typeId) || null;
+  return getTestTypes().find((t) => t.id === typeId) || null;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { LAB_CONFIG, getTestType };
+  module.exports = { LAB_CONFIG, getTestType, getTestTypes, setTestTypes };
 }
