@@ -54,6 +54,15 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Mỗi kết quả ở trạng thái **Chờ phát hành** có thêm **nút Phát hành** (icon gửi, màu xanh) ngay trên dòng: bấm → hỏi xác nhận → ghi **Ngày giờ phát hành = thời điểm hiện tại**, kết quả chuyển sang Đã phát hành và rời nhóm Chờ phát hành. Kết quả chưa có nội dung (Chưa kết quả) hoặc đã phát hành thì không hiện nút này.
 - **Muốn sửa phải bấm nút cây bút** trên dòng. Bấm trực tiếp vào dòng hoặc vào ID **không** mở form sửa.
 
+### F3c — Quét mã liên tục để tiếp nhận mẫu (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Mở quét từ **nút quét trên tab Kết quả hôm nay** (tiếp nhận mẫu) hoặc từ **nút quét trong form**.
+- **Quét liên tục**: camera giữ mở và nhận mã nối tiếp nhau; mỗi mã hợp lệ tạo **ngay một bản ghi "Chưa kết quả"** với thời điểm nhận là hiện tại (phục vụ xếp thứ tự chờ nhập kết quả theo giờ nhận). Vòng quét **chỉ dừng khi người dùng bấm "Dừng quét"**.
+- **Danh mục (loại xét nghiệm) giữ nguyên cả phiên**: chọn loại trước khi quét; sau khi nhận thành công mã đầu tiên, ô chọn loại bị **khóa** — muốn đổi loại phải dừng phiên và mở phiên mới.
+- Mã **trùng ID + loại** trong lúc quét: báo "Đã tồn tại — bỏ qua", không tạo thêm, phiên vẫn tiếp tục.
+- Có **ô nhập tay dự phòng** (nhập ID + bấm "Nhận mẫu", hoặc phím Enter) hoạt động y hệt quét camera khi thiết bị không hỗ trợ camera/quét — vẫn liên tục.
+- Ngoại lệ: mở quét từ **form sửa** một bản ghi thì là chế độ 1 mã — nhận mã xong điền vào ô ID của form và tự đóng, không tạo bản ghi mới.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.
@@ -100,6 +109,7 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 13. Tab "Kết quả hôm nay" cũng xếp tăng dần theo giờ nhập: mới nhất nằm cuối danh sách.
 14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm (sau xác nhận) thì bản ghi thành Đã phát hành với ngày giờ phát hành là hiện tại và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
 15. Bấm vào dòng/ID không mở form sửa; chỉ nút cây bút mới mở được.
+16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN khóa sau mã đầu tiên; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; nhập tay dự phòng hoạt động tương đương; mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng.
 
 ## 5. Kiến trúc đề xuất
 

@@ -256,6 +256,48 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(noRes.querySelector('[data-action="release"]'), null, 'chưa có kết quả thì không có nút phát hành');
   });
 
+  test('quét liên tục từ tab Hôm nay (đường nhập tay dự phòng): nhận nhiều mã, khóa loại sau mã đầu, trùng thì bỏ qua', () => {
+    document.querySelector('[data-view="today"]').click();
+    const before = $('list-today').children.length;
+    $('btn-scan-today').click();
+    assert.ok(visible($('scanner-modal')));
+    assert.ok(!$('scanner-type-select').disabled, 'chưa quét mã nào: loại còn đổi được');
+    setSelect($('scanner-type-select'), 'sp');
+    const manualAdd = (code) => { $('scanner-input').value = code; $('btn-scanner-add').click(); };
+    manualAdd('2611043001');
+    assert.ok($('scanner-count').textContent.includes('1'));
+    assert.strictEqual($('scanner-list').children.length, 1);
+    assert.ok($('scanner-type-select').disabled, 'sau mã đầu tiên: loại bị khóa, giữ nguyên cả phiên');
+    manualAdd('2611043001'); // trùng ID + loại
+    assert.ok($('scanner-msg').textContent.includes('Đã tồn tại'));
+    assert.ok($('scanner-count').textContent.includes('1'), 'trùng không tính thêm');
+    manualAdd('2611043002');
+    assert.ok($('scanner-count').textContent.includes('2'));
+    $('btn-scanner-close').click(); // người dùng chủ động dừng
+    assert.ok(!visible($('scanner-modal')));
+    assert.strictEqual($('list-today').children.length, before + 2);
+    const rows = [...$('list-today').children];
+    const i1 = rows.findIndex((r) => r.textContent.includes('2611043001'));
+    const i2 = rows.findIndex((r) => r.textContent.includes('2611043002'));
+    assert.ok(i1 >= 0 && i2 > i1, 'mẫu nhận trước nằm trên mẫu nhận sau');
+    assert.ok(rows[i1].textContent.includes('Chưa kết quả'));
+  });
+
+  test('quét từ form SỬA: chế độ 1 mã — điền vào ô ID, tự đóng, không tạo bản ghi mới', () => {
+    const before = $('list-today').children.length;
+    const li = [...$('list-today').children].find((x) => x.textContent.includes('2611043001'));
+    li.querySelector('[data-action="edit"]').click();
+    assert.ok(visible($('view-form')));
+    $('btn-scan').click();
+    assert.ok(visible($('scanner-modal')));
+    $('scanner-input').value = '8888';
+    $('btn-scanner-add').click();
+    assert.ok(!visible($('scanner-modal')), 'nhận 1 mã xong tự đóng');
+    assert.strictEqual($('input-testid').value, '8888');
+    $('btn-cancel').click();
+    assert.strictEqual($('list-today').children.length, before, 'không tạo thêm bản ghi');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

@@ -275,50 +275,138 @@ function saveForm() {
   switchView('today');
 }
 
-/* ================= Quét mã ================= */
+/* ================= Quét mã =================
+ * Hai chế độ:
+ * - 'single' (mở từ form SỬA một bản ghi): nhận 1 mã -> điền vào ô ID -> tự đóng.
+ * - 'continuous' (tiếp nhận mẫu): quét LIÊN TỤC — mỗi mã tạo ngay 1 bản ghi
+ *   "Chưa kết quả" theo loại XN đã chọn. Loại XN được KHÓA sau mã nhận thành
+ *   công đầu tiên của phiên và giữ nguyên tới khi người dùng bấm "Dừng quét".
+ */
 let scanStream = null;
 let scanTimer = null;
+let scannerState = null;
 
-async function openScanner() {
-  $('scanner-modal').classList.remove('hidden');
+function setScanMsg(text, kind) {
   const msg = $('scanner-msg');
+  msg.textContent = text;
+  msg.className = 'scanner-msg' + (kind ? ' ' + kind : '');
+}
+
+function updateScanCount() {
+  $('scanner-count').textContent = 'Đã nhận trong phiên: ' + (scannerState ? scannerState.count : 0);
+}
+
+function openScanner(source) {
+  const single = source === 'form' && !!formState.uid;
+  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0, locked: false };
+  const typeSel = $('scanner-type-select');
+  typeSel.disabled = false;
+  typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || LAB_CONFIG.testTypes[0].id);
+  $('scanner-list').innerHTML = '';
+  $('scanner-input').value = '';
+  updateScanCount();
+  $('scanner-modal').classList.remove('hidden');
+  setScanMsg(single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...');
+  startCamera();
+}
+
+function lockScannerType() {
+  if (scannerState && !scannerState.locked) {
+    scannerState.locked = true;
+    $('scanner-type-select').disabled = true;
+  }
+}
+
+/* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận. */
+function acceptScanCode(rawCode) {
+  const code = String(rawCode || '').trim();
+  if (!code || !scannerState) return false;
+
+  if (scannerState.single) {
+    $('input-testid').value = code;
+    toast('Đã quét mã: ' + code);
+    closeScanner();
+    return true;
+  }
+
+  const typeId = $('scanner-type-select').value;
+  const type = getTestType(typeId);
+  if (store.findDuplicate({ testId: code, typeId })) {
+    setScanMsg('Đã tồn tại: ' + code + ' (' + (type ? type.name : typeId) + ') — bỏ qua, quét mã tiếp theo', 'err');
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+  const res = store.add({ testId: code, typeId, results: {} });
+  if (!res.ok) {
+    setScanMsg(res.errors.join('. '), 'err');
+    return false;
+  }
+  lockScannerType();
+  scannerState.count += 1;
+  updateScanCount();
+  const li = document.createElement('li');
+  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
+  const list = $('scanner-list');
+  list.insertBefore(li, list.firstChild);
+  setScanMsg('Đã nhận mẫu: ' + code + ' — quét mã tiếp theo, hoặc bấm "Dừng quét"', 'ok');
+  if (navigator.vibrate) navigator.vibrate(60);
+  refreshCurrent();
+  return true;
+}
+
+async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    msg.textContent = 'Thiết bị/trình duyệt này không hỗ trợ quét mã. Vui lòng nhập ID bằng tay.';
+    setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera — nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu" (vẫn nhận liên tục).', 'err');
     return;
   }
   try {
-    msg.textContent = 'Đang mở camera...';
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    if (!scannerState) { stream.getTracks().forEach((t) => t.stop()); return; }
+    scanStream = stream;
     const video = $('scanner-video');
     video.srcObject = scanStream;
     await video.play();
-    msg.textContent = 'Đưa mã QR/barcode của mẫu vào khung hình...';
+    if (!scannerState) return;
+    setScanMsg(scannerState.single ? 'Đưa mã vào khung hình...' : 'Đang quét liên tục — đưa từng mã vào khung hình, bấm "Dừng quét" khi xong...');
     const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
     scanTimer = setInterval(async () => {
       try {
         const codes = await detector.detect(video);
-        if (codes && codes.length && codes[0].rawValue) {
-          $('input-testid').value = codes[0].rawValue;
-          closeScanner();
-          toast('Đã quét mã: ' + codes[0].rawValue);
+        if (codes && codes.length && codes[0].rawValue && scannerState) {
+          const code = String(codes[0].rawValue);
+          const now = Date.now();
+          /* Chống nhận lặp cùng 1 mã đang đứng trước camera: bỏ qua nếu trùng mã trước trong 3 giây */
+          if (code === scannerState.lastCode && now - scannerState.lastAt < 3000) return;
+          scannerState.lastCode = code;
+          scannerState.lastAt = now;
+          acceptScanCode(code);
         }
       } catch (e) { /* bỏ qua khung hình lỗi */ }
     }, 400);
   } catch (e) {
-    msg.textContent = 'Không mở được camera (' + e.name + '). Vui lòng nhập ID bằng tay.';
+    setScanMsg('Không mở được camera (' + e.name + '). Nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu".', 'err');
   }
 }
 
 function closeScanner() {
+  const added = scannerState ? scannerState.count : 0;
+  const fromFormNew = !!scannerState && scannerState.source === 'form' && !scannerState.single;
   $('scanner-modal').classList.add('hidden');
   if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
   if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+  scannerState = null;
+  if (added > 0) {
+    toast('Đã nhận ' + added + ' mẫu trong phiên quét');
+    /* Đã tiếp nhận trực tiếp từ form thêm mới -> về danh sách để xem mẫu vừa nhận */
+    if (fromFormNew) switchView('today'); else refreshCurrent();
+  }
 }
 
 /* ================= Khởi tạo ================= */
 function init() {
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
+  buildTypeOptions($('scanner-type-select'), false);
   $('f-from').value = todayKey();
   $('f-to').value = todayKey();
 
@@ -371,8 +459,17 @@ function init() {
     formState.results = {};
     renderFields();
   });
-  $('btn-scan').addEventListener('click', openScanner);
+  $('btn-scan').addEventListener('click', () => openScanner('form'));
+  $('btn-scan-today').addEventListener('click', () => openScanner('today'));
   $('btn-scanner-close').addEventListener('click', closeScanner);
+  $('btn-scanner-add').addEventListener('click', () => {
+    acceptScanCode($('scanner-input').value);
+    $('scanner-input').value = '';
+    $('scanner-input').focus();
+  });
+  $('scanner-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); $('btn-scanner-add').click(); }
+  });
 
   switchView('today');
 }
