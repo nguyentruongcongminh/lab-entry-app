@@ -460,6 +460,12 @@ svg { width: 24px; height: 24px; display: block; }
 #btn-tf-add-field { border-style: dashed; background: #f2f8fe; }
 .form-actions.padded-actions { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
 
+/* Ghi chú hỗ trợ máy quét cầm tay trong màn hình quét */
+#scanner-modal .wedge-note {
+  color: #94a3b8; font-size: 13px; line-height: 1.4;
+  margin: -4px 0 10px; text-align: left;
+}
+
 /* print.css — Khi in/xuất PDF: chỉ hiện bảng kết quả đã lọc */
 @media print {
   body { padding: 0; background: #fff; max-width: none; border: none; }
@@ -483,7 +489,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v21</span>
+    <span class="app-version">LabEntry v22</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -574,10 +580,11 @@ svg { width: 24px; height: 24px; display: block; }
 
   <div class="backup-card">
     <h3>Sao lưu &amp; phục hồi dữ liệu</h3>
-    <p class="backup-note">Dữ liệu chỉ lưu trên máy này. Hãy tải file sao lưu (.json) và giữ ở nơi an toàn (ví dụ gửi lên Drive/Zalo của chính mình). Khi mất dữ liệu, đổi máy hoặc cài lại trình duyệt, dùng chính file đó để phục hồi toàn bộ. Phục hồi sẽ thay toàn bộ dữ liệu hiện tại trên máy.</p>
+    <p class="backup-note">Dữ liệu chỉ lưu trên máy này. Hãy tải file sao lưu (.json) và giữ ở nơi an toàn (ví dụ gửi lên Drive/Zalo của chính mình). Khi mất dữ liệu, đổi máy hoặc cài lại trình duyệt, dùng chính file đó để phục hồi toàn bộ. Phục hồi sẽ thay toàn bộ dữ liệu hiện tại trên máy. Nút <b>Gộp dữ liệu</b> thì chỉ thêm các mẫu máy này chưa có từ file của máy khác (trùng ID + loại sẽ bỏ qua) — dùng khi nhiều máy cùng nhận mẫu rồi dồn về một chỗ.</p>
     <div class="backup-actions">
       <button type="button" id="btn-backup-export" class="primary-btn outline">⬇ Tải file sao lưu</button>
       <button type="button" id="btn-backup-import" class="primary-btn outline">⬆ Phục hồi từ file…</button>
+      <button type="button" id="btn-backup-merge" class="primary-btn outline">⤵ Gộp dữ liệu từ file…</button>
       <input type="file" id="backup-file" accept=".json,application/json" class="hidden">
     </div>
   </div>
@@ -718,6 +725,7 @@ svg { width: 24px; height: 24px; display: block; }
       <label for="scanner-type-select">Loại xét nghiệm</label>
       <select id="scanner-type-select"></select>
     </div>
+    <div class="wedge-note">⌨ Có máy quét mã vạch cầm tay (USB/Bluetooth)? Cứ bắn thẳng — app tự nhận như camera.</div>
     <div id="scan-frame" class="scan-frame">
       <video id="scanner-video" playsinline muted></video>
       <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
@@ -1083,6 +1091,27 @@ const LabStore = (() => {
       return { count: records.length };
     }
 
+    /*
+     * Gộp dữ liệu từ file sao lưu vào dữ liệu hiện tại (khác importBackup là thay toàn bộ):
+     * bản ghi trong file mà máy này CHƯA có (theo cặp ID + loại) thì thêm vào;
+     * bản ghi trùng ID + loại thì bỏ qua, giữ nguyên bản ghi đang có trên máy.
+     * Trả về { added, skipped }.
+     */
+    function mergeBackup(text) {
+      const parsed = parseBackup(text);
+      let added = 0;
+      let skipped = 0;
+      parsed.records.forEach((rec) => {
+        if (findDuplicate(rec)) { skipped += 1; return; }
+        const copy = Object.assign({}, rec, { results: Object.assign({}, rec.results || {}) });
+        if (records.some((r) => r.uid === copy.uid)) copy.uid = makeUid(new Date());
+        records.push(copy);
+        added += 1;
+      });
+      if (added > 0) persist();
+      return { added, skipped };
+    }
+
     function getByUid(uid) {
       return records.find((r) => r.uid === uid) || null;
     }
@@ -1127,7 +1156,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, STORAGE_KEY };
   }
 
   function localDayKey(d) {
@@ -1632,10 +1661,14 @@ function exportBackupFile() {
 }
 
 /* Nạp dữ liệu từ nội dung file sao lưu (đồng bộ, tách riêng để test được).
-   Trả về true nếu đã phục hồi.
-   File từ v19 có thể kèm "types" (danh mục tự tạo): danh mục trong file sẽ được
-   áp dụng + lưu lại trên máy này để các bản ghi dùng loại tự thêm đọc được. */
-function importBackupText(text) {
+   mode = 'replace' (mặc định): thay toàn bộ dữ liệu bằng dữ liệu trong file.
+   mode = 'merge': chỉ thêm các mẫu máy này chưa có (trùng ID + loại thì bỏ qua),
+                   dữ liệu hiện tại giữ nguyên.
+   Trả về true nếu đã nạp.
+   File từ v19 có thể kèm "types" (danh mục tự tạo): chế độ thay -> áp dụng nguyên
+   danh mục của file; chế độ gộp -> hợp nhất (chỉ thêm loại mà máy này chưa có). */
+function importBackupText(text, mode) {
+  const merge = mode === 'merge';
   let fileTypes = null;
   try {
     const raw = JSON.parse(text);
@@ -1648,7 +1681,13 @@ function importBackupText(text) {
   const prevTypes = getTestTypes();
   const prevCustom = typesCustom;
   const restoreTypes = () => { setTestTypes(prevCustom ? prevTypes : null); typesCustom = prevCustom; };
-  if (fileTypes) setTestTypes(fileTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục của file */
+  let appliedTypes = null;
+  if (fileTypes) {
+    appliedTypes = merge
+      ? prevTypes.concat(fileTypes.filter((t) => !prevTypes.some((x) => x.id === t.id)))
+      : fileTypes;
+    setTestTypes(appliedTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục liên quan */
+  }
   let parsed;
   try {
     parsed = store.parseBackup(text);
@@ -1658,24 +1697,39 @@ function importBackupText(text) {
     return false;
   }
   const when = parsed.exportedAt ? fmtFull(parsed.exportedAt) : 'không rõ thời gian';
-  const typeNote = fileTypes ? '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.' : '';
-  if (!confirm('File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?')) {
+  const typeNote = fileTypes
+    ? (merge ? '\nFile có kèm danh mục xét nghiệm — các loại máy này chưa có sẽ được thêm vào danh mục.' : '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.')
+    : '';
+  const ask = merge
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+  if (!confirm(ask)) {
     restoreTypes();
     return false;
   }
-  const res = store.importBackup(text);
-  if (fileTypes) persistTypes();
-  refreshTypeSelects();
-  refreshCurrent();
-  toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
+  if (merge) {
+    const res = store.mergeBackup(text);
+    if (fileTypes) persistTypes();
+    refreshTypeSelects();
+    refreshCurrent();
+    toast('Đã gộp dữ liệu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng');
+  } else {
+    const res = store.importBackup(text);
+    if (fileTypes) persistTypes();
+    refreshTypeSelects();
+    refreshCurrent();
+    toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
+  }
   return true;
 }
+
+let pendingImportMode = 'replace';
 
 async function handleBackupFile(file) {
   if (!file) return false;
   let text;
   try { text = await file.text(); } catch (e) { alert('Không đọc được file đã chọn.'); return false; }
-  return importBackupText(text);
+  return importBackupText(text, pendingImportMode);
 }
 
 /* ================= Quản lý danh mục xét nghiệm (F9) =================
@@ -2222,6 +2276,41 @@ async function startCamera() {
   }
 }
 
+/* ---- Máy quét mã vạch cầm tay (F13) ----
+   Máy quét USB/Bluetooth hoạt động như bàn phím: gõ mã rất nhanh (<60ms/ký tự)
+   rồi kết thúc bằng Enter. Khi màn hình quét đang mở, chuỗi gõ nhanh + Enter
+   được nhận thành mã như camera bắn. Người gõ tay chậm sẽ không khớp mẫu này. */
+let wedgeBuf = '';
+let wedgeLastAt = 0;
+
+function wedgeKey(key, nowMs) {
+  if (!scannerState) return false;
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  if (key === 'Enter') {
+    const code = wedgeBuf;
+    const fresh = now - wedgeLastAt <= 500;
+    wedgeBuf = '';
+    if (code.length >= 3 && fresh) { acceptScanCode(code); return true; }
+    return false;
+  }
+  if (!key || key.length !== 1) { if (key !== 'Shift') wedgeBuf = ''; return false; }
+  if (now - wedgeLastAt > 60) wedgeBuf = '';
+  wedgeBuf += key;
+  wedgeLastAt = now;
+  return false;
+}
+
+function initWedgeListener() {
+  document.addEventListener('keydown', (e) => {
+    if (!scannerState) return;
+    const t = e.target;
+    if (t && (t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+    if (t && t.tagName === 'INPUT' && t.id !== 'scanner-input') return;
+    if (e.key === 'Enter' && wedgeKey(e.key, Date.now())) { e.preventDefault(); return; }
+    wedgeKey(e.key, Date.now());
+  });
+}
+
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
   const fromFormNew = !!scannerState && scannerState.source === 'form' && !scannerState.single;
@@ -2240,6 +2329,7 @@ function closeScanner() {
 /* ================= Khởi tạo ================= */
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
+  initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
@@ -2309,7 +2399,8 @@ function init() {
   });
 
   $('btn-backup-export').addEventListener('click', exportBackupFile);
-  $('btn-backup-import').addEventListener('click', () => $('backup-file').click());
+  $('btn-backup-import').addEventListener('click', () => { pendingImportMode = 'replace'; $('backup-file').click(); });
+  $('btn-backup-merge').addEventListener('click', () => { pendingImportMode = 'merge'; $('backup-file').click(); });
   $('backup-file').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';

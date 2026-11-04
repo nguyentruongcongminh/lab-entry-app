@@ -452,3 +452,9 @@ svg { width: 24px; height: 24px; display: block; }
 .tf-field .tf-fkind, .tf-field .tf-flevels { flex: 1 1 0; min-width: 0; }
 #btn-tf-add-field { border-style: dashed; background: #f2f8fe; }
 .form-actions.padded-actions { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 10px; }
+
+/* Ghi chú hỗ trợ máy quét cầm tay trong màn hình quét */
+#scanner-modal .wedge-note {
+  color: #94a3b8; font-size: 13px; line-height: 1.4;
+  margin: -4px 0 10px; text-align: left;
+}

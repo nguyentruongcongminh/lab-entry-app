@@ -200,6 +200,27 @@ const LabStore = (() => {
       return { count: records.length };
     }
 
+    /*
+     * Gộp dữ liệu từ file sao lưu vào dữ liệu hiện tại (khác importBackup là thay toàn bộ):
+     * bản ghi trong file mà máy này CHƯA có (theo cặp ID + loại) thì thêm vào;
+     * bản ghi trùng ID + loại thì bỏ qua, giữ nguyên bản ghi đang có trên máy.
+     * Trả về { added, skipped }.
+     */
+    function mergeBackup(text) {
+      const parsed = parseBackup(text);
+      let added = 0;
+      let skipped = 0;
+      parsed.records.forEach((rec) => {
+        if (findDuplicate(rec)) { skipped += 1; return; }
+        const copy = Object.assign({}, rec, { results: Object.assign({}, rec.results || {}) });
+        if (records.some((r) => r.uid === copy.uid)) copy.uid = makeUid(new Date());
+        records.push(copy);
+        added += 1;
+      });
+      if (added > 0) persist();
+      return { added, skipped };
+    }
+
     function getByUid(uid) {
       return records.find((r) => r.uid === uid) || null;
     }
@@ -244,7 +265,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, STORAGE_KEY };
   }
 
   function localDayKey(d) {

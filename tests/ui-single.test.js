@@ -350,6 +350,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(rows[i1].textContent.includes('SP'), 'mẫu bắn trước vẫn giữ loại SP');
   });
 
+  test('máy quét cầm tay: chuỗi gõ nhanh + Enter trong màn hình quét được nhận như camera; gõ chậm thì không nhận', () => {
+    document.querySelector('[data-view="today"]').click();
+    $('btn-scan-today').click();
+    assert.ok(visible($('scanner-modal')));
+    setSelect($('scanner-type-select'), 'sp');
+    assert.strictEqual(typeof window.wedgeKey, 'function');
+    let t = 1000;
+    'WEDGE001'.split('').forEach((ch) => { window.wedgeKey(ch, t); t += 10; });
+    assert.strictEqual(window.wedgeKey('Enter', t + 10), true, 'gõ nhanh kiểu máy quét + Enter phải được nhận là một mã');
+    assert.ok($('scanner-count').textContent.includes('1'));
+    assert.ok($('scanner-list').textContent.includes('WEDGE001'));
+    let t2 = 5000;
+    'SLOW0001'.split('').forEach((ch) => { window.wedgeKey(ch, t2); t2 += 300; });
+    assert.strictEqual(window.wedgeKey('Enter', t2 + 10), false, 'gõ chậm kiểu người gõ tay không được tính là mã quét');
+    assert.ok($('scanner-count').textContent.includes('1'), 'phiên vẫn chỉ có 1 mẫu');
+    $('btn-scanner-close').click();
+    assert.ok([...$('list-today').children].some((x) => x.textContent.includes('WEDGE001')), 'mẫu từ máy quét cầm tay phải vào danh sách Hôm nay');
+  });
+
   test('quét từ form SỬA: chế độ 1 mã — điền vào ô ID, tự đóng, không tạo bản ghi mới', () => {
     const before = $('list-today').children.length;
     const li = [...$('list-today').children].find((x) => x.textContent.includes('2611043001'));
@@ -559,6 +578,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(csv.includes(';30'), 'cột thời gian trả kết quả = 30 phút');
     assert.ok(csv.includes('"ghi;chu"'), 'ô chứa dấu ; phải được bọc ngoặc kép');
     $('btn-export-csv').click(); // không được văng lỗi trong môi trường test
+  });
+
+  test('gộp dữ liệu từ file: thêm mẫu chưa có, gộp lại file cũ không tạo bản sao trùng', () => {
+    assert.ok($('btn-backup-merge'), 'có nút Gộp dữ liệu từ file');
+    const nowIso = new Date().toISOString();
+    const fileJson = JSON.stringify({
+      app: 'LabEntry', version: 1, exportedAt: nowIso,
+      records: [{ uid: 'mg-1', testId: 'MERGE-0001', typeId: 'sp', results: {}, note: '', releaseAt: null, timerEndsAt: null, createdAt: nowIso, updatedAt: nowIso }],
+    });
+    const oldConfirm = window.confirm;
+    window.confirm = () => true;
+    const okMerge = window.importBackupText(fileJson, 'merge');
+    window.confirm = oldConfirm;
+    assert.strictEqual(okMerge, true);
+    document.querySelector('[data-view="today"]').click();
+    assert.ok([...$('list-today').children].some((x) => x.textContent.includes('MERGE-0001')), 'mẫu mới trong file phải được gộp vào danh sách');
+    const countAfterFirst = $('list-today').children.length;
+    window.confirm = () => true;
+    window.importBackupText(fileJson, 'merge');
+    window.confirm = oldConfirm;
+    document.querySelector('[data-view="today"]').click();
+    assert.strictEqual($('list-today').children.length, countAfterFirst, 'gộp lại cùng một file không được tạo bản sao trùng');
   });
 
   test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {

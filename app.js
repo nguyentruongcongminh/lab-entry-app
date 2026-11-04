@@ -466,10 +466,14 @@ function exportBackupFile() {
 }
 
 /* Nạp dữ liệu từ nội dung file sao lưu (đồng bộ, tách riêng để test được).
-   Trả về true nếu đã phục hồi.
-   File từ v19 có thể kèm "types" (danh mục tự tạo): danh mục trong file sẽ được
-   áp dụng + lưu lại trên máy này để các bản ghi dùng loại tự thêm đọc được. */
-function importBackupText(text) {
+   mode = 'replace' (mặc định): thay toàn bộ dữ liệu bằng dữ liệu trong file.
+   mode = 'merge': chỉ thêm các mẫu máy này chưa có (trùng ID + loại thì bỏ qua),
+                   dữ liệu hiện tại giữ nguyên.
+   Trả về true nếu đã nạp.
+   File từ v19 có thể kèm "types" (danh mục tự tạo): chế độ thay -> áp dụng nguyên
+   danh mục của file; chế độ gộp -> hợp nhất (chỉ thêm loại mà máy này chưa có). */
+function importBackupText(text, mode) {
+  const merge = mode === 'merge';
   let fileTypes = null;
   try {
     const raw = JSON.parse(text);
@@ -482,7 +486,13 @@ function importBackupText(text) {
   const prevTypes = getTestTypes();
   const prevCustom = typesCustom;
   const restoreTypes = () => { setTestTypes(prevCustom ? prevTypes : null); typesCustom = prevCustom; };
-  if (fileTypes) setTestTypes(fileTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục của file */
+  let appliedTypes = null;
+  if (fileTypes) {
+    appliedTypes = merge
+      ? prevTypes.concat(fileTypes.filter((t) => !prevTypes.some((x) => x.id === t.id)))
+      : fileTypes;
+    setTestTypes(appliedTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục liên quan */
+  }
   let parsed;
   try {
     parsed = store.parseBackup(text);
@@ -492,24 +502,39 @@ function importBackupText(text) {
     return false;
   }
   const when = parsed.exportedAt ? fmtFull(parsed.exportedAt) : 'không rõ thời gian';
-  const typeNote = fileTypes ? '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.' : '';
-  if (!confirm('File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?')) {
+  const typeNote = fileTypes
+    ? (merge ? '\nFile có kèm danh mục xét nghiệm — các loại máy này chưa có sẽ được thêm vào danh mục.' : '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.')
+    : '';
+  const ask = merge
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+  if (!confirm(ask)) {
     restoreTypes();
     return false;
   }
-  const res = store.importBackup(text);
-  if (fileTypes) persistTypes();
-  refreshTypeSelects();
-  refreshCurrent();
-  toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
+  if (merge) {
+    const res = store.mergeBackup(text);
+    if (fileTypes) persistTypes();
+    refreshTypeSelects();
+    refreshCurrent();
+    toast('Đã gộp dữ liệu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng');
+  } else {
+    const res = store.importBackup(text);
+    if (fileTypes) persistTypes();
+    refreshTypeSelects();
+    refreshCurrent();
+    toast('Đã phục hồi ' + res.count + ' bản ghi từ file sao lưu');
+  }
   return true;
 }
+
+let pendingImportMode = 'replace';
 
 async function handleBackupFile(file) {
   if (!file) return false;
   let text;
   try { text = await file.text(); } catch (e) { alert('Không đọc được file đã chọn.'); return false; }
-  return importBackupText(text);
+  return importBackupText(text, pendingImportMode);
 }
 
 /* ================= Quản lý danh mục xét nghiệm (F9) =================
@@ -1056,6 +1081,41 @@ async function startCamera() {
   }
 }
 
+/* ---- Máy quét mã vạch cầm tay (F13) ----
+   Máy quét USB/Bluetooth hoạt động như bàn phím: gõ mã rất nhanh (<60ms/ký tự)
+   rồi kết thúc bằng Enter. Khi màn hình quét đang mở, chuỗi gõ nhanh + Enter
+   được nhận thành mã như camera bắn. Người gõ tay chậm sẽ không khớp mẫu này. */
+let wedgeBuf = '';
+let wedgeLastAt = 0;
+
+function wedgeKey(key, nowMs) {
+  if (!scannerState) return false;
+  const now = typeof nowMs === 'number' ? nowMs : Date.now();
+  if (key === 'Enter') {
+    const code = wedgeBuf;
+    const fresh = now - wedgeLastAt <= 500;
+    wedgeBuf = '';
+    if (code.length >= 3 && fresh) { acceptScanCode(code); return true; }
+    return false;
+  }
+  if (!key || key.length !== 1) { if (key !== 'Shift') wedgeBuf = ''; return false; }
+  if (now - wedgeLastAt > 60) wedgeBuf = '';
+  wedgeBuf += key;
+  wedgeLastAt = now;
+  return false;
+}
+
+function initWedgeListener() {
+  document.addEventListener('keydown', (e) => {
+    if (!scannerState) return;
+    const t = e.target;
+    if (t && (t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+    if (t && t.tagName === 'INPUT' && t.id !== 'scanner-input') return;
+    if (e.key === 'Enter' && wedgeKey(e.key, Date.now())) { e.preventDefault(); return; }
+    wedgeKey(e.key, Date.now());
+  });
+}
+
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
   const fromFormNew = !!scannerState && scannerState.source === 'form' && !scannerState.single;
@@ -1074,6 +1134,7 @@ function closeScanner() {
 /* ================= Khởi tạo ================= */
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
+  initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
@@ -1143,7 +1204,8 @@ function init() {
   });
 
   $('btn-backup-export').addEventListener('click', exportBackupFile);
-  $('btn-backup-import').addEventListener('click', () => $('backup-file').click());
+  $('btn-backup-import').addEventListener('click', () => { pendingImportMode = 'replace'; $('backup-file').click(); });
+  $('btn-backup-merge').addEventListener('click', () => { pendingImportMode = 'merge'; $('backup-file').click(); });
   $('backup-file').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';

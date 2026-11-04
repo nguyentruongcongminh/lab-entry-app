@@ -113,6 +113,19 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Trường dạng nút chip không gắn micro (chọn tay chính xác hơn). Trình duyệt không hỗ trợ -> không hiện nút micro, app chạy bình thường.
 - Giới hạn thật: nhận giọng dùng dịch vụ của Google nên **cần có mạng**; độ chính xác tùy phát âm/môi trường — người dùng phải kiểm tra lại nội dung trước khi lưu. Môi trường test tự động (jsdom) không có SpeechRecognition nên chỉ kiểm chứng được đường "không hỗ trợ"; đường nhận giọng thật cần thử trên Chrome Android.
 
+### F12 — Gộp dữ liệu từ file sao lưu (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 2 trong danh sách giới thiệu đợt 2)
+
+- Khối sao lưu ở tab Lọc & Xuất có thêm nút **Gộp dữ liệu từ file…** bên cạnh nút Phục hồi (thay toàn bộ).
+- Gộp = chỉ thêm các bản ghi trong file mà máy này **chưa có** (theo cặp ID + loại xét nghiệm); bản ghi trùng bị bỏ qua và **giữ nguyên bản ghi đang có trên máy** (không bị file đè). Kết quả gộp được báo rõ: thêm bao nhiêu mẫu mới, bỏ qua bao nhiêu mẫu trùng.
+- Danh mục kèm file khi gộp được **hợp nhất**: chỉ thêm các loại máy này chưa có (theo mã loại), không thay danh mục hiện tại. File vẫn phải qua cùng kiểm tra hợp lệ như phục hồi; file hỏng bị từ chối, dữ liệu không đổi.
+- Mục đích: nhiều máy/điện thoại cùng nhận mẫu, cuối ngày dồn dữ liệu về một máy bằng file sao lưu mà không mất dữ liệu của nhau.
+
+### F13 — Hỗ trợ máy quét mã vạch cầm tay (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 5 trong danh sách giới thiệu đợt 2)
+
+- Máy quét USB/Bluetooth (dạng giả lập bàn phím) dùng được ngay trong màn hình quét, song song với camera: app nhận diện **chuỗi ký tự gõ rất nhanh (<60ms/ký tự, tối thiểu 3 ký tự) kết thúc bằng Enter** và xử lý như một mã camera vừa bắn (`wedgeKey` trong app.js, chỉ hoạt động khi màn hình quét đang mở).
+- Người gõ tay chậm vào ô nhập tay không bị nhận nhầm thành mã quét; khi đang thao tác với ô chọn loại (select) app cũng không can thiệp.
+- Giới hạn thật: máy quét phải ở chế độ gửi Enter (CR) sau mã — chế độ mặc định của hầu hết máy quét; test tự động kiểm chứng bằng chuỗi phím mô phỏng theo đúng ngưỡng thời gian, phần cứng máy quét thật cần thử tại khoa.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

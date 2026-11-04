@@ -252,4 +252,25 @@ test('file sao lưu hỏng/không hợp lệ bị từ chối và dữ liệu hi
   assert.deepStrictEqual(s.getAll().map((r) => r.testId), ['KEEP'], 'phục hồi thất bại không được đụng vào dữ liệu hiện tại');
 });
 
+test('gộp dữ liệu: chỉ thêm mẫu chưa có, mẫu trùng ID + loại bị bỏ qua, bản ghi trên máy giữ nguyên', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  s.add({ testId: 'M1', typeId: 'sp', results: { hongCau: '(+)' } });
+  const other = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  other.add({ testId: 'M1', typeId: 'sp', results: {} });
+  other.add({ testId: 'M2', typeId: 'sp', results: {} });
+  other.add({ testId: 'M1', typeId: 'mau-an', results: {} });
+  const res = s.mergeBackup(other.exportBackup());
+  assert.deepStrictEqual(res, { added: 2, skipped: 1 });
+  assert.strictEqual(s.getAll().length, 3);
+  const m1 = s.getAll().find((r) => r.testId === 'M1' && r.typeId === 'sp');
+  assert.strictEqual(m1.results.hongCau, '(+)', 'bản ghi đang có trên máy không được bị bản trong file đè khi gộp');
+});
+
+test('gộp dữ liệu: file hỏng bị từ chối và dữ liệu hiện tại không đổi', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  s.add({ testId: 'KEEP2', typeId: 'sp', results: {} });
+  assert.throws(() => s.mergeBackup('{hỏng'));
+  assert.deepStrictEqual(s.getAll().map((r) => r.testId), ['KEEP2']);
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');
