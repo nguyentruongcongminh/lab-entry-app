@@ -371,6 +371,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(pend, 'mẫu vừa nhập kết quả đã sang nhóm Chờ phát hành của tab Quản lý');
   });
 
+  test('nhận mẫu từ nút + rồi bắn mã xong: tự chuyển sang tab Quản lý, không ở lại tab Hôm nay', () => {
+    document.querySelector('[data-view="today"]').click();
+    $('fab-add').click();
+    assert.ok(visible($('view-form')));
+    $('btn-scan').click();
+    assert.ok(visible($('scanner-modal')));
+    setSelect($('scanner-type-select'), 'sp');
+    window.acceptScanCode('2611043003'); // đúng hàm vòng lặp camera gọi
+    assert.ok($('scanner-count').textContent.includes('1'));
+    $('btn-scanner-close').click(); // Dừng quét
+    assert.ok(visible($('view-manage')), 'sau khi bắn nhận xong phải ở tab Quản lý');
+    assert.ok(!visible($('view-today')), 'không giữ ở tab Kết quả hôm nay');
+    const row = [...$('list-noresult').children].find((x) => x.textContent.includes('2611043003'));
+    assert.ok(row, 'mẫu vừa nhận nằm trong nhóm Chưa kết quả của tab Quản lý');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

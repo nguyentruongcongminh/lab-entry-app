@@ -479,8 +479,9 @@ function closeScanner() {
   scannerState = null;
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
-    /* Đã tiếp nhận trực tiếp từ form thêm mới -> về tab đang dùng để xem mẫu vừa nhận */
-    if (fromFormNew) switchView(mainView); else refreshCurrent();
+    /* Tiếp nhận từ nút + (form thêm mới): bắn nhận xong tự chuyển sang tab Quản lý
+       để xử lý tiếp hàng chờ — không giữ ở tab Kết quả hôm nay (yêu cầu của Minh) */
+    if (fromFormNew) switchView('manage'); else refreshCurrent();
   }
 }
 
