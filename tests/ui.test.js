@@ -2,6 +2,7 @@
 /* Test giao diện thật bằng jsdom: nạp index.html + 3 file JS, thao tác như người dùng.
    Chạy: node tests/ui.test.js  (cần jsdom: npm install --prefix tests jsdom) */
 const assert = require('node:assert');
+const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
@@ -14,7 +15,11 @@ function test(name, fn) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const dom = await JSDOM.fromFile(path.join(__dirname, '..', 'index.html'), {
+  const htmlPath = path.join(__dirname, '..', 'index.html');
+  /* Bỏ hậu tố ?v=N ở địa chỉ file khi nạp vào jsdom (bản thật trên web giữ nguyên để chống cache cũ) */
+  const htmlText = fs.readFileSync(htmlPath, 'utf8').replace(/\?v=\d+/g, '');
+  const dom = new JSDOM(htmlText, {
+    url: 'file://' + htmlPath,
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,
@@ -289,6 +294,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-scan-today').click();
     assert.ok(visible($('scanner-modal')));
     assert.ok($('scanner-manual').classList.contains('hidden'), 'chế độ liên tục không hiện ô nhập tay + nút Nhận mẫu');
+    assert.strictEqual(window.getComputedStyle($('scanner-manual')).display, 'none', 'ô nhập tay phải thật sự không hiển thị khi tính cả CSS');
     assert.ok(!$('scanner-type-select').disabled, 'chưa quét mã nào: loại còn đổi được');
     setSelect($('scanner-type-select'), 'sp');
     assert.strictEqual(typeof window.acceptScanCode, 'function');
@@ -320,6 +326,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-scan').click();
     assert.ok(visible($('scanner-modal')));
     assert.ok(!$('scanner-manual').classList.contains('hidden'), 'chế độ 1 mã vẫn còn ô nhập tay dự phòng');
+    assert.notStrictEqual(window.getComputedStyle($('scanner-manual')).display, 'none');
     $('scanner-input').value = '8888';
     $('btn-scanner-add').click();
     assert.ok(!visible($('scanner-modal')), 'nhận 1 mã xong tự đóng');
