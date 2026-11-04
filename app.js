@@ -520,13 +520,12 @@ function updateScanCount() {
 
 function openScanner(source) {
   const single = source === 'form' && !!formState.uid;
-  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0, locked: false };
+  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0 };
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || LAB_CONFIG.testTypes[0].id);
   $('scanner-list').innerHTML = '';
   $('scanner-input').value = '';
-  $('scanner-lock-note').classList.add('hidden');
   $('scan-frame').classList.remove('hidden');
   $('scanner-title').textContent = single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu';
   $('scanner-subtitle').textContent = single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận';
@@ -541,15 +540,9 @@ function openScanner(source) {
   startCamera();
 }
 
-function lockScannerType() {
-  if (scannerState && !scannerState.locked) {
-    scannerState.locked = true;
-    $('scanner-type-select').disabled = true;
-    $('scanner-lock-note').classList.remove('hidden');
-  }
-}
-
-/* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận. */
+/* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận.
+   Loại XN KHÔNG bị khóa trong phiên: mỗi mẫu nhận theo loại đang chọn tại thời điểm bắn mã đó,
+   người dùng đổi loại lúc nào cũng được (theo yêu cầu của Minh, v17). */
 function acceptScanCode(rawCode) {
   const code = String(rawCode || '').trim();
   if (!code || !scannerState) return false;
@@ -576,11 +569,10 @@ function acceptScanCode(rawCode) {
     beepErr();
     return false;
   }
-  lockScannerType();
   scannerState.count += 1;
   updateScanCount();
   const li = document.createElement('li');
-  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
+  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-type">' + esc(type ? type.name : typeId) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
   const list = $('scanner-list');
   list.insertBefore(li, list.firstChild);
   setScanMsg('Đã nhận mẫu: ' + code + ' — quét mã tiếp theo, hoặc bấm "Dừng quét"', 'ok');

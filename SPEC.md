@@ -65,7 +65,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 - Mở quét từ **nút quét trên tab Kết quả hôm nay** (tiếp nhận mẫu) hoặc từ **nút quét trong form**.
 - **Quét liên tục**: camera giữ mở và nhận mã nối tiếp nhau; mỗi mã hợp lệ tạo **ngay một bản ghi "Chưa kết quả"** với thời điểm nhận là hiện tại (phục vụ xếp thứ tự chờ nhập kết quả theo giờ nhận). Vòng quét **chỉ dừng khi người dùng bấm "Dừng quét"**.
-- **Danh mục (loại xét nghiệm) giữ nguyên cả phiên**: chọn loại trước khi quét; sau khi nhận thành công mã đầu tiên, ô chọn loại bị **khóa** — muốn đổi loại phải dừng phiên và mở phiên mới.
+- **Danh mục (loại xét nghiệm) KHÔNG khóa trong phiên** (v17 — Minh đổi ý so với quy tắc khóa ở bản đầu): đổi loại lúc nào cũng được ngay giữa phiên; mỗi mẫu nhận theo loại đang chọn tại thời điểm bắn mã đó. Danh sách mẫu của phiên hiện kèm tên loại của từng mẫu để khỏi nhầm.
 - Mã **trùng ID + loại** trong lúc quét: báo "Đã tồn tại — bỏ qua", không tạo thêm, phiên vẫn tiếp tục.
 - **Kết thúc phiên nhận từ nút +**: khi mở quét từ **form thêm mới** (nút +) và phiên có nhận được mẫu, bấm "Dừng quét" xong app **tự chuyển sang tab Quản lý** để xử lý hàng chờ — không giữ ở tab Kết quả hôm nay (theo yêu cầu của Minh, 2026-11-04). Mở quét từ nút quét của tab Hôm nay thì ở lại tab Hôm nay.
 - **Chỉ quét bằng camera** (bản v9, theo yêu cầu của Minh): màn hình quét liên tục **không còn ô nhập tay + nút "Nhận mẫu"** — gọn và tập trung vào bắn mã. Ô nhập tay chỉ còn ở chế độ quét 1 mã từ form sửa. Máy/trình duyệt không hỗ trợ quét camera thì màn hình báo rõ và hướng dẫn mở bằng Chrome trên điện thoại.
@@ -134,7 +134,7 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm là bản ghi thành Đã phát hành ngay với ngày giờ phát hành là hiện tại (**không hiện hộp hỏi xác nhận**) và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
 17. Nút Xem lớn chỉ hiện ở bản ghi đã có kết quả; bấm mở bảng tóm tắt đúng ID, loại XN, trạng thái, từng giá trị kết quả (mức độ bỏ trống = "Âm tính"), ghi chú, giờ nhận/phát hành; đóng được bằng nút Đóng.
 15. Bấm vào dòng/ID không mở form sửa; chỉ nút cây bút mới mở được.
-16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN khóa sau mã đầu tiên; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; màn hình liên tục không có ô nhập tay/nút Nhận mẫu (chỉ quét camera); mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng (ở chế độ này còn ô nhập tay dự phòng).
+16. Quét liên tục: nhận nhiều mã trong một phiên, mỗi mã tạo 1 bản ghi Chưa kết quả; loại XN đổi được giữa phiên và mỗi mẫu mang loại tại thời điểm bắn; trùng ID + loại bị bỏ qua kèm cảnh báo; chỉ dừng khi bấm "Dừng quét"; màn hình liên tục không có ô nhập tay/nút Nhận mẫu (chỉ quét camera); mở từ form sửa thì nhận 1 mã điền vào ô ID rồi tự đóng (ở chế độ này còn ô nhập tay dự phòng).
 
 ## 5. Kiến trúc đề xuất
 

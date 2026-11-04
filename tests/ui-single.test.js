@@ -311,7 +311,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(liB2.textContent.includes('Đã phát hành'));
   });
 
-  test('quét liên tục từ tab Hôm nay: chỉ quét camera (không còn ô nhập tay), khóa loại sau mã đầu, trùng thì bỏ qua', () => {
+  test('quét liên tục từ tab Hôm nay: chỉ quét camera (không còn ô nhập tay), KHÔNG khóa loại — đổi loại giữa phiên được, trùng thì bỏ qua', () => {
     document.querySelector('[data-view="today"]').click();
     const before = $('list-today').children.length;
     $('btn-scan-today').click();
@@ -325,20 +325,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     scan('2611043001');
     assert.ok($('scanner-count').textContent.includes('1'));
     assert.strictEqual($('scanner-list').children.length, 1);
-    assert.ok($('scanner-type-select').disabled, 'sau mã đầu tiên: loại bị khóa, giữ nguyên cả phiên');
+    assert.ok(!$('scanner-type-select').disabled, 'sau mã đầu tiên: loại vẫn KHÔNG bị khóa, đổi được giữa phiên');
     scan('2611043001'); // trùng ID + loại
     assert.ok($('scanner-msg').textContent.includes('Đã tồn tại'));
     assert.ok($('scanner-count').textContent.includes('1'), 'trùng không tính thêm');
-    scan('2611043002');
+    /* Đổi loại giữa phiên rồi bắn tiếp: mẫu mới phải mang loại vừa đổi */
+    setSelect($('scanner-type-select'), 'mau-an');
+    scan('2611043004');
     assert.ok($('scanner-count').textContent.includes('2'));
+    assert.ok($('scanner-list').children[0].textContent.includes('Máu ẩn'), 'dòng mẫu trong phiên hiện đúng loại vừa đổi');
+    setSelect($('scanner-type-select'), 'sp');
+    scan('2611043002');
+    assert.ok($('scanner-count').textContent.includes('3'));
     $('btn-scanner-close').click(); // người dùng chủ động dừng
     assert.ok(!visible($('scanner-modal')));
-    assert.strictEqual($('list-today').children.length, before + 2);
+    assert.strictEqual($('list-today').children.length, before + 3);
     const rows = [...$('list-today').children];
     const i1 = rows.findIndex((r) => r.textContent.includes('2611043001'));
+    const i4 = rows.findIndex((r) => r.textContent.includes('2611043004'));
     const i2 = rows.findIndex((r) => r.textContent.includes('2611043002'));
-    assert.ok(i1 >= 0 && i2 > i1, 'mẫu nhận trước nằm trên mẫu nhận sau');
+    assert.ok(i1 >= 0 && i4 > i1 && i2 > i4, 'mẫu nhận trước nằm trên mẫu nhận sau');
     assert.ok(rows[i1].textContent.includes('Chưa kết quả'));
+    assert.ok(rows[i4].textContent.includes('Máu ẩn'), 'mẫu bắn sau khi đổi loại mang loại Máu ẩn');
+    assert.ok(rows[i1].textContent.includes('SP'), 'mẫu bắn trước vẫn giữ loại SP');
   });
 
   test('quét từ form SỬA: chế độ 1 mã — điền vào ô ID, tự đóng, không tạo bản ghi mới', () => {

@@ -260,9 +260,6 @@ svg { width: 24px; height: 24px; display: block; }
 #scanner-modal .scanner-type-row label { color: #94a3b8; }
 #scanner-modal .scanner-type-row select { background: #1e293b; color: #f1f5f9; border-color: #334155; }
 #scanner-modal .scanner-type-row select:disabled { background: #1e293b; color: #cbd5e1; opacity: .85; }
-.lock-note { display: flex; gap: 7px; align-items: center; color: #fbbf24; font-size: 13.5px; margin: -2px 0 12px; line-height: 1.35; }
-.lock-note svg { width: 15px; height: 15px; flex: 0 0 auto; }
-.lock-note.hidden { display: none; }
 .scan-frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; }
 .scan-frame video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
 .scan-frame .corner { position: absolute; width: 26px; height: 26px; border: 3px solid #38bdf8; z-index: 2; }
@@ -384,6 +381,9 @@ svg { width: 24px; height: 24px; display: block; }
    không bị nút che mất các nút chức năng (v16: nút + cũng đã thu nhỏ còn 48px) */
 #list-today, #list-noresult { padding-bottom: 148px; }
 
+/* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
+#scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }
+
 /* print.css — Khi in/xuất PDF: chỉ hiện bảng kết quả đã lọc */
 @media print {
   body { padding: 0; background: #fff; max-width: none; border: none; }
@@ -407,7 +407,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v16</span>
+    <span class="app-version">LabEntry v17</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -577,10 +577,6 @@ svg { width: 24px; height: 24px; display: block; }
     <div class="scanner-type-row">
       <label for="scanner-type-select">Loại xét nghiệm</label>
       <select id="scanner-type-select"></select>
-    </div>
-    <div id="scanner-lock-note" class="lock-note hidden">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-      <span>Loại đã khóa cho phiên này — bấm “Dừng quét” nếu muốn đổi loại</span>
     </div>
     <div id="scan-frame" class="scan-frame">
       <video id="scanner-video" playsinline muted></video>
@@ -1453,13 +1449,12 @@ function updateScanCount() {
 
 function openScanner(source) {
   const single = source === 'form' && !!formState.uid;
-  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0, locked: false };
+  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0 };
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || LAB_CONFIG.testTypes[0].id);
   $('scanner-list').innerHTML = '';
   $('scanner-input').value = '';
-  $('scanner-lock-note').classList.add('hidden');
   $('scan-frame').classList.remove('hidden');
   $('scanner-title').textContent = single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu';
   $('scanner-subtitle').textContent = single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận';
@@ -1474,15 +1469,9 @@ function openScanner(source) {
   startCamera();
 }
 
-function lockScannerType() {
-  if (scannerState && !scannerState.locked) {
-    scannerState.locked = true;
-    $('scanner-type-select').disabled = true;
-    $('scanner-lock-note').classList.remove('hidden');
-  }
-}
-
-/* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận. */
+/* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận.
+   Loại XN KHÔNG bị khóa trong phiên: mỗi mẫu nhận theo loại đang chọn tại thời điểm bắn mã đó,
+   người dùng đổi loại lúc nào cũng được (theo yêu cầu của Minh, v17). */
 function acceptScanCode(rawCode) {
   const code = String(rawCode || '').trim();
   if (!code || !scannerState) return false;
@@ -1509,11 +1498,10 @@ function acceptScanCode(rawCode) {
     beepErr();
     return false;
   }
-  lockScannerType();
   scannerState.count += 1;
   updateScanCount();
   const li = document.createElement('li');
-  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
+  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-type">' + esc(type ? type.name : typeId) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
   const list = $('scanner-list');
   list.insertBefore(li, list.firstChild);
   setScanMsg('Đã nhận mẫu: ' + code + ' — quét mã tiếp theo, hoặc bấm "Dừng quét"', 'ok');
