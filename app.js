@@ -61,8 +61,12 @@ function recordItemHTML(rec, opts) {
   const checkbox = o.selectable
     ? '<input type="checkbox" data-select="' + rec.uid + '"' + (selectedUids.has(rec.uid) ? ' checked' : '') + '>'
     : '';
+  const releaseBtn = (!o.readonly && status === 'pending-release')
+    ? '<button class="icon-btn release-btn" data-action="release" data-uid="' + rec.uid + '" title="Phát hành kết quả" aria-label="Phát hành kết quả">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z"/></svg></button>'
+    : '';
   const actions = o.readonly ? '' :
-    '<div class="record-actions">' +
+    '<div class="record-actions">' + releaseBtn +
       '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
@@ -84,6 +88,15 @@ function handleListClick(e) {
   const btn = e.target.closest('[data-action]');
   if (btn) {
     const uid = btn.dataset.uid;
+    if (btn.dataset.action === 'release') {
+      const rec = store.getByUid(uid);
+      if (rec && store.statusOf(rec) === 'pending-release' &&
+          confirm('Phát hành kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ') ngay bây giờ?')) {
+        const res = store.update(uid, { releaseAt: new Date().toISOString() });
+        if (res.ok) { toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
+        else toast(res.errors.join('. '));
+      }
+    }
     if (btn.dataset.action === 'edit') openForm(uid);
     if (btn.dataset.action === 'delete') {
       const rec = store.getByUid(uid);
@@ -117,7 +130,8 @@ function renderToday() {
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
   if (q) recs = store.filter(recs, { query: q });
-  recs.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  /* Xếp theo giờ nhập tăng dần: nhập trước ở trên, mới nhất nằm cuối cùng */
+  recs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-today'), $('empty-today'), recs, { selectable: selectMode });
   updateSelectBar();
 }

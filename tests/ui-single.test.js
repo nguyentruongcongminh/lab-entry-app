@@ -139,28 +139,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   });
 
   test('tab Lọc & Xuất PDF: lọc theo trạng thái + bảng in khớp số dòng (tiêu chí 8)', () => {
+    // Sau các test xóa phía trên, hôm nay còn 1 bản ghi: SP 2611041238 (Chưa kết quả).
+    // (Danh sách hôm nay xếp cũ -> mới nên chọn nhiều đã xóa bản ghi cũ nhất 2611041225.)
     document.querySelector('[data-view="export"]').click();
     assert.strictEqual($('list-export').children.length, 1); // còn 1 bản ghi hôm nay, mặc định lọc hôm nay
     assert.strictEqual($('print-table-body').children.length, 1);
     setSelect($('f-status'), 'released');
     $('btn-apply-filter').click();
-    assert.strictEqual($('list-export').children.length, 1);
-    assert.ok($('export-count').textContent.includes('1'));
-    setSelect($('f-status'), 'no-result');
-    $('btn-apply-filter').click();
     assert.strictEqual($('list-export').children.length, 0);
     assert.ok(visible($('empty-export')));
-    const rowHtml = $('print-table-body').innerHTML;
-    assert.strictEqual(rowHtml, '');
+    assert.strictEqual($('print-table-body').innerHTML, '');
+    setSelect($('f-status'), 'no-result');
+    $('btn-apply-filter').click();
+    assert.strictEqual($('list-export').children.length, 1);
+    assert.ok($('export-count').textContent.includes('1'));
   });
 
-  test('bảng in: chip không chọn hiện "Âm tính", có ngày phát hành (tiêu chí 8)', () => {
-    setSelect($('f-status'), 'released');
+  test('bảng in: trường chip không chọn hiện "Âm tính" (tiêu chí 8)', () => {
+    setSelect($('f-status'), 'no-result');
     setSelect($('f-type'), '');
     $('btn-apply-filter').click();
     const html = $('print-table-body').innerHTML;
-    assert.ok(html.includes('2611041225'));
-    assert.ok(html.includes('Soi thấy sợi nấm'));
+    assert.ok(html.includes('2611041238'));
+    assert.ok(html.includes('Hồng cầu: Âm tính'));
+    assert.ok(html.includes('Bạch cầu: Âm tính'));
   });
 
   test('bảng in Soi tươi huyết trắng: trường chip bỏ trống hiện "Âm tính", trường đã chọn hiện đúng mức', () => {
@@ -196,9 +198,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   test('nhập trùng ID + loại XN qua form -> báo Đã tồn tại, không thêm bản ghi', () => {
     document.querySelector('[data-view="today"]').click();
     const before = $('list-today').children.length;
-    $('fab-add').click(); // loại mặc định: Cạo tìm nấm — ID 2611041225 đã có loại này
-    setInput($('input-testid'), '2611041225');
-    setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Nhập lại lần nữa');
+    $('fab-add').click();
+    setSelect($('select-type'), 'soi-tuoi-huyet-trang'); // ID 2611041999 đã có loại này (thêm ở test bảng in)
+    setInput($('input-testid'), '2611041999');
     $('btn-save').click();
     assert.ok(visible($('view-form')), 'vẫn ở form, không cho lưu');
     assert.ok($('form-error').textContent.includes('Đã tồn tại'));
@@ -219,9 +221,39 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-save').click();
     document.querySelector('[data-view="manage"]').click();
     const rows = [...$('list-noresult').children];
-    assert.strictEqual(rows.length, 2);
-    assert.ok(rows[0].textContent.includes('2611042001'), 'ID nhập trước ở đầu danh sách');
-    assert.ok(rows[1].textContent.includes('2611042002'), 'ID nhập sau ở cuối danh sách');
+    assert.strictEqual(rows.length, 3); // SP 2611041238 (tạo sớm hơn) + 2001 + 2002
+    assert.ok(rows[0].textContent.includes('2611041238'), 'ID nhận sớm nhất ở đầu danh sách');
+    const i1 = rows.findIndex((r) => r.textContent.includes('2611042001'));
+    const i2 = rows.findIndex((r) => r.textContent.includes('2611042002'));
+    assert.ok(i1 >= 0 && i2 > i1, 'ID nhập trước nằm trên ID nhập sau');
+  });
+
+  test('bấm trực tiếp vào dòng/ID không mở sửa — chỉ nút bút mới mở được form sửa', () => {
+    document.querySelector('[data-view="today"]').click();
+    const li = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
+    li.querySelector('.record-id').click();
+    assert.ok(!visible($('view-form')), 'bấm vào ID không được mở form');
+    li.querySelector('.record-main').click();
+    assert.ok(!visible($('view-form')), 'bấm vào dòng không được mở form');
+    li.querySelector('[data-action="edit"]').click();
+    assert.ok(visible($('view-form')), 'nút bút mở form sửa');
+    assert.strictEqual($('input-testid').value, '2611041999');
+    $('btn-cancel').click();
+    assert.ok(visible($('view-today')));
+  });
+
+  test('nút Phát hành: chỉ có ở bản ghi Chờ phát hành, bấm là phát hành ngay với giờ hiện tại', () => {
+    const li = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
+    const relBtn = li.querySelector('[data-action="release"]');
+    assert.ok(relBtn, 'bản ghi chờ phát hành có nút phát hành');
+    relBtn.click(); // confirm đã stub = true
+    const li2 = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
+    assert.ok(li2.textContent.includes('Đã phát hành'));
+    assert.strictEqual(li2.querySelector('[data-action="release"]'), null, 'đã phát hành thì mất nút');
+    document.querySelector('[data-view="manage"]').click();
+    assert.strictEqual($('list-pending').children.length, 0, 'rời nhóm Chờ phát hành');
+    const noRes = [...$('list-noresult').children].find((x) => x.textContent.includes('2611042001'));
+    assert.strictEqual(noRes.querySelector('[data-action="release"]'), null, 'chưa có kết quả thì không có nút phát hành');
   });
 
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');

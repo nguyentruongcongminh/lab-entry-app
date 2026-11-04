@@ -58,6 +58,7 @@ svg { width: 24px; height: 24px; display: block; }
 .record-time { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
 .record-actions { display: flex; gap: 4px; }
 .record-actions .icon-btn { padding: 5px; color: #546e7a; }
+.record-actions .release-btn { color: var(--blue); }
 .record-actions svg { width: 21px; height: 21px; }
 .status-tag { font-size: 12.5px; padding: 2px 8px; border-radius: 10px; background: #e3f2fd; color: var(--blue-dark); white-space: nowrap; }
 .status-tag.no-result { background: #f3e5f5; color: #6a1b9a; }

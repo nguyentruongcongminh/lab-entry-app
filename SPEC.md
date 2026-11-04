@@ -19,6 +19,7 @@ App web HTML5/CSS/JavaScript (mobile-first, giao diện giống ảnh mẫu) đ�
 ### F1 — Tab "Kết quả hôm nay" (màn hình chính)
 
 - Danh sách kết quả đã nhập trong ngày, mỗi dòng: **ID Xét nghiệm** (đậm), **Loại xét nghiệm**, **thời gian nhập** (dd/mm/yyyy hh:mm).
+- Sắp xếp theo **giờ nhập tăng dần**: nhập trước ở trên, **kết quả mới nhất nằm cuối danh sách** (bổ sung theo yêu cầu của Minh, 2026-11-04).
 - Thao tác từng dòng: **Xóa** (icon thùng rác), **Sửa** (icon bút).
 - Thanh công cụ trên: menu/lọc, **tìm kiếm**, **chọn nhiều**, **làm mới**.
 - Nút **"+"** (FAB góc phải dưới) mở form thêm mới.
@@ -47,6 +48,11 @@ Hai nhóm danh sách:
 - **Chưa kết quả**: đã tạo ID nhưng chưa nhập trường kết quả nào. Sắp xếp theo **giờ nhận mẫu** (thời điểm nhập ID vào app, chính xác tới giây): **nhận trước lên đầu, nhận sau xuống cuối** — để xử lý theo thứ tự mẫu tới.
 
 Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
+
+### F3b — Nút Phát hành + cách mở sửa (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Mỗi kết quả ở trạng thái **Chờ phát hành** có thêm **nút Phát hành** (icon gửi, màu xanh) ngay trên dòng: bấm → hỏi xác nhận → ghi **Ngày giờ phát hành = thời điểm hiện tại**, kết quả chuyển sang Đã phát hành và rời nhóm Chờ phát hành. Kết quả chưa có nội dung (Chưa kết quả) hoặc đã phát hành thì không hiện nút này.
+- **Muốn sửa phải bấm nút cây bút** trên dòng. Bấm trực tiếp vào dòng hoặc vào ID **không** mở form sửa.
 
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
@@ -91,6 +97,9 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 10. Giao diện hiển thị đúng trên khung điện thoại (chiều dọc, giống ảnh mẫu).
 11. Nhập trùng ID + loại XN → báo "Đã tồn tại", không thêm bản ghi; cùng ID khác loại vẫn nhập được; sửa sang ID + loại của bản ghi khác cũng bị chặn.
 12. Nhóm "Chưa kết quả" xếp theo giờ nhập tăng dần: bản ghi nhập trước nằm trên, nhập sau nằm dưới.
+13. Tab "Kết quả hôm nay" cũng xếp tăng dần theo giờ nhập: mới nhất nằm cuối danh sách.
+14. Nút Phát hành chỉ hiện ở bản ghi Chờ phát hành; bấm (sau xác nhận) thì bản ghi thành Đã phát hành với ngày giờ phát hành là hiện tại và rời nhóm chờ; bản ghi Chưa kết quả/Đã phát hành không có nút này.
+15. Bấm vào dòng/ID không mở form sửa; chỉ nút cây bút mới mở được.
 
 ## 5. Kiến trúc đề xuất
 
