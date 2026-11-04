@@ -422,6 +422,50 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(Number($('stat-noresult').textContent), $('list-noresult').children.length, 'thống kê cập nhật khớp sau khi thêm mẫu cũ');
   });
 
+  test('bấm giờ Máu ẩn: mỗi ID một đồng hồ riêng — bắt đầu, hủy, tới giờ báo đỏ và mở thẳng form nhập', () => {
+    document.querySelector('[data-view="manage"]').click();
+    const addMauAn = (id) => {
+      $('fab-add').click();
+      setSelect($('select-type'), 'mau-an');
+      setInput($('input-testid'), id);
+      $('btn-save').click(); // không điền kết quả -> Chưa kết quả; lưu xong ở lại Quản lý
+      assert.ok(visible($('view-manage')));
+    };
+    addMauAn('2611042700');
+    addMauAn('2611042701');
+    const findRow = (id) => [...$('list-noresult').children].find((x) => x.textContent.includes(id));
+    /* Loại không có waitMinutes (SP) thì không có nút bấm giờ */
+    assert.strictEqual(findRow('2611043003').querySelector('[data-action="timer"]'), null);
+    const rowA = findRow('2611042700');
+    const btnA = rowA.querySelector('[data-action="timer"]');
+    assert.ok(btnA && btnA.textContent.includes('Bấm giờ'));
+    const uidA = btnA.dataset.uid;
+    btnA.click(); // bắt đầu đếm cho 2700
+    const running = findRow('2611042700').querySelector('[data-action="timer"]');
+    assert.ok(running.classList.contains('running'), 'đang đếm: nút chuyển trạng thái running');
+    assert.ok(/^\d+:\d{2}$/.test(running.querySelector('[data-countdown]').textContent), 'hiện đếm ngược dạng phút:giây');
+    /* 2701 vẫn chưa bấm — đồng hồ độc lập từng ID */
+    assert.ok(findRow('2611042701').querySelector('[data-action="timer"]').textContent.includes('Bấm giờ'));
+    findRow('2611042700').querySelector('[data-action="timer"]').click(); // hủy
+    assert.ok(findRow('2611042700').querySelector('[data-action="timer"]').textContent.includes('Bấm giờ'), 'bấm lần nữa là hủy bấm giờ');
+    /* Bấm lại rồi ép tới giờ, gọi timerTick để kiểm tra đường báo tới hạn */
+    findRow('2611042700').querySelector('[data-action="timer"]').click();
+    window.eval("store.update('" + uidA + "', { timerEndsAt: new Date(Date.now() - 5000).toISOString() })");
+    window.timerTick();
+    const dueRow = findRow('2611042700');
+    assert.ok(dueRow.classList.contains('timer-due'), 'tới giờ: dòng mẫu sáng đỏ cảnh báo');
+    const dueBtn = dueRow.querySelector('[data-action="timer"]');
+    assert.ok(dueBtn.classList.contains('due') && dueBtn.textContent.includes('Nhập KQ ngay'));
+    dueBtn.click(); // mở thẳng form nhập kết quả của chính mẫu đó
+    assert.ok(visible($('view-form')));
+    assert.strictEqual($('input-testid').value, '2611042700');
+    setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $('btn-save').click();
+    assert.ok(visible($('view-manage')));
+    const pend = [...$('list-pending').children].find((x) => x.textContent.includes('2611042700'));
+    assert.ok(pend, 'nhập kết quả xong mẫu sang nhóm Chờ phát hành');
+  });
+
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);

@@ -97,6 +97,7 @@ const LabStore = (() => {
         results: Object.assign({}, input.results || {}),
         note: input.note || '',
         releaseAt: input.releaseAt || null,
+        timerEndsAt: input.timerEndsAt || null,
         createdAt: t.toISOString(),
         updatedAt: t.toISOString(),
       };
@@ -117,6 +118,7 @@ const LabStore = (() => {
         results: input.results !== undefined ? Object.assign({}, input.results) : records[idx].results,
         note: input.note !== undefined ? input.note : records[idx].note,
         releaseAt: input.releaseAt !== undefined ? input.releaseAt : records[idx].releaseAt,
+        timerEndsAt: input.timerEndsAt !== undefined ? input.timerEndsAt : (records[idx].timerEndsAt || null),
         updatedAt: t.toISOString(),
       });
       const errors = validate(rec, uid);

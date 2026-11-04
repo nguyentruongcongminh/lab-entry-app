@@ -79,6 +79,14 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Cảnh báo chờ lâu**: mẫu ở trạng thái Chưa kết quả hoặc Chờ phát hành mà đã chờ quá **60 phút** (cấu hình `overdueMinutes` trong config.js) kể từ giờ nhận sẽ bị **tô đỏ** kèm dòng "Đã chờ X giờ Y phút" trong cả tab Hôm nay và Quản lý. App tự làm mới danh sách mỗi phút (khi đang không thao tác) để mẫu vừa quá ngưỡng tự chuyển đỏ.
 - **Tiếng bíp khi bắn mã** (WebAudio, không cần file nhạc): nhận thành công = 1 bíp cao ngắn (1320 Hz, 90 ms); quét trùng/lỗi = 1 bíp trầm dài hơn (240 Hz, 200 ms); kèm rung như trước. Máy không hỗ trợ âm thanh thì bỏ qua êm, không lỗi.
 
+### F7 — Bấm giờ chờ kết quả cho test nhanh (bổ sung theo yêu cầu của Minh, 2026-11-04)
+
+- Loại XN khai báo `waitMinutes` trong config.js (hiện tại **Máu ẩn = 20 phút**; test nhanh khác chỉ cần thêm `waitMinutes` vào khai báo loại đó) thì các mẫu **chưa có kết quả** của loại đó có thêm **nút "Bấm giờ"** trên dòng.
+- **Mỗi ID một đồng hồ riêng**: mốc kết thúc (`timerEndsAt`) lưu ngay trên bản ghi của mẫu đó — chạy song song bao nhiêu mẫu cũng được, tải lại trang không mất giờ đã bấm.
+- Đang đếm: nút hiện **đếm ngược phút:giây** cập nhật mỗi giây; bấm vào nút đang đếm = **hủy bấm giờ**.
+- **Tới giờ**: chuông báo riêng (3 tiếng bíp + rung dài + thông báo hiện tên ID), dòng mẫu **sáng đỏ nhấp nháy**, nút đổi thành **"Nhập KQ ngay"** — bấm mở thẳng form nhập kết quả của mẫu đó.
+- Nhập kết quả cho mẫu xong thì đồng hồ của mẫu tự xóa.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.

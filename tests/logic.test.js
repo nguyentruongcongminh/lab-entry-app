@@ -177,4 +177,18 @@ test('sửa: đổi sang ID+loại đã có của bản ghi khác -> bị chặn
   assert.strictEqual(s.statusOf(self.record), 'pending-release');
 });
 
+test('timerEndsAt (đồng hồ bấm giờ): lưu khi thêm, giữ nguyên khi sửa trường khác, xóa khi đặt null', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const ends = new Date(Date.now() + 20 * 60000).toISOString();
+  const a = s.add({ testId: 'T1', typeId: 'mau-an', results: {}, timerEndsAt: ends });
+  assert.ok(a.ok);
+  assert.strictEqual(a.record.timerEndsAt, ends);
+  const u = s.update(a.record.uid, { note: 'ghi chú' });
+  assert.ok(u.ok);
+  assert.strictEqual(u.record.timerEndsAt, ends, 'sửa trường khác không được làm mất đồng hồ');
+  const c = s.update(a.record.uid, { timerEndsAt: null });
+  assert.ok(c.ok);
+  assert.strictEqual(c.record.timerEndsAt, null);
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

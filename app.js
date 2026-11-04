@@ -56,6 +56,14 @@ function switchView(name) {
 }
 
 /* ================= Danh sách dùng chung ================= */
+/* Đếm ngược dạng "19:59" (phút:giây) cho đồng hồ bấm giờ */
+function fmtCountdown(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+
 /* Thời gian đã chờ, dạng gọn: "45 phút", "1 giờ 05 phút", "3 giờ" */
 function fmtWait(iso) {
   const mins = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -80,6 +88,23 @@ function recordItemHTML(rec, opts) {
     ? '<button class="icon-btn release-btn" data-action="release" data-uid="' + rec.uid + '" title="Phát hành kết quả" aria-label="Phát hành kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z"/></svg></button>'
     : '';
+  /* Nút Bấm giờ — chỉ ở mẫu CHƯA có kết quả, thuộc loại test nhanh có waitMinutes (vd Máu ẩn 20 phút).
+     Mỗi mẫu một đồng hồ riêng, mốc kết thúc lưu ngay trên bản ghi (timerEndsAt). */
+  let timerBtn = '';
+  if (!o.readonly && status === 'no-result' && type && type.waitMinutes) {
+    const endsMs = rec.timerEndsAt ? new Date(rec.timerEndsAt).getTime() : 0;
+    const remainMs = endsMs - Date.now();
+    if (!rec.timerEndsAt) {
+      timerBtn = '<button class="timer-btn" data-action="timer" data-uid="' + rec.uid + '" title="Bấm giờ chờ kết quả" aria-label="Bấm giờ">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Bấm giờ</button>';
+    } else if (remainMs > 0) {
+      timerBtn = '<button class="timer-btn running" data-action="timer" data-uid="' + rec.uid + '" title="Đang đếm — bấm để hủy bấm giờ" aria-label="Đang bấm giờ">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg><span data-countdown data-ends="' + endsMs + '" data-uid="' + rec.uid + '">' + fmtCountdown(remainMs) + '</span></button>';
+    } else {
+      timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
+    }
+  }
   /* Nút Xem lớn — chỉ hiện khi bản ghi ĐÃ CÓ kết quả */
   const viewBtn = store.hasResult(rec)
     ? '<button class="view-btn" data-action="view" data-uid="' + rec.uid + '" title="Xem tóm tắt kết quả" aria-label="Xem tóm tắt kết quả">' +
@@ -90,9 +115,10 @@ function recordItemHTML(rec, opts) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
-  const actions = (!viewBtn && o.readonly) ? '' :
-    '<div class="record-actions">' + viewBtn + releaseBtn + editDeleteBtns + '</div>';
-  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + '">' + checkbox +
+  const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
+    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + editDeleteBtns + '</div>';
+  const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
+  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
@@ -109,6 +135,7 @@ function handleListClick(e) {
   if (btn) {
     const uid = btn.dataset.uid;
     if (btn.dataset.action === 'view') openSummary(uid);
+    if (btn.dataset.action === 'timer') toggleTimer(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
@@ -189,6 +216,70 @@ function releaseFromSummary() {
   toast('Đã phát hành kết quả ' + rec.testId);
   refreshCurrent();
   openSummary(rec.uid);
+}
+
+/* ================= Bấm giờ chờ kết quả (test nhanh) =================
+ * Mỗi bản ghi một đồng hồ riêng: timerEndsAt lưu ngay trên bản ghi.
+ * - Chưa bấm: bấm nút -> bắt đầu đếm (waitMinutes của loại XN, vd Máu ẩn = 20 phút)
+ * - Đang đếm: bấm nút -> hủy bấm giờ
+ * - Tới giờ: dòng mẫu sáng đỏ + nút thành "Nhập KQ ngay" -> bấm mở thẳng form nhập
+ */
+const dueAlerted = new Set();
+
+function beepDue() {
+  beep(1560, 130);
+  setTimeout(() => beep(1560, 130), 240);
+  setTimeout(() => beep(1560, 220), 480);
+  if (navigator.vibrate) navigator.vibrate([220, 110, 220]);
+}
+
+function toggleTimer(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec || store.statusOf(rec) !== 'no-result') return;
+  const type = getTestType(rec.typeId);
+  if (!type || !type.waitMinutes) return;
+  const endsMs = rec.timerEndsAt ? new Date(rec.timerEndsAt).getTime() : 0;
+  if (rec.timerEndsAt && endsMs > Date.now()) {
+    store.update(uid, { timerEndsAt: null });
+    dueAlerted.delete(uid);
+    toast('Đã hủy bấm giờ cho ' + rec.testId);
+    refreshCurrent();
+    return;
+  }
+  if (rec.timerEndsAt && endsMs <= Date.now()) {
+    openForm(uid);
+    return;
+  }
+  const ends = new Date(Date.now() + type.waitMinutes * 60000).toISOString();
+  const res = store.update(uid, { timerEndsAt: ends });
+  if (res.ok) {
+    beepOk();
+    toast('Đã bấm giờ ' + type.waitMinutes + ' phút cho ' + rec.testId + ' (' + type.name + ')');
+    refreshCurrent();
+  } else {
+    toast(res.errors.join('. '));
+  }
+}
+
+/* Chạy mỗi giây: cập nhật số đếm ngược tại chỗ; mẫu nào vừa tới giờ thì báo đặc biệt một lần.
+   Mốc kết thúc luôn đọc từ dữ liệu gốc (store), không đọc từ thuộc tính đã render. */
+function timerTick() {
+  const now = Date.now();
+  let crossed = false;
+  document.querySelectorAll('[data-countdown]').forEach((el) => {
+    const rec = store.getByUid(el.dataset.uid);
+    if (!rec || !rec.timerEndsAt) return;
+    const remain = new Date(rec.timerEndsAt).getTime() - now;
+    if (remain > 0) {
+      el.textContent = fmtCountdown(remain);
+    } else if (!dueAlerted.has(rec.uid)) {
+      dueAlerted.add(rec.uid);
+      crossed = true;
+      beepDue();
+      toast('Tới giờ nhập kết quả: ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')');
+    }
+  });
+  if (crossed) refreshCurrent();
 }
 
 function refreshCurrent() {
@@ -360,6 +451,8 @@ function saveForm() {
     note: $('input-note').value,
     releaseAt: releaseVal ? new Date(releaseVal).toISOString() : null,
   };
+  /* Đã có kết quả thì đồng hồ bấm giờ của mẫu tự xóa */
+  if (store.hasResult({ typeId: payload.typeId, results: payload.results })) payload.timerEndsAt = null;
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
   if (!res.ok) {
     showFormError(res.errors.join('. '));
@@ -629,6 +722,9 @@ function init() {
   });
 
   switchView('today');
+
+  /* Mỗi giây cập nhật đồng hồ bấm giờ của các test nhanh */
+  setInterval(timerTick, 1000);
 
   /* Mỗi phút tự làm mới danh sách (khi đang rảnh) để mẫu vừa quá ngưỡng chờ
      tự chuyển sang trạng thái cảnh báo mà không cần tải lại trang */

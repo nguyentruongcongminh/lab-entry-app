@@ -53,6 +53,9 @@ const LAB_CONFIG = {
     {
       id: 'mau-an',
       name: 'Máu ẩn',
+      /* Test nhanh: chờ đủ số phút này mới có kết quả -> hiện nút Bấm giờ cho từng mẫu.
+         Loại nào cần đếm giờ thì thêm waitMinutes vào khai báo của loại đó. */
+      waitMinutes: 20,
       fields: [
         { key: 'ketQua', label: 'Kết quả', type: 'text' },
       ],

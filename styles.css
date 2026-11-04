@@ -354,3 +354,21 @@ svg { width: 24px; height: 24px; display: block; }
 /* Mẫu chờ quá ngưỡng: tô đỏ cảnh báo */
 .record-item.overdue { background: #fff5f5; box-shadow: inset 4px 0 0 #ef5350; }
 .record-wait { color: #d32f2f; font-size: 13px; font-weight: 700; margin-top: 2px; }
+
+/* Nút bấm giờ cho test nhanh (vd Máu ẩn 20 phút) — mỗi mẫu một đồng hồ riêng */
+.timer-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff3e0; color: #e65100; border: 1.5px solid #ffb74d;
+  border-radius: 8px; padding: 8px 12px; font-size: 14.5px; font-weight: 700;
+}
+.timer-btn svg { width: 18px; height: 18px; }
+.timer-btn.running { background: #e3f2fd; color: #1565c0; border-color: #64b5f6; font-variant-numeric: tabular-nums; }
+.timer-btn.due { background: #d32f2f; color: #fff; border-color: #d32f2f; box-shadow: 0 2px 8px rgba(211, 47, 47, .45); }
+.record-item.timer-due { background: #ffebee; box-shadow: inset 4px 0 0 #d32f2f; animation: duePulse 1.2s ease-in-out infinite; }
+@keyframes duePulse {
+  0%, 100% { background: #ffebee; }
+  50% { background: #ffcdd2; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .record-item.timer-due { animation: none; }
+}
