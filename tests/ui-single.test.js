@@ -481,7 +481,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v37 và precache đúng URL ?v=37 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v38 và precache đúng URL ?v=38 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +499,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v37'"), 'sw.js phải gắn VERSION v37');
-    for (const a of ['styles.css?v=37', 'print.css?v=37', 'config.js?v=37', 'store.js?v=37', 'app.js?v=37', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v38'"), 'sw.js phải gắn VERSION v38');
+    for (const a of ['styles.css?v=38', 'print.css?v=38', 'config.js?v=38', 'store.js?v=38', 'app.js?v=38', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -855,6 +855,18 @@ async function nhapPinVao(pin) {
     assert.strictEqual($('pcfg-org').value, '', 'khôi phục mặc định phải xóa tên đơn vị');
     assert.ok(!$('pcfg-preview').textContent.includes('KTV nhận'), 'khôi phục mặc định phải tắt lại cột KTV');
     $('btn-pcfg-back').click();
+  });
+
+  test('ngắt trang bản in (v38): bảng có tfoot đóng khung với colspan bằng số cột; CSS khai thead/tfoot lặp và chống cắt đôi dòng', () => {
+    document.querySelector('[data-view="export"]').click();
+    const thCount = $('print-area').querySelectorAll('thead th').length;
+    const footTd = $('print-area').querySelector('tfoot .sh-close td');
+    assert.ok(footTd, 'bảng in phải có dòng tfoot đóng khung (.sh-close)');
+    assert.strictEqual(Number(footTd.getAttribute('colspan')), thCount, 'colspan của dòng đóng phải bằng số cột đang in');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+    assert.ok(css.includes('table-footer-group'), 'CSS phải khai tfoot lặp cuối mỗi trang');
+    assert.ok(css.includes('table-header-group'), 'CSS phải khai thead lặp đầu mỗi trang');
+    assert.ok(css.includes('break-inside: avoid'), 'CSS phải chống cắt đôi một dòng mẫu qua hai trang');
   });
 
   test('bản in đợt 2 (v28): tách mỗi trường thành cột riêng + phân nhóm theo loại + sọc xen kẽ + màu nền tiêu đề đậm', () => {

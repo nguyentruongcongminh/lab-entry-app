@@ -1851,7 +1851,7 @@ function renderSheet(s, recs, opts) {
     '<h1 class="sh-title">' + esc(s.title || 'Danh sách kết quả xét nghiệm') + '</h1>' +
     (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
     (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
-    '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
+    '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody><tfoot><tr class="sh-close"><td colspan="' + cols.length + '"></td></tr></tfoot></table>' +
     sigHtml + footHtml + '</div>';
 }
 

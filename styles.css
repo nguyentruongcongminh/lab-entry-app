@@ -618,6 +618,15 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet.hc-dark th { color: #fff; }
 .sheet tbody tr.alt td { background: #f4f6f8; }
 .sheet .sh-group td { background: #e3e9ee; font-weight: 700; }
+/* Ngắt trang khi in (F20): đầu bảng lặp lại ở mỗi trang; tfoot lặp ở cuối mỗi
+   trang nên trang nào bảng cũng có dòng kẻ đóng ở đáy; một dòng mẫu không bị
+   cắt đôi qua hai trang; dòng tiêu đề nhóm không đứng trơ ở cuối trang. */
+.sheet thead { display: table-header-group; }
+.sheet tfoot { display: table-footer-group; }
+.sheet tbody tr { break-inside: avoid; }
+.sheet .sh-group { break-after: avoid; }
+.sheet .sh-close td { padding: 0; height: 0; border: none; }
+.sheet.b-full .sh-close td, .sheet.b-rows .sh-close td { border-top: 1px solid #444; }
 .pcfg-presets {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   margin: 0 16px 12px; padding: 10px 12px;

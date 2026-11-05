@@ -163,6 +163,12 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 Trước v35, trên màn hình lớn app chỉ là một cột 560px kiểu điện thoại đặt giữa màn hình (dùng được nhưng phí không gian, tờ xem trước bản in bị co và cắt cột). Từ v35 (chỉ CSS, qua biến `--app-max` + media query ≥1024px; giao diện mobile/tablet không đổi): khung ứng dụng rộng **1180px** (thanh điều hướng dưới và nút + bám theo khung), hộp thoại rộng hơn (modal 500px, Xem 680px), hàng mẫu thoáng hơn, form nhập canh giữa tối đa 860px, và trang **Tùy chỉnh bản in**: tờ xem trước hiện bề rộng lớn đủ mọi cột, các hàng cài đặt xếp **2 cột** (riêng trình sửa cột in chiếm trọn hàng). Đã kiểm chứng bằng ảnh chụp Chromium thật ở 1280px trước/sau (khung, studio in, tính dính của thanh công cụ); một phương án studio 2 cột trái–phải từng thử đã bị loại vì xung đột với thanh công cụ sticky và CSS co giãn của tờ xem trước.
 
+### F20 — Ngắt trang khi in (v38, 2026-11-05)
+
+- Bảng kết quả dài qua nhiều trang từng bị "đứt" ở cuối trang: không có dòng kẻ đóng dưới đáy trang và một dòng mẫu cao có thể bị cắt đôi qua hai trang (Minh báo 2026-11-05 kèm ảnh chụp bản in 5 trang).
+- Cách xử lý trong `renderSheet()` + CSS tờ kết quả: (1) `thead` khai `display: table-header-group` — hàng tiêu đề cột lặp lại ở đầu mỗi trang; (2) bảng có thêm `tfoot` một dòng trống (`.sh-close`, cao 0) khai `display: table-footer-group` — lặp ở cuối mỗi trang, ô đóng kẻ `border-top` cùng kiểu kẻ hiện hành (`b-full`/`b-rows` kẻ 1px #444; `b-none` thì không kẻ) nên trang nào bảng cũng "đóng khung" ở đáy, kể cả trang cuối; (3) `tbody tr { break-inside: avoid }` — một dòng mẫu không bị cắt đôi qua hai trang; (4) dòng tiêu đề nhóm `.sh-group { break-after: avoid }` — không đứng trơ ở cuối trang.
+- Kiểm chứng: jsdom chỉ khẳng định được cấu trúc (có `tfoot`, `colspan` bằng số cột) và CSS có khai báo; hành vi ngắt trang thật kiểm bằng Chromium headless in PDF nhiều trang và soi từng trang (đã làm khi phát hành v38).
+
 ### F18 — Tùy chỉnh bố cục bản in PDF, đợt 1 (theo thiết kế PRINT-LAYOUT-DESIGN.md đã được Minh duyệt, 2026-11-05)
 
 - Cấu hình lưu ở localStorage `labentry.print.v1`; chưa có cấu hình thì dùng **mặc định = đúng bố cục bản in cũ** (7 cột, Arial 12.5, không đầu trang/chữ ký). `renderSheet(settings, records)` dựng toàn bộ tờ kết quả (dùng cho cả vùng in thật và xem trước).
