@@ -600,6 +600,27 @@ svg { width: 24px; height: 24px; display: block; }
 .pcfg-sig-row input[type="text"] { flex: 1 1 0; min-width: 0; }
 .pcfg-sig-title { font-weight: 700; font-size: 14.5px; }
 
+/* ---------- Sửa lỗi ô nhập tên KTV bị bóp mất (v28) + đợt 2 bản in ---------- */
+/* Nút .primary-btn trong .modal-box vốn bị ép width:100% (cho nút Phát hành ở trang Xem);
+   trong hàng flex nó bóp ô nhập bên cạnh về 0px — ghi đè lại cho 2 hàng flex này. */
+.staff-add-row .primary-btn, .scanner-manual .primary-btn { width: auto; flex: 0 0 auto; }
+.staff-add-row { text-align: left; margin-bottom: 10px; }
+.staff-add-row input {
+  flex: 1 1 150px; min-width: 120px;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff;
+}
+.sheet th { background: var(--sh-head, #e8e8e8); }
+.sheet.hc-dark th { color: #fff; }
+.sheet tbody tr.alt td { background: #f4f6f8; }
+.sheet .sh-group td { background: #e3e9ee; font-weight: 700; }
+.pcfg-presets {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 16px 12px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+}
+.pcfg-presets label { font-weight: 700; font-size: 14.5px; }
+.pcfg-presets select { flex: 1 1 150px; min-width: 0; }
+
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
    Kiểu dáng của tờ (font, kẻ bảng, mật độ...) nằm ở styles.css dưới các lớp .sheet
    để dùng chung với khung xem trước trong trang Tùy chỉnh bản in. */
@@ -620,7 +641,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v27</span>
+    <span class="app-version">LabEntry v28</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -865,6 +886,14 @@ svg { width: 24px; height: 24px; display: block; }
   <div class="pcfg-preview-head">Xem trước (dữ liệu mẫu — bản in thật dùng dữ liệu đang lọc ở tab Xuất)</div>
   <div class="pcfg-preview-wrap"><div id="pcfg-preview"></div></div>
 
+  <div class="pcfg-presets">
+    <label for="pcfg-preset">Mẫu bố cục:</label>
+    <select id="pcfg-preset"></select>
+    <button type="button" id="btn-preset-save" class="mini-btn">Lưu mẫu hiện tại</button>
+    <button type="button" id="btn-preset-apply" class="mini-btn">Dùng mẫu</button>
+    <button type="button" id="btn-preset-del" class="mini-btn danger">Xóa mẫu</button>
+  </div>
+
   <details class="pcfg-group" open>
     <summary>Đầu trang &amp; tiêu đề</summary>
     <div class="pcfg-body">
@@ -908,6 +937,19 @@ svg { width: 24px; height: 24px; display: block; }
     <summary>Cột bảng kết quả</summary>
     <div class="pcfg-body">
       <p class="pcfg-hint">Bật/tắt cột, sửa tên cột, đổi thứ tự bằng nút ↑ ↓, chỉnh độ rộng tương đối và căn lề. Cột KTV lấy tên đã đóng dấu trên từng mẫu.</p>
+      <label class="pcfg-row"><span class="pcfg-label">Cột kết quả</span>
+        <select id="pcfg-resultsmode">
+          <option value="grouped">Gộp tất cả vào 1 cột</option>
+          <option value="split">Tách mỗi trường thành 1 cột riêng</option>
+        </select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Phân nhóm</span>
+        <select id="pcfg-groupby">
+          <option value="none">Không phân nhóm</option>
+          <option value="day">Theo ngày nhận mẫu</option>
+          <option value="type">Theo loại xét nghiệm</option>
+        </select>
+      </label>
       <div id="pcfg-columns"></div>
     </div>
   </details>
@@ -937,6 +979,17 @@ svg { width: 24px; height: 24px; display: block; }
       <label class="pcfg-row"><span class="pcfg-label">Kẻ bảng</span>
         <select id="pcfg-borders"><option value="full">Kẻ đầy đủ</option><option value="rows">Chỉ đường ngang</option><option value="none">Không kẻ</option></select>
       </label>
+      <label class="pcfg-row check"><input id="pcfg-zebra" type="checkbox"> <span>Hàng sọc xen kẽ (dòng chẵn tô nền nhạt)</span></label>
+      <label class="pcfg-row"><span class="pcfg-label">Màu hàng tiêu đề</span>
+        <select id="pcfg-headercolor">
+          <option value="#e8e8e8">Xám nhạt (mặc định)</option>
+          <option value="#dbeafe">Xanh dương nhạt</option>
+          <option value="#fef3c7">Vàng nhạt</option>
+          <option value="#dcfce7">Xanh lá nhạt</option>
+          <option value="#1e88e5">Xanh đậm, chữ trắng</option>
+        </select>
+      </label>
+      <p class="pcfg-hint">Muốn màu in ra đúng thì khi in nhớ bật tùy chọn "Đồ họa nền (Background graphics)" trong hộp thoại in của trình duyệt.</p>
     </div>
   </details>
 
@@ -1070,12 +1123,12 @@ svg { width: 24px; height: 24px; display: block; }
 <div id="staff-modal" class="modal hidden">
   <div class="modal-box">
     <h3 class="staff-title">Danh sách kỹ thuật viên</h3>
-    <ul id="staff-list" class="staff-list"></ul>
-    <div id="staff-empty" class="empty-msg hidden">Chưa có KTV nào — thêm tên ở ô dưới.</div>
     <div class="staff-add-row">
-      <input id="input-staff-name" type="text" placeholder="Họ tên KTV mới" autocomplete="off">
+      <input id="input-staff-name" type="text" placeholder="Nhập họ tên KTV rồi bấm Thêm" autocomplete="off">
       <button type="button" id="btn-staff-add" class="primary-btn small">Thêm</button>
     </div>
+    <ul id="staff-list" class="staff-list"></ul>
+    <div id="staff-empty" class="empty-msg hidden">Chưa có KTV nào — nhập tên ở ô trên để thêm.</div>
     <p class="staff-note">Tên KTV được dùng để đóng dấu KTV nhận / thực hiện / phát hành trên từng mẫu. Xóa một tên khỏi danh sách không làm đổi các mẫu đã đóng dấu.</p>
     <div class="summary-actions">
       <button id="btn-staff-close" class="secondary-btn">Đóng</button>
@@ -2025,6 +2078,7 @@ function downloadTextFile(name, text, mime) {
 function exportBackupFile() {
   const obj = JSON.parse(store.exportBackup());
   if (typesCustom) obj.types = getTestTypes(); /* kèm danh mục tự tạo để sang máy khác phục hồi đủ loại */
+  try { obj.printLayout = JSON.parse(JSON.stringify(printSettings)); } catch (e) { /* bố cục bản in đi kèm file (đợt 2) */ }
   const count = store.getAll().length;
   downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
@@ -2040,9 +2094,11 @@ function exportBackupFile() {
 function importBackupText(text, mode) {
   const merge = mode === 'merge';
   let fileTypes = null;
+  let fileLayout = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
+    if (raw && raw.printLayout && typeof raw.printLayout === 'object') fileLayout = raw.printLayout;
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -2070,9 +2126,12 @@ function importBackupText(text, mode) {
   const typeNote = fileTypes
     ? (merge ? '\nFile có kèm danh mục xét nghiệm — các loại máy này chưa có sẽ được thêm vào danh mục.' : '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.')
     : '';
+  const layoutNote = (!merge && fileLayout)
+    ? '\nFile có kèm bố cục bản in — bố cục bản in trên máy này cũng sẽ được thay bằng bố cục trong file.'
+    : '';
   const ask = merge
-    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
-    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
   if (!confirm(ask)) {
     restoreTypes();
     return false;
@@ -2085,6 +2144,13 @@ function importBackupText(text, mode) {
     toast('Đã gộp dữ liệu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng');
   } else {
     const res = store.importBackup(text);
+    if (fileLayout) {
+      /* Bố cục bản in trong file (đợt 2): phục hồi thì áp dụng luôn;
+         gộp dữ liệu thì không đụng tới bố cục của máy này */
+      printSettings = normalizePrintSettings(fileLayout);
+      savePrintSettings();
+      updatePrintPageStyle();
+    }
     if (fileTypes) persistTypes();
     refreshTypeSelects();
     refreshCurrent();
@@ -2989,6 +3055,7 @@ function defaultPrintSettings() {
     pageSize: 'A4', orient: 'portrait', margin: 'normal',
     font: 'arial', fontSize: '12.5', density: 'normal', borders: 'full',
     footnote: '', printDate: false, tat: false,
+    resultsMode: 'grouped', groupBy: 'none', zebra: false, headerColor: '#e8e8e8',
     sigs: [
       { on: false, title: 'Người lập bảng', name: '' },
       { on: false, title: 'Trưởng khoa', name: '' },
@@ -2997,29 +3064,35 @@ function defaultPrintSettings() {
   };
 }
 
-function loadPrintSettings() {
+function normalizePrintSettings(saved) {
   const def = defaultPrintSettings();
+  if (!saved || typeof saved !== 'object') return def;
+  const merged = Object.assign({}, def, saved);
+  const savedCols = Array.isArray(saved.columns) ? saved.columns : [];
+  merged.columns = PRINT_COLUMNS.map((reg) => {
+    const sc = savedCols.find((c) => c && c.id === reg.id);
+    const dc = def.columns.find((c) => c.id === reg.id);
+    return sc ? {
+      id: reg.id,
+      label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
+      visible: !!sc.visible,
+      width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
+      align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
+    } : dc;
+  });
+  if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+  if (!['grouped', 'split'].includes(merged.resultsMode)) merged.resultsMode = 'grouped';
+  if (!['none', 'day', 'type'].includes(merged.groupBy)) merged.groupBy = 'none';
+  if (!/^#[0-9a-fA-F]{6}$/.test(merged.headerColor || '')) merged.headerColor = '#e8e8e8';
+  merged.zebra = !!merged.zebra;
+  return merged;
+}
+
+function loadPrintSettings() {
   try {
     const raw = localStorage.getItem(PRINT_KEY);
-    if (!raw) { printSettings = def; return printSettings; }
-    const saved = JSON.parse(raw);
-    const merged = Object.assign({}, def, saved);
-    /* Cột: dựng lại theo registry — cột có trong bản lưu thì lấy, thiếu thì mặc định */
-    const savedCols = Array.isArray(saved.columns) ? saved.columns : [];
-    merged.columns = PRINT_COLUMNS.map((reg) => {
-      const sc = savedCols.find((c) => c && c.id === reg.id);
-      const dc = def.columns.find((c) => c.id === reg.id);
-      return sc ? {
-        id: reg.id,
-        label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
-        visible: !!sc.visible,
-        width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
-        align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
-      } : dc;
-    });
-    if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
-    printSettings = merged;
-  } catch (e) { printSettings = def; }
+    printSettings = normalizePrintSettings(raw ? JSON.parse(raw) : null);
+  } catch (e) { printSettings = defaultPrintSettings(); }
   return printSettings;
 }
 
@@ -3051,6 +3124,46 @@ function printCellValue(colId, rec, idx) {
 }
 
 /* Dựng HTML tờ kết quả theo cấu hình. opts: { rangeText, tatText } */
+function splitFieldColumns(s, recs) {
+  /* Chế độ tách cột: gộp các trường kết quả của mọi loại XN có trong danh sách
+     thành các cột riêng, khử trùng theo NHÃN trường (vd 4 loại cùng có trường
+     "Kết quả" thì chung 1 cột). Thứ tự theo lần xuất hiện đầu tiên. */
+  const seen = new Set();
+  const cols = [];
+  recs.forEach((rec) => {
+    const type = getTestType(rec.typeId);
+    if (!type) return;
+    type.fields.forEach((f) => {
+      if (seen.has(f.label)) return;
+      seen.add(f.label);
+      cols.push({ id: 'field', label: f.label, align: 'left', width: 0, fieldLabel: f.label });
+    });
+  });
+  return cols;
+}
+
+function fieldCellValue(rec, fieldLabel) {
+  const type = getTestType(rec.typeId);
+  if (!type) return '';
+  const f = type.fields.find((x) => x.label === fieldLabel);
+  if (!f) return '';
+  const v = (rec.results && rec.results[f.key]) || '';
+  return esc(f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : (v === '' ? '—' : v));
+}
+
+function sheetGroupKey(s, rec) {
+  if (s.groupBy === 'day') {
+    const k = LabStore.localDayKey(new Date(rec.createdAt));
+    const p = k.split('-');
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+  if (s.groupBy === 'type') {
+    const t = getTestType(rec.typeId);
+    return t ? t.name : rec.typeId;
+  }
+  return '';
+}
+
 function renderSheet(s, recs, opts) {
   const o = opts || {};
   const logoHtml = s.logo
@@ -3072,11 +3185,30 @@ function renderSheet(s, recs, opts) {
     }
     if (s.divider) headerHtml += '<hr class="sh-divider">';
   }
-  const cols = s.columns.filter((c) => c.visible);
+  /* Cột hiệu dụng: cột Kết quả có thể nở thành nhiều cột trường (chế độ tách) */
+  let cols = [];
+  s.columns.filter((c) => c.visible).forEach((c) => {
+    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, recs));
+    else cols.push(c);
+  });
   const thead = '<tr>' + cols.map((c) =>
     '<th style="text-align:' + c.align + (c.width > 0 ? ';width:' + c.width + '%' : '') + '">' + esc(c.label) + '</th>').join('') + '</tr>';
-  const tbody = recs.map((rec, i) =>
-    '<tr>' + cols.map((c) => '<td style="text-align:' + c.align + '">' + printCellValue(c.id, rec, i) + '</td>').join('') + '</tr>').join('');
+  let lastGroup = null;
+  let dataIdx = 0;
+  const tbody = recs.map((rec, i) => {
+    let groupRow = '';
+    if (s.groupBy !== 'none') {
+      const gk = sheetGroupKey(s, rec);
+      if (gk !== lastGroup) {
+        lastGroup = gk;
+        groupRow = '<tr class="sh-group"><td colspan="' + cols.length + '">' + esc(gk) + '</td></tr>';
+      }
+    }
+    const alt = s.zebra && dataIdx % 2 === 1 ? ' class="alt"' : '';
+    dataIdx += 1;
+    return groupRow + '<tr' + alt + '>' + cols.map((c) =>
+      '<td style="text-align:' + c.align + '">' + (c.id === 'field' ? fieldCellValue(rec, c.fieldLabel) : printCellValue(c.id, rec, i)) + '</td>').join('') + '</tr>';
+  }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
     ? '<div class="sh-sigs">' + sigs.map((g) =>
@@ -3088,13 +3220,77 @@ function renderSheet(s, recs, opts) {
     ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
       (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
     : '';
-  return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px">' +
+  const dark = s.headerColor === '#1e88e5';
+  return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + (s.zebra ? ' zebra' : '') + (dark ? ' hc-dark' : '') +
+    '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
     headerHtml +
     '<h1 class="sh-title">' + esc(s.title || 'Danh sách kết quả xét nghiệm') + '</h1>' +
     (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
     (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
     '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
     sigHtml + footHtml + '</div>';
+}
+
+/* ---------- Mẫu bố cục (presets, đợt 2) ---------- */
+const PRESETS_KEY = 'labentry.print.presets.v1';
+let printPresets = [];
+
+function loadPresets() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]');
+    printPresets = Array.isArray(list) ? list.filter((p) => p && typeof p.name === 'string' && p.settings) : [];
+  } catch (e) { printPresets = []; }
+}
+function savePresets() { try { localStorage.setItem(PRESETS_KEY, JSON.stringify(printPresets)); } catch (e) { /* bỏ qua */ } }
+
+function renderPresetOptions() {
+  const el = $('pcfg-preset');
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = printPresets.length
+    ? printPresets.map((p) => '<option value="' + esc(p.name) + '">' + esc(p.name) + '</option>').join('')
+    : '<option value="">(chưa có mẫu nào)</option>';
+  if (printPresets.some((p) => p.name === cur)) el.value = cur;
+}
+
+function savePresetFromUI() {
+  const name = (prompt('Đặt tên cho mẫu bố cục này:') || '').trim();
+  if (!name) return;
+  const copy = JSON.parse(JSON.stringify(printSettings));
+  const idx = printPresets.findIndex((p) => p.name === name);
+  if (idx >= 0) {
+    if (!confirm('Đã có mẫu tên "' + name + '". Ghi đè bằng bố cục hiện tại?')) return;
+    printPresets[idx].settings = copy;
+  } else {
+    printPresets.push({ name, settings: copy });
+  }
+  savePresets();
+  renderPresetOptions();
+  $('pcfg-preset').value = name;
+  toast('Đã lưu mẫu bố cục: ' + name);
+}
+
+function applyPresetFromUI() {
+  const name = $('pcfg-preset').value;
+  const p = printPresets.find((x) => x.name === name);
+  if (!p) { toast('Chưa có mẫu nào để dùng — hãy lưu mẫu hiện tại trước'); return; }
+  printSettings = normalizePrintSettings(JSON.parse(JSON.stringify(p.settings)));
+  savePrintSettings();
+  fillPrintCfgControls();
+  renderPrintPreview();
+  updatePrintPageStyle();
+  toast('Đã áp dụng mẫu bố cục: ' + name);
+}
+
+function deletePresetFromUI() {
+  const name = $('pcfg-preset').value;
+  const idx = printPresets.findIndex((x) => x.name === name);
+  if (idx < 0) return;
+  if (!confirm('Xóa mẫu bố cục "' + name + '"?')) return;
+  printPresets.splice(idx, 1);
+  savePresets();
+  renderPresetOptions();
+  toast('Đã xóa mẫu bố cục: ' + name);
 }
 
 function updatePrintPageStyle() {
@@ -3154,6 +3350,11 @@ function fillPrintCfgControls() {
   $('pcfg-footnote').value = s.footnote;
   $('pcfg-printdate').checked = !!s.printDate;
   $('pcfg-tat').checked = !!s.tat;
+  $('pcfg-resultsmode').value = s.resultsMode;
+  $('pcfg-groupby').value = s.groupBy;
+  $('pcfg-zebra').checked = !!s.zebra;
+  $('pcfg-headercolor').value = s.headerColor;
+  renderPresetOptions();
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
@@ -3239,6 +3440,11 @@ function bindPrintCfg() {
   sel('pcfg-pagesize', 'pageSize'); sel('pcfg-orient', 'orient'); sel('pcfg-margin', 'margin');
   sel('pcfg-font', 'font'); sel('pcfg-fontsize', 'fontSize'); sel('pcfg-density', 'density'); sel('pcfg-borders', 'borders');
   txt('pcfg-footnote', 'footnote'); chk('pcfg-printdate', 'printDate'); chk('pcfg-tat', 'tat');
+  sel('pcfg-resultsmode', 'resultsMode'); sel('pcfg-groupby', 'groupBy');
+  chk('pcfg-zebra', 'zebra'); sel('pcfg-headercolor', 'headerColor');
+  $('btn-preset-save').addEventListener('click', savePresetFromUI);
+  $('btn-preset-apply').addEventListener('click', applyPresetFromUI);
+  $('btn-preset-del').addEventListener('click', deletePresetFromUI);
   printSettings.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
@@ -3266,6 +3472,7 @@ function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
+  loadPresets(); /* các mẫu bố cục đã lưu */
   renderOperatorControls();
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */

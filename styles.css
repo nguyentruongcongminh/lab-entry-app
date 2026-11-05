@@ -585,3 +585,24 @@ svg { width: 24px; height: 24px; display: block; }
 .pcfg-sig-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .pcfg-sig-row input[type="text"] { flex: 1 1 0; min-width: 0; }
 .pcfg-sig-title { font-weight: 700; font-size: 14.5px; }
+
+/* ---------- Sửa lỗi ô nhập tên KTV bị bóp mất (v28) + đợt 2 bản in ---------- */
+/* Nút .primary-btn trong .modal-box vốn bị ép width:100% (cho nút Phát hành ở trang Xem);
+   trong hàng flex nó bóp ô nhập bên cạnh về 0px — ghi đè lại cho 2 hàng flex này. */
+.staff-add-row .primary-btn, .scanner-manual .primary-btn { width: auto; flex: 0 0 auto; }
+.staff-add-row { text-align: left; margin-bottom: 10px; }
+.staff-add-row input {
+  flex: 1 1 150px; min-width: 120px;
+  border: 1.5px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff;
+}
+.sheet th { background: var(--sh-head, #e8e8e8); }
+.sheet.hc-dark th { color: #fff; }
+.sheet tbody tr.alt td { background: #f4f6f8; }
+.sheet .sh-group td { background: #e3e9ee; font-weight: 700; }
+.pcfg-presets {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 0 16px 12px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+}
+.pcfg-presets label { font-weight: 700; font-size: 14.5px; }
+.pcfg-presets select { flex: 1 1 150px; min-width: 0; }

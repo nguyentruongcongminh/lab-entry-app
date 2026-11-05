@@ -501,6 +501,7 @@ function downloadTextFile(name, text, mime) {
 function exportBackupFile() {
   const obj = JSON.parse(store.exportBackup());
   if (typesCustom) obj.types = getTestTypes(); /* kèm danh mục tự tạo để sang máy khác phục hồi đủ loại */
+  try { obj.printLayout = JSON.parse(JSON.stringify(printSettings)); } catch (e) { /* bố cục bản in đi kèm file (đợt 2) */ }
   const count = store.getAll().length;
   downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
@@ -516,9 +517,11 @@ function exportBackupFile() {
 function importBackupText(text, mode) {
   const merge = mode === 'merge';
   let fileTypes = null;
+  let fileLayout = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
+    if (raw && raw.printLayout && typeof raw.printLayout === 'object') fileLayout = raw.printLayout;
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -546,9 +549,12 @@ function importBackupText(text, mode) {
   const typeNote = fileTypes
     ? (merge ? '\nFile có kèm danh mục xét nghiệm — các loại máy này chưa có sẽ được thêm vào danh mục.' : '\nFile có kèm danh mục xét nghiệm riêng — danh mục trên máy này cũng sẽ được thay bằng danh mục trong file.')
     : '';
+  const layoutNote = (!merge && fileLayout)
+    ? '\nFile có kèm bố cục bản in — bố cục bản in trên máy này cũng sẽ được thay bằng bố cục trong file.'
+    : '';
   const ask = merge
-    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
-    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
   if (!confirm(ask)) {
     restoreTypes();
     return false;
@@ -561,6 +567,13 @@ function importBackupText(text, mode) {
     toast('Đã gộp dữ liệu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng');
   } else {
     const res = store.importBackup(text);
+    if (fileLayout) {
+      /* Bố cục bản in trong file (đợt 2): phục hồi thì áp dụng luôn;
+         gộp dữ liệu thì không đụng tới bố cục của máy này */
+      printSettings = normalizePrintSettings(fileLayout);
+      savePrintSettings();
+      updatePrintPageStyle();
+    }
     if (fileTypes) persistTypes();
     refreshTypeSelects();
     refreshCurrent();
@@ -1465,6 +1478,7 @@ function defaultPrintSettings() {
     pageSize: 'A4', orient: 'portrait', margin: 'normal',
     font: 'arial', fontSize: '12.5', density: 'normal', borders: 'full',
     footnote: '', printDate: false, tat: false,
+    resultsMode: 'grouped', groupBy: 'none', zebra: false, headerColor: '#e8e8e8',
     sigs: [
       { on: false, title: 'Người lập bảng', name: '' },
       { on: false, title: 'Trưởng khoa', name: '' },
@@ -1473,29 +1487,35 @@ function defaultPrintSettings() {
   };
 }
 
-function loadPrintSettings() {
+function normalizePrintSettings(saved) {
   const def = defaultPrintSettings();
+  if (!saved || typeof saved !== 'object') return def;
+  const merged = Object.assign({}, def, saved);
+  const savedCols = Array.isArray(saved.columns) ? saved.columns : [];
+  merged.columns = PRINT_COLUMNS.map((reg) => {
+    const sc = savedCols.find((c) => c && c.id === reg.id);
+    const dc = def.columns.find((c) => c.id === reg.id);
+    return sc ? {
+      id: reg.id,
+      label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
+      visible: !!sc.visible,
+      width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
+      align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
+    } : dc;
+  });
+  if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+  if (!['grouped', 'split'].includes(merged.resultsMode)) merged.resultsMode = 'grouped';
+  if (!['none', 'day', 'type'].includes(merged.groupBy)) merged.groupBy = 'none';
+  if (!/^#[0-9a-fA-F]{6}$/.test(merged.headerColor || '')) merged.headerColor = '#e8e8e8';
+  merged.zebra = !!merged.zebra;
+  return merged;
+}
+
+function loadPrintSettings() {
   try {
     const raw = localStorage.getItem(PRINT_KEY);
-    if (!raw) { printSettings = def; return printSettings; }
-    const saved = JSON.parse(raw);
-    const merged = Object.assign({}, def, saved);
-    /* Cột: dựng lại theo registry — cột có trong bản lưu thì lấy, thiếu thì mặc định */
-    const savedCols = Array.isArray(saved.columns) ? saved.columns : [];
-    merged.columns = PRINT_COLUMNS.map((reg) => {
-      const sc = savedCols.find((c) => c && c.id === reg.id);
-      const dc = def.columns.find((c) => c.id === reg.id);
-      return sc ? {
-        id: reg.id,
-        label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
-        visible: !!sc.visible,
-        width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
-        align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
-      } : dc;
-    });
-    if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
-    printSettings = merged;
-  } catch (e) { printSettings = def; }
+    printSettings = normalizePrintSettings(raw ? JSON.parse(raw) : null);
+  } catch (e) { printSettings = defaultPrintSettings(); }
   return printSettings;
 }
 
@@ -1527,6 +1547,46 @@ function printCellValue(colId, rec, idx) {
 }
 
 /* Dựng HTML tờ kết quả theo cấu hình. opts: { rangeText, tatText } */
+function splitFieldColumns(s, recs) {
+  /* Chế độ tách cột: gộp các trường kết quả của mọi loại XN có trong danh sách
+     thành các cột riêng, khử trùng theo NHÃN trường (vd 4 loại cùng có trường
+     "Kết quả" thì chung 1 cột). Thứ tự theo lần xuất hiện đầu tiên. */
+  const seen = new Set();
+  const cols = [];
+  recs.forEach((rec) => {
+    const type = getTestType(rec.typeId);
+    if (!type) return;
+    type.fields.forEach((f) => {
+      if (seen.has(f.label)) return;
+      seen.add(f.label);
+      cols.push({ id: 'field', label: f.label, align: 'left', width: 0, fieldLabel: f.label });
+    });
+  });
+  return cols;
+}
+
+function fieldCellValue(rec, fieldLabel) {
+  const type = getTestType(rec.typeId);
+  if (!type) return '';
+  const f = type.fields.find((x) => x.label === fieldLabel);
+  if (!f) return '';
+  const v = (rec.results && rec.results[f.key]) || '';
+  return esc(f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : (v === '' ? '—' : v));
+}
+
+function sheetGroupKey(s, rec) {
+  if (s.groupBy === 'day') {
+    const k = LabStore.localDayKey(new Date(rec.createdAt));
+    const p = k.split('-');
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+  if (s.groupBy === 'type') {
+    const t = getTestType(rec.typeId);
+    return t ? t.name : rec.typeId;
+  }
+  return '';
+}
+
 function renderSheet(s, recs, opts) {
   const o = opts || {};
   const logoHtml = s.logo
@@ -1548,11 +1608,30 @@ function renderSheet(s, recs, opts) {
     }
     if (s.divider) headerHtml += '<hr class="sh-divider">';
   }
-  const cols = s.columns.filter((c) => c.visible);
+  /* Cột hiệu dụng: cột Kết quả có thể nở thành nhiều cột trường (chế độ tách) */
+  let cols = [];
+  s.columns.filter((c) => c.visible).forEach((c) => {
+    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, recs));
+    else cols.push(c);
+  });
   const thead = '<tr>' + cols.map((c) =>
     '<th style="text-align:' + c.align + (c.width > 0 ? ';width:' + c.width + '%' : '') + '">' + esc(c.label) + '</th>').join('') + '</tr>';
-  const tbody = recs.map((rec, i) =>
-    '<tr>' + cols.map((c) => '<td style="text-align:' + c.align + '">' + printCellValue(c.id, rec, i) + '</td>').join('') + '</tr>').join('');
+  let lastGroup = null;
+  let dataIdx = 0;
+  const tbody = recs.map((rec, i) => {
+    let groupRow = '';
+    if (s.groupBy !== 'none') {
+      const gk = sheetGroupKey(s, rec);
+      if (gk !== lastGroup) {
+        lastGroup = gk;
+        groupRow = '<tr class="sh-group"><td colspan="' + cols.length + '">' + esc(gk) + '</td></tr>';
+      }
+    }
+    const alt = s.zebra && dataIdx % 2 === 1 ? ' class="alt"' : '';
+    dataIdx += 1;
+    return groupRow + '<tr' + alt + '>' + cols.map((c) =>
+      '<td style="text-align:' + c.align + '">' + (c.id === 'field' ? fieldCellValue(rec, c.fieldLabel) : printCellValue(c.id, rec, i)) + '</td>').join('') + '</tr>';
+  }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
     ? '<div class="sh-sigs">' + sigs.map((g) =>
@@ -1564,13 +1643,77 @@ function renderSheet(s, recs, opts) {
     ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
       (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
     : '';
-  return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px">' +
+  const dark = s.headerColor === '#1e88e5';
+  return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + (s.zebra ? ' zebra' : '') + (dark ? ' hc-dark' : '') +
+    '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
     headerHtml +
     '<h1 class="sh-title">' + esc(s.title || 'Danh sách kết quả xét nghiệm') + '</h1>' +
     (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
     (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
     '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
     sigHtml + footHtml + '</div>';
+}
+
+/* ---------- Mẫu bố cục (presets, đợt 2) ---------- */
+const PRESETS_KEY = 'labentry.print.presets.v1';
+let printPresets = [];
+
+function loadPresets() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PRESETS_KEY) || '[]');
+    printPresets = Array.isArray(list) ? list.filter((p) => p && typeof p.name === 'string' && p.settings) : [];
+  } catch (e) { printPresets = []; }
+}
+function savePresets() { try { localStorage.setItem(PRESETS_KEY, JSON.stringify(printPresets)); } catch (e) { /* bỏ qua */ } }
+
+function renderPresetOptions() {
+  const el = $('pcfg-preset');
+  if (!el) return;
+  const cur = el.value;
+  el.innerHTML = printPresets.length
+    ? printPresets.map((p) => '<option value="' + esc(p.name) + '">' + esc(p.name) + '</option>').join('')
+    : '<option value="">(chưa có mẫu nào)</option>';
+  if (printPresets.some((p) => p.name === cur)) el.value = cur;
+}
+
+function savePresetFromUI() {
+  const name = (prompt('Đặt tên cho mẫu bố cục này:') || '').trim();
+  if (!name) return;
+  const copy = JSON.parse(JSON.stringify(printSettings));
+  const idx = printPresets.findIndex((p) => p.name === name);
+  if (idx >= 0) {
+    if (!confirm('Đã có mẫu tên "' + name + '". Ghi đè bằng bố cục hiện tại?')) return;
+    printPresets[idx].settings = copy;
+  } else {
+    printPresets.push({ name, settings: copy });
+  }
+  savePresets();
+  renderPresetOptions();
+  $('pcfg-preset').value = name;
+  toast('Đã lưu mẫu bố cục: ' + name);
+}
+
+function applyPresetFromUI() {
+  const name = $('pcfg-preset').value;
+  const p = printPresets.find((x) => x.name === name);
+  if (!p) { toast('Chưa có mẫu nào để dùng — hãy lưu mẫu hiện tại trước'); return; }
+  printSettings = normalizePrintSettings(JSON.parse(JSON.stringify(p.settings)));
+  savePrintSettings();
+  fillPrintCfgControls();
+  renderPrintPreview();
+  updatePrintPageStyle();
+  toast('Đã áp dụng mẫu bố cục: ' + name);
+}
+
+function deletePresetFromUI() {
+  const name = $('pcfg-preset').value;
+  const idx = printPresets.findIndex((x) => x.name === name);
+  if (idx < 0) return;
+  if (!confirm('Xóa mẫu bố cục "' + name + '"?')) return;
+  printPresets.splice(idx, 1);
+  savePresets();
+  renderPresetOptions();
+  toast('Đã xóa mẫu bố cục: ' + name);
 }
 
 function updatePrintPageStyle() {
@@ -1630,6 +1773,11 @@ function fillPrintCfgControls() {
   $('pcfg-footnote').value = s.footnote;
   $('pcfg-printdate').checked = !!s.printDate;
   $('pcfg-tat').checked = !!s.tat;
+  $('pcfg-resultsmode').value = s.resultsMode;
+  $('pcfg-groupby').value = s.groupBy;
+  $('pcfg-zebra').checked = !!s.zebra;
+  $('pcfg-headercolor').value = s.headerColor;
+  renderPresetOptions();
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
@@ -1715,6 +1863,11 @@ function bindPrintCfg() {
   sel('pcfg-pagesize', 'pageSize'); sel('pcfg-orient', 'orient'); sel('pcfg-margin', 'margin');
   sel('pcfg-font', 'font'); sel('pcfg-fontsize', 'fontSize'); sel('pcfg-density', 'density'); sel('pcfg-borders', 'borders');
   txt('pcfg-footnote', 'footnote'); chk('pcfg-printdate', 'printDate'); chk('pcfg-tat', 'tat');
+  sel('pcfg-resultsmode', 'resultsMode'); sel('pcfg-groupby', 'groupBy');
+  chk('pcfg-zebra', 'zebra'); sel('pcfg-headercolor', 'headerColor');
+  $('btn-preset-save').addEventListener('click', savePresetFromUI);
+  $('btn-preset-apply').addEventListener('click', applyPresetFromUI);
+  $('btn-preset-del').addEventListener('click', deletePresetFromUI);
   printSettings.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
@@ -1742,6 +1895,7 @@ function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
+  loadPresets(); /* các mẫu bố cục đã lưu */
   renderOperatorControls();
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */

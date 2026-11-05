@@ -473,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v27 và precache đúng URL ?v=27 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v28 và precache đúng URL ?v=28 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v27'"), 'sw.js phải gắn VERSION v27');
-    for (const a of ['styles.css?v=27', 'print.css?v=27', 'config.js?v=27', 'store.js?v=27', 'app.js?v=27', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v28'"), 'sw.js phải gắn VERSION v28');
+    for (const a of ['styles.css?v=28', 'print.css?v=28', 'config.js?v=28', 'store.js?v=28', 'app.js?v=28', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -799,6 +799,74 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-pcfg-reset').click();
     assert.strictEqual($('pcfg-org').value, '', 'khôi phục mặc định phải xóa tên đơn vị');
     assert.ok(!$('pcfg-preview').textContent.includes('KTV nhận'), 'khôi phục mặc định phải tắt lại cột KTV');
+    $('btn-pcfg-back').click();
+  });
+
+  test('bản in đợt 2 (v28): tách mỗi trường thành cột riêng + phân nhóm theo loại + sọc xen kẽ + màu nền tiêu đề đậm', () => {
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    /* Tách cột: nhãn trường của Soi tươi và SP thành cột riêng trong xem trước */
+    setSelect($('pcfg-resultsmode'), 'split');
+    const heads = [...$('pcfg-preview').querySelectorAll('thead th')].map((th) => th.textContent);
+    assert.ok(heads.includes('Trichomonas'), 'chế độ tách cột phải có cột Trichomonas');
+    assert.ok(heads.includes('Nấm'), 'chế độ tách cột phải có cột Nấm của Soi tươi');
+    assert.strictEqual(heads.filter((h) => h === 'Kết quả').length, 1, 'nhiều loại cùng có trường "Kết quả" thì gộp chung 1 cột');
+    assert.ok($('pcfg-preview').textContent.includes('(+)'), 'ô Trichomonas của mẫu soi tươi hiện mức đã chọn');
+    /* Phân nhóm theo loại: 3 mẫu thuộc 3 loại -> 3 dòng nhóm */
+    setSelect($('pcfg-groupby'), 'type');
+    const groups = $('pcfg-preview').querySelectorAll('.sh-group');
+    assert.strictEqual(groups.length, 3, 'phải có 3 dòng phân nhóm theo loại');
+    assert.ok([...groups].some((g) => g.textContent.includes('Soi tươi huyết trắng')));
+    /* Sọc xen kẽ + màu tiêu đề */
+    $('pcfg-zebra').click();
+    let sheet = $('pcfg-preview').querySelector('.sheet');
+    assert.ok(sheet.classList.contains('zebra'), 'bật sọc thì tờ có lớp zebra');
+    assert.ok($('pcfg-preview').querySelectorAll('tbody tr.alt').length >= 1, 'phải có dòng được tô sọc');
+    setSelect($('pcfg-headercolor'), '#1e88e5');
+    sheet = $('pcfg-preview').querySelector('.sheet');
+    assert.ok(sheet.classList.contains('hc-dark'), 'màu xanh đậm thì hàng tiêu đề chữ trắng');
+    assert.ok(sheet.getAttribute('style').includes('--sh-head:#1e88e5'), 'biến màu tiêu đề phải mang màu đã chọn');
+    /* Dọn về mặc định cho các test sau */
+    $('btn-pcfg-reset').click();
+    sheet = $('pcfg-preview').querySelector('.sheet');
+    assert.ok(!sheet.classList.contains('zebra'), 'khôi phục mặc định phải tắt sọc');
+    $('btn-pcfg-back').click();
+  });
+
+  test('mẫu bố cục + sao lưu kèm bố cục (v28): lưu mẫu rồi áp dụng lại được; file sao lưu mang theo bố cục, phục hồi là áp dụng', () => {
+    window.prompt = () => 'Mẫu T28';
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    setInput($('pcfg-title'), 'BANG KQ T28');
+    $('btn-preset-save').click();
+    assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28'), 'mẫu vừa lưu phải có trong danh sách mẫu');
+    /* Đổi cấu hình đi chỗ khác rồi áp dụng mẫu -> quay lại đúng cấu hình đã lưu */
+    $('btn-pcfg-reset').click();
+    assert.strictEqual($('pcfg-title').value, 'Danh sách kết quả xét nghiệm', 'reset đưa tiêu đề về mặc định');
+    setSelect($('pcfg-preset'), 'Mẫu T28');
+    $('btn-preset-apply').click();
+    assert.strictEqual($('pcfg-title').value, 'BANG KQ T28', 'áp dụng mẫu phải khôi phục tiêu đề đã lưu');
+    /* Sao lưu: file JSON phải kèm printLayout; phục hồi file đó áp dụng luôn bố cục */
+    $('btn-pcfg-back').click();
+    let captured = null;
+    const origDl = window.downloadTextFile;
+    window.downloadTextFile = (name, text) => { captured = text; };
+    $('btn-backup-export').click();
+    window.downloadTextFile = origDl;
+    assert.ok(captured, 'phải bắt được nội dung file sao lưu');
+    const parsedFile = JSON.parse(captured);
+    assert.ok(parsedFile.printLayout && parsedFile.printLayout.title === 'BANG KQ T28', 'file sao lưu phải kèm bố cục bản in');
+    $('btn-printcfg').click();
+    $('btn-pcfg-reset').click();
+    assert.strictEqual($('pcfg-title').value, 'Danh sách kết quả xét nghiệm');
+    $('btn-pcfg-back').click();
+    const okImp = window.importBackupText(captured);
+    assert.strictEqual(okImp, true, 'phục hồi file vừa sao lưu phải thành công');
+    document.querySelector('[data-view="export"]').click();
+    assert.ok($('print-area').textContent.includes('BANG KQ T28'), 'sau phục hồi, vùng in thật phải dùng bố cục trong file');
+    /* Dọn bố cục về mặc định cho các test sau */
+    $('btn-printcfg').click();
+    $('btn-pcfg-reset').click();
     $('btn-pcfg-back').click();
   });
 
