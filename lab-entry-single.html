@@ -23,6 +23,7 @@
   --bg: #f5f6f8;
   --card: #ffffff;
   --danger: #d32f2f;
+  --app-max: 560px; /* bề rộng khung ứng dụng trên màn hình lớn; bản PC (v35) nâng lên 1180px */
 }
 html { -webkit-text-size-adjust: 100%; }
 body {
@@ -238,9 +239,26 @@ svg { width: 24px; height: 24px; display: block; }
 #print-area { display: none; }
 
 @media (min-width: 720px) {
-  body { max-width: 560px; margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
-  #bottom-nav, .form-actions { max-width: 560px; left: 50%; right: auto; transform: translateX(-50%); width: 100%; }
-  .fab { right: calc(50% - 262px); }
+  body { max-width: var(--app-max); margin: 0 auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  #bottom-nav, .form-actions { max-width: var(--app-max); left: 50%; right: auto; transform: translateX(-50%); width: 100%; }
+  .fab { right: calc(50% - (var(--app-max) / 2) + 18px); }
+}
+
+/* ---------- Giao diện máy tính (v35) ----------
+   Trước v35 app chỉ là một cột kiểu điện thoại 560px đặt giữa màn hình PC.
+   Từ v35: khung rộng 1180px, hộp thoại rộng hơn, form nhập canh giữa 860px,
+   và trang Tùy chỉnh bản in thành 2 cột — cài đặt bên trái, xem trước dính
+   (sticky) bên phải để vừa chỉnh vừa nhìn tờ in. Giao diện mobile không đổi. */
+@media (min-width: 1024px) {
+  :root { --app-max: 1180px; }
+  .modal-box { max-width: 500px; }
+  .summary-box { max-width: 680px; }
+  .record-item { padding: 14px 18px; }
+  #view-form > :not(header):not(.form-actions) { max-width: 860px; margin-left: auto; margin-right: auto; width: 100%; }
+  /* Trang Tùy chỉnh bản in: xem trước ở trên với bề rộng lớn (tờ A4 hiện đủ cột,
+     dễ đọc), các hàng cài đặt bên dưới xếp 2 cột cho đỡ dài trang. */
+  .pcfg-body { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; align-items: start; }
+  .pcfg-row-wide { grid-column: 1 / -1; }
 }
 
 /* ---------- Màn hình quét mã: giao diện chuyên dụng nền tối ---------- */
@@ -658,7 +676,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v34</span>
+    <span class="app-version">LabEntry v35</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -967,7 +985,7 @@ svg { width: 24px; height: 24px; display: block; }
           <option value="type">Theo loại xét nghiệm</option>
         </select>
       </label>
-      <div id="pcfg-columns"></div>
+      <div id="pcfg-columns" class="pcfg-row-wide"></div>
     </div>
   </details>
 

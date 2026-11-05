@@ -159,6 +159,10 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Bảo mật PIN:** app **không bao giờ lưu PIN gốc** — chỉ lưu băm **SHA-256 kèm muối riêng** từng KTV (không có khóa giải mã, không đọc ngược được; trình duyệt thiếu WebCrypto thì dùng hàm băm dự phòng kèm muối). Vì vậy file sao lưu mang theo `staff` ở dạng băm: mở file ra không thấy PIN của ai, phục hồi/gộp sang máy khác thì băm đi theo và người dùng vẫn gõ PIN cũ để đổi trực bình thường (đây là cách "giải mã" đúng nghĩa cho nhu cầu kiểm tra PIN: chỉ cần kiểm tra khớp, không cần khôi phục gốc). Gộp dữ liệu hợp nhất danh sách theo tên như cũ.
 - Giới hạn đã nêu rõ với Minh: PIN là lớp ngăn "chọn tên người khác tiện tay" trên máy dùng chung, không phải bảo mật cấp tài khoản — ai có quyền đào sâu dữ liệu trên máy vẫn có thể xóa KTV tạo lại; xóa KTV và việc chọn tên chưa có PIN vẫn không bị khóa PIN.
 
+### F19 — Giao diện máy tính (v35, 2026-11-05)
+
+Trước v35, trên màn hình lớn app chỉ là một cột 560px kiểu điện thoại đặt giữa màn hình (dùng được nhưng phí không gian, tờ xem trước bản in bị co và cắt cột). Từ v35 (chỉ CSS, qua biến `--app-max` + media query ≥1024px; giao diện mobile/tablet không đổi): khung ứng dụng rộng **1180px** (thanh điều hướng dưới và nút + bám theo khung), hộp thoại rộng hơn (modal 500px, Xem 680px), hàng mẫu thoáng hơn, form nhập canh giữa tối đa 860px, và trang **Tùy chỉnh bản in**: tờ xem trước hiện bề rộng lớn đủ mọi cột, các hàng cài đặt xếp **2 cột** (riêng trình sửa cột in chiếm trọn hàng). Đã kiểm chứng bằng ảnh chụp Chromium thật ở 1280px trước/sau (khung, studio in, tính dính của thanh công cụ); một phương án studio 2 cột trái–phải từng thử đã bị loại vì xung đột với thanh công cụ sticky và CSS co giãn của tờ xem trước.
+
 ### F18 — Tùy chỉnh bố cục bản in PDF, đợt 1 (theo thiết kế PRINT-LAYOUT-DESIGN.md đã được Minh duyệt, 2026-11-05)
 
 - Cấu hình lưu ở localStorage `labentry.print.v1`; chưa có cấu hình thì dùng **mặc định = đúng bố cục bản in cũ** (7 cột, Arial 12.5, không đầu trang/chữ ký). `renderSheet(settings, records)` dựng toàn bộ tờ kết quả (dùng cho cả vùng in thật và xem trước).
