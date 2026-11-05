@@ -4,6 +4,8 @@
 
 **Manual lab test results manager for small laboratories** — barcode sample intake, result entry and release, PIN-protected technician stamps, and fully customizable printable result sheets. Runs right on a phone, no server needed, data stays on the device.
 
+🔗 **Dùng thử / Live demo:** https://nguyentruongcongminh.github.io/lab-entry-app/
+
 ![Màn hình chính](screenshots/01-trang-chinh.png)
 
 | | |
