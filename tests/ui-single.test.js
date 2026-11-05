@@ -473,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v29 và precache đúng URL ?v=29 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v30 và precache đúng URL ?v=30 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v29'"), 'sw.js phải gắn VERSION v29');
-    for (const a of ['styles.css?v=29', 'print.css?v=29', 'config.js?v=29', 'store.js?v=29', 'app.js?v=29', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v30'"), 'sw.js phải gắn VERSION v30');
+    for (const a of ['styles.css?v=30', 'print.css?v=30', 'config.js?v=30', 'store.js?v=30', 'app.js?v=30', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -887,6 +887,66 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(groups.length, 2, '2 loại xen kẽ nhau phải cho đúng 2 dòng nhóm, không tách trùng');
     const dataRows = [...div.querySelectorAll('tbody tr')].filter((tr) => !tr.classList.contains('sh-group'));
     assert.deepStrictEqual(dataRows.map((tr) => tr.children[1].textContent), ['G-A1', 'G-A2', 'G-B1'], 'hai mẫu Cạo tìm nấm phải nằm cạnh nhau trong cùng một nhóm');
+  });
+
+  test('sao lưu trọn gói (v30): file kèm danh sách KTV + KTV trực + mẫu bố cục; phục hồi dùng theo file; gộp chỉ thêm phần chưa có và không đổi KTV trực', () => {
+    document.querySelector('[data-view="today"]').click();
+    setSelect($('operator-select'), 'Nguyễn Văn A');
+    /* Chụp file sao lưu hiện tại (đã có 2 KTV + mẫu "Mẫu T28" từ các test trước) */
+    document.querySelector('[data-view="export"]').click();
+    let captured = null;
+    const origDl = window.downloadTextFile;
+    window.downloadTextFile = (name, text) => { captured = text; };
+    $('btn-backup-export').click();
+    window.downloadTextFile = origDl;
+    const parsedFile = JSON.parse(captured);
+    assert.ok(Array.isArray(parsedFile.staff) && parsedFile.staff.includes('Lê Thị Bình'), 'file phải kèm danh sách KTV');
+    assert.strictEqual(parsedFile.operator, 'Nguyễn Văn A', 'file phải kèm KTV trực đang chọn');
+    assert.ok(Array.isArray(parsedFile.printPresets) && parsedFile.printPresets.some((p) => p.name === 'Mẫu T28'), 'file phải kèm thư viện mẫu bố cục');
+    /* Làm lệch trạng thái máy: xóa 1 KTV, bỏ KTV trực, xóa 1 mẫu bố cục */
+    const mutate = () => {
+      document.querySelector('[data-view="today"]').click();
+      $('btn-staff-manage').click();
+      const del = $('staff-list').querySelector('[data-staff-del="Lê Thị Bình"]');
+      if (del) del.click();
+      $('btn-staff-close').click();
+      document.querySelector('[data-view="export"]').click();
+      $('btn-printcfg').click();
+      if ([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28')) {
+        setSelect($('pcfg-preset'), 'Mẫu T28');
+        $('btn-preset-del').click();
+      }
+      $('btn-pcfg-back').click();
+    };
+    mutate();
+    document.querySelector('[data-view="today"]').click();
+    $('btn-staff-manage').click();
+    assert.strictEqual($('staff-list').children.length, 1, 'sau khi xóa chỉ còn 1 KTV');
+    $('btn-staff-close').click();
+    /* PHỤC HỒI: danh sách KTV + KTV trực + mẫu quay lại đúng theo file */
+    assert.strictEqual(window.importBackupText(captured), true);
+    assert.strictEqual($('operator-select').value, 'Nguyễn Văn A', 'phục hồi phải đặt lại KTV trực theo file');
+    $('btn-staff-manage').click();
+    assert.strictEqual($('staff-list').children.length, 2, 'phục hồi phải khôi phục đủ 2 KTV');
+    $('btn-staff-close').click();
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28'), 'phục hồi phải khôi phục mẫu bố cục');
+    $('btn-pcfg-back').click();
+    /* GỘP: thêm lại phần thiếu nhưng KHÔNG đổi KTV trực của máy */
+    mutate();
+    document.querySelector('[data-view="today"]').click();
+    setSelect($('operator-select'), '');
+    assert.strictEqual(window.importBackupText(captured, 'merge'), true);
+    assert.strictEqual($('operator-select').value, '', 'gộp dữ liệu không được đổi KTV trực của máy');
+    $('btn-staff-manage').click();
+    assert.strictEqual($('staff-list').children.length, 2, 'gộp phải thêm lại KTV còn thiếu');
+    $('btn-staff-close').click();
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28'), 'gộp phải thêm lại mẫu bố cục còn thiếu');
+    $('btn-pcfg-back').click();
+    setSelect($('operator-select'), 'Nguyễn Văn A');
   });
 
   test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {

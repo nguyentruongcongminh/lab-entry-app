@@ -501,7 +501,12 @@ function downloadTextFile(name, text, mime) {
 function exportBackupFile() {
   const obj = JSON.parse(store.exportBackup());
   if (typesCustom) obj.types = getTestTypes(); /* kèm danh mục tự tạo để sang máy khác phục hồi đủ loại */
-  try { obj.printLayout = JSON.parse(JSON.stringify(printSettings)); } catch (e) { /* bố cục bản in đi kèm file (đợt 2) */ }
+  try {
+    obj.printLayout = JSON.parse(JSON.stringify(printSettings)); /* bố cục bản in đi kèm file (đợt 2) */
+    obj.printPresets = JSON.parse(JSON.stringify(printPresets)); /* thư viện mẫu bố cục (v30) */
+    obj.staff = staffList.slice(); /* danh sách KTV (v30) */
+    obj.operator = currentOperator; /* KTV trực đang chọn (v30) */
+  } catch (e) { /* bỏ qua nếu lỗi sao chép */ }
   const count = store.getAll().length;
   downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
@@ -518,10 +523,16 @@ function importBackupText(text, mode) {
   const merge = mode === 'merge';
   let fileTypes = null;
   let fileLayout = null;
+  let fileStaff = null;
+  let filePresets = null;
+  let fileOperator = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
     if (raw && raw.printLayout && typeof raw.printLayout === 'object') fileLayout = raw.printLayout;
+    if (raw && Array.isArray(raw.staff)) fileStaff = sanitizeStaffList(raw.staff);
+    if (raw && Array.isArray(raw.printPresets)) filePresets = raw.printPresets.filter((p) => p && typeof p.name === 'string' && p.name.trim() && p.settings && typeof p.settings === 'object');
+    if (raw && typeof raw.operator === 'string') fileOperator = raw.operator;
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -552,15 +563,32 @@ function importBackupText(text, mode) {
   const layoutNote = (!merge && fileLayout)
     ? '\nFile có kèm bố cục bản in — bố cục bản in trên máy này cũng sẽ được thay bằng bố cục trong file.'
     : '';
+  const packNote = (fileStaff || filePresets)
+    ? (merge
+      ? '\nFile có kèm danh sách KTV và mẫu bố cục — chỉ thêm những tên/mẫu máy này chưa có.'
+      : '\nFile có kèm danh sách KTV, KTV trực và các mẫu bố cục — máy này sẽ dùng theo file.')
+    : '';
   const ask = merge
-    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
-    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
   if (!confirm(ask)) {
     restoreTypes();
     return false;
   }
   if (merge) {
     const res = store.mergeBackup(text);
+    if (fileStaff) {
+      const before = staffList.length;
+      fileStaff.forEach((n) => { if (!staffList.some((x) => x.toLowerCase() === n.toLowerCase())) staffList.push(n); });
+      if (staffList.length !== before) { persistStaff(); renderOperatorControls(); }
+    }
+    if (filePresets) {
+      let addedP = 0;
+      filePresets.forEach((p) => {
+        if (!printPresets.some((x) => x.name === p.name)) { printPresets.push({ name: p.name, settings: normalizePrintSettings(p.settings) }); addedP += 1; }
+      });
+      if (addedP > 0) savePresets();
+    }
     if (fileTypes) persistTypes();
     refreshTypeSelects();
     refreshCurrent();
@@ -573,6 +601,13 @@ function importBackupText(text, mode) {
       printSettings = normalizePrintSettings(fileLayout);
       savePrintSettings();
       updatePrintPageStyle();
+    }
+    if (fileStaff) { staffList = fileStaff; persistStaff(); }
+    if (fileOperator !== null) { currentOperator = fileOperator; persistOperator(); }
+    if (fileStaff || fileOperator !== null) renderOperatorControls();
+    if (filePresets) {
+      printPresets = filePresets.map((p) => ({ name: p.name, settings: normalizePrintSettings(p.settings) }));
+      savePresets();
     }
     if (fileTypes) persistTypes();
     refreshTypeSelects();
@@ -1403,6 +1438,16 @@ function fillStaffSelect(el, value) {
 function noteResultEdited() {
   const sel = $('input-performer');
   if (sel && currentOperator) sel.value = currentOperator;
+}
+
+function sanitizeStaffList(list) {
+  const out = [];
+  (Array.isArray(list) ? list : []).forEach((n) => {
+    if (typeof n !== 'string') return;
+    const name = n.trim();
+    if (name && !out.some((x) => x.toLowerCase() === name.toLowerCase())) out.push(name);
+  });
+  return out;
 }
 
 function renderStaffList() {
