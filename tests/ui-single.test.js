@@ -473,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v28 và precache đúng URL ?v=28 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v29 và precache đúng URL ?v=29 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v28'"), 'sw.js phải gắn VERSION v28');
-    for (const a of ['styles.css?v=28', 'print.css?v=28', 'config.js?v=28', 'store.js?v=28', 'app.js?v=28', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v29'"), 'sw.js phải gắn VERSION v29');
+    for (const a of ['styles.css?v=29', 'print.css?v=29', 'config.js?v=29', 'store.js?v=29', 'app.js?v=29', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -868,6 +868,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-printcfg').click();
     $('btn-pcfg-reset').click();
     $('btn-pcfg-back').click();
+  });
+
+  test('phân nhóm theo loại (v29): mẫu cùng loại nằm xen kẽ trong danh sách vẫn gom về đúng một nhóm', () => {
+    const settings = window.normalizePrintSettings(null);
+    settings.groupBy = 'type';
+    const now = Date.now();
+    const iso = (m) => new Date(now - m * 60000).toISOString();
+    const base = { note: '', releaseAt: null, receiver: '', performer: '', releaser: '', timerEndsAt: null };
+    const recs = [
+      Object.assign({}, base, { uid: 'g1', testId: 'G-A1', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' }, createdAt: iso(30), updatedAt: iso(30) }),
+      Object.assign({}, base, { uid: 'g2', testId: 'G-B1', typeId: 'mau-an', results: { ketQua: 'Âm tính' }, createdAt: iso(20), updatedAt: iso(20) }),
+      Object.assign({}, base, { uid: 'g3', testId: 'G-A2', typeId: 'cao-tim-nam', results: {}, createdAt: iso(10), updatedAt: iso(10) }),
+    ];
+    const div = document.createElement('div');
+    div.innerHTML = window.renderSheet(settings, recs, {});
+    const groups = div.querySelectorAll('.sh-group');
+    assert.strictEqual(groups.length, 2, '2 loại xen kẽ nhau phải cho đúng 2 dòng nhóm, không tách trùng');
+    const dataRows = [...div.querySelectorAll('tbody tr')].filter((tr) => !tr.classList.contains('sh-group'));
+    assert.deepStrictEqual(dataRows.map((tr) => tr.children[1].textContent), ['G-A1', 'G-A2', 'G-B1'], 'hai mẫu Cạo tìm nấm phải nằm cạnh nhau trong cùng một nhóm');
   });
 
   test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {

@@ -621,6 +621,8 @@ svg { width: 24px; height: 24px; display: block; }
 .pcfg-presets label { font-weight: 700; font-size: 14.5px; }
 .pcfg-presets select { flex: 1 1 150px; min-width: 0; }
 
+.pcfg-col .pc-unit { font-size: 12.5px; color: var(--muted); margin-left: -3px; }
+
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
    Kiểu dáng của tờ (font, kẻ bảng, mật độ...) nằm ở styles.css dưới các lớp .sheet
    để dùng chung với khung xem trước trong trang Tùy chỉnh bản in. */
@@ -641,7 +643,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v28</span>
+    <span class="app-version">LabEntry v29</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -936,7 +938,7 @@ svg { width: 24px; height: 24px; display: block; }
   <details class="pcfg-group">
     <summary>Cột bảng kết quả</summary>
     <div class="pcfg-body">
-      <p class="pcfg-hint">Bật/tắt cột, sửa tên cột, đổi thứ tự bằng nút ↑ ↓, chỉnh độ rộng tương đối và căn lề. Cột KTV lấy tên đã đóng dấu trên từng mẫu.</p>
+      <p class="pcfg-hint">Bật/tắt cột, sửa tên cột, đổi thứ tự bằng nút ↑ ↓, căn lề ở ô chọn bên phải. <b>Số % sau tên cột là độ rộng của cột đó</b> — để 0 là app tự chia đều, muốn cột nào rộng hơn thì tăng % cho cột đó. Cột KTV lấy tên đã đóng dấu trên từng mẫu.</p>
       <label class="pcfg-row"><span class="pcfg-label">Cột kết quả</span>
         <select id="pcfg-resultsmode">
           <option value="grouped">Gộp tất cả vào 1 cột</option>
@@ -3164,6 +3166,21 @@ function sheetGroupKey(s, rec) {
   return '';
 }
 
+function groupRecords(s, recs) {
+  /* Gom mọi bản ghi cùng khóa nhóm về MỘT cụm (giữ nguyên thứ tự trong cụm,
+     cụm xếp theo lần xuất hiện đầu tiên). Thiếu bước này, các mẫu cùng loại
+     nằm xen kẽ trong danh sách sẽ bị tách thành nhiều nhóm trùng tên. */
+  if (s.groupBy === 'none') return recs;
+  const order = [];
+  const buckets = new Map();
+  recs.forEach((rec) => {
+    const k = sheetGroupKey(s, rec);
+    if (!buckets.has(k)) { buckets.set(k, []); order.push(k); }
+    buckets.get(k).push(rec);
+  });
+  return order.reduce((acc, k) => acc.concat(buckets.get(k)), []);
+}
+
 function renderSheet(s, recs, opts) {
   const o = opts || {};
   const logoHtml = s.logo
@@ -3186,16 +3203,17 @@ function renderSheet(s, recs, opts) {
     if (s.divider) headerHtml += '<hr class="sh-divider">';
   }
   /* Cột hiệu dụng: cột Kết quả có thể nở thành nhiều cột trường (chế độ tách) */
+  const orderedRecs = groupRecords(s, recs);
   let cols = [];
   s.columns.filter((c) => c.visible).forEach((c) => {
-    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, recs));
+    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, orderedRecs));
     else cols.push(c);
   });
   const thead = '<tr>' + cols.map((c) =>
     '<th style="text-align:' + c.align + (c.width > 0 ? ';width:' + c.width + '%' : '') + '">' + esc(c.label) + '</th>').join('') + '</tr>';
   let lastGroup = null;
   let dataIdx = 0;
-  const tbody = recs.map((rec, i) => {
+  const tbody = orderedRecs.map((rec, i) => {
     let groupRow = '';
     if (s.groupBy !== 'none') {
       const gk = sheetGroupKey(s, rec);
@@ -3372,7 +3390,7 @@ function renderPrintCfgColumns() {
     row.innerHTML =
       '<label class="check"><input type="checkbox" class="pc-visible"' + (col.visible ? ' checked' : '') + '></label>' +
       '<input type="text" class="pc-label" value="' + esc(col.label) + '" aria-label="Tên cột">' +
-      '<input type="number" class="pc-width" min="0" max="60" step="1" value="' + (col.width || 0) + '" title="Độ rộng % (0 = tự động)" aria-label="Độ rộng %">' +
+      '<input type="number" class="pc-width" min="0" max="60" step="1" value="' + (col.width || 0) + '" title="Độ rộng % (0 = tự động)" aria-label="Độ rộng %"><span class="pc-unit">%</span>' +
       '<select class="pc-align" aria-label="Căn lề"><option value="left">Trái</option><option value="center">Giữa</option><option value="right">Phải</option></select>' +
       '<span class="pc-moves">' +
       '<button type="button" class="mini-btn pc-up" title="Lên">↑</button>' +

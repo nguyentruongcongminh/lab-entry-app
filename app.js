@@ -1587,6 +1587,21 @@ function sheetGroupKey(s, rec) {
   return '';
 }
 
+function groupRecords(s, recs) {
+  /* Gom mọi bản ghi cùng khóa nhóm về MỘT cụm (giữ nguyên thứ tự trong cụm,
+     cụm xếp theo lần xuất hiện đầu tiên). Thiếu bước này, các mẫu cùng loại
+     nằm xen kẽ trong danh sách sẽ bị tách thành nhiều nhóm trùng tên. */
+  if (s.groupBy === 'none') return recs;
+  const order = [];
+  const buckets = new Map();
+  recs.forEach((rec) => {
+    const k = sheetGroupKey(s, rec);
+    if (!buckets.has(k)) { buckets.set(k, []); order.push(k); }
+    buckets.get(k).push(rec);
+  });
+  return order.reduce((acc, k) => acc.concat(buckets.get(k)), []);
+}
+
 function renderSheet(s, recs, opts) {
   const o = opts || {};
   const logoHtml = s.logo
@@ -1609,16 +1624,17 @@ function renderSheet(s, recs, opts) {
     if (s.divider) headerHtml += '<hr class="sh-divider">';
   }
   /* Cột hiệu dụng: cột Kết quả có thể nở thành nhiều cột trường (chế độ tách) */
+  const orderedRecs = groupRecords(s, recs);
   let cols = [];
   s.columns.filter((c) => c.visible).forEach((c) => {
-    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, recs));
+    if (c.id === 'results' && s.resultsMode === 'split') cols = cols.concat(splitFieldColumns(s, orderedRecs));
     else cols.push(c);
   });
   const thead = '<tr>' + cols.map((c) =>
     '<th style="text-align:' + c.align + (c.width > 0 ? ';width:' + c.width + '%' : '') + '">' + esc(c.label) + '</th>').join('') + '</tr>';
   let lastGroup = null;
   let dataIdx = 0;
-  const tbody = recs.map((rec, i) => {
+  const tbody = orderedRecs.map((rec, i) => {
     let groupRow = '';
     if (s.groupBy !== 'none') {
       const gk = sheetGroupKey(s, rec);
@@ -1795,7 +1811,7 @@ function renderPrintCfgColumns() {
     row.innerHTML =
       '<label class="check"><input type="checkbox" class="pc-visible"' + (col.visible ? ' checked' : '') + '></label>' +
       '<input type="text" class="pc-label" value="' + esc(col.label) + '" aria-label="Tên cột">' +
-      '<input type="number" class="pc-width" min="0" max="60" step="1" value="' + (col.width || 0) + '" title="Độ rộng % (0 = tự động)" aria-label="Độ rộng %">' +
+      '<input type="number" class="pc-width" min="0" max="60" step="1" value="' + (col.width || 0) + '" title="Độ rộng % (0 = tự động)" aria-label="Độ rộng %"><span class="pc-unit">%</span>' +
       '<select class="pc-align" aria-label="Căn lề"><option value="left">Trái</option><option value="center">Giữa</option><option value="right">Phải</option></select>' +
       '<span class="pc-moves">' +
       '<button type="button" class="mini-btn pc-up" title="Lên">↑</button>' +
