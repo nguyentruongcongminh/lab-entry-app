@@ -473,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v30 và precache đúng URL ?v=30 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v31 và precache đúng URL ?v=31 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v30'"), 'sw.js phải gắn VERSION v30');
-    for (const a of ['styles.css?v=30', 'print.css?v=30', 'config.js?v=30', 'store.js?v=30', 'app.js?v=30', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v31'"), 'sw.js phải gắn VERSION v31');
+    for (const a of ['styles.css?v=31', 'print.css?v=31', 'config.js?v=31', 'store.js?v=31', 'app.js?v=31', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
