@@ -50,19 +50,9 @@ Toàn bộ dữ liệu nằm trong bộ nhớ của trình duyệt **trên chín
 - Màu nền đầu bảng khi in cần bật tùy chọn "Đồ họa nền / Background graphics" trong hộp thoại in của Chrome. · *Print header colours need "Background graphics" enabled in Chrome's print dialog.*
 - Giao diện hiện bằng tiếng Việt. · *The interface is currently Vietnamese.*
 
-## Cho nhà phát triển / For developers
+## Dùng thử ngay / Try it now
 
-Ứng dụng viết bằng HTML/CSS/JavaScript thuần, không cần bước build: mở `index.html` là chạy; `lab-entry-single.html` là bản gộp một file duy nhất. Đặc tả đầy đủ ở [SPEC.md](SPEC.md), thiết kế bố cục in ở [PRINT-LAYOUT-DESIGN.md](PRINT-LAYOUT-DESIGN.md).
-
-*Plain HTML/CSS/JavaScript, no build step: open `index.html` and it runs; `lab-entry-single.html` is the single-file build. Full spec in [SPEC.md](SPEC.md).*
-
-Chạy kiểm thử / Run tests:
-
-```bash
-cd tests && npm install jsdom   # one-time
-node tests/logic.test.js        # store & data logic
-node tests/ui.test.js           # full UI suite (both layouts)
-```
+👉 **[Mở bản live demo / Open the live app](https://nguyentruongcongminh.github.io/lab-entry-app/)** — chạy ngay trên trình duyệt điện thoại hoặc máy tính, không cần cài đặt hay đăng ký. / *Runs right in your phone or desktop browser — no install, no sign-up.*
 
 ## Giấy phép / License
 
