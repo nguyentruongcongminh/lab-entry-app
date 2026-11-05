@@ -109,9 +109,9 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 ### F11 — Nhập kết quả bằng giọng nói tiếng Việt (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 5)
 
-- Các ô **nhập chữ** trong form (trường kết quả dạng text + ô Ghi chú chung) có thêm **nút micro tròn** khi trình duyệt hỗ trợ Web Speech API (Chrome trên Android): bấm để nói tiếng Việt, app điền chữ vào ô (nói tiếp thì nối thêm vào cuối); bấm lần nữa để dừng; đang nghe nút chuyển đỏ nhấp nháy.
+- Các ô **nhập chữ** trong form (trường kết quả dạng text + ô Ghi chú chung) có thêm **nút micro tròn** khi trình duyệt hỗ trợ Web Speech API (Chrome): bấm để nói tiếng Việt, app điền chữ vào ô (nói tiếp thì nối thêm vào cuối); bấm lần nữa để dừng; đang nghe nút chuyển đỏ nhấp nháy.
 - Trường dạng nút chip không gắn micro (chọn tay chính xác hơn). Trình duyệt không hỗ trợ -> không hiện nút micro, app chạy bình thường.
-- Giới hạn thật: nhận giọng dùng dịch vụ của Google nên **cần có mạng**; độ chính xác tùy phát âm/môi trường — người dùng phải kiểm tra lại nội dung trước khi lưu. Môi trường test tự động (jsdom) không có SpeechRecognition nên chỉ kiểm chứng được đường "không hỗ trợ"; đường nhận giọng thật cần thử trên Chrome Android.
+- Giới hạn thật: nhận giọng dùng dịch vụ của Google nên **cần có mạng**; độ chính xác tùy phát âm/môi trường — người dùng phải kiểm tra lại nội dung trước khi lưu. Môi trường test tự động (jsdom) không có SpeechRecognition nên chỉ kiểm chứng được đường "không hỗ trợ"; đường nhận giọng thật cần thử trên Chrome ở máy thật.
 
 ### F12 — Gộp dữ liệu từ file sao lưu (bổ sung theo yêu cầu của Minh, 2026-11-04 — tính năng 2 trong danh sách giới thiệu đợt 2)
 
@@ -131,7 +131,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - App đáp ứng chuẩn PWA: `manifest.webmanifest` (tên LabEntry, hiển thị standalone, theme #1e88e5, icon 192/512 + maskable) + `sw.js` (service worker) + apple-touch-icon cho iOS. Người dùng mở địa chỉ HTTPS → trình duyệt cho **Cài đặt ứng dụng** lên màn hình chính, mở toàn màn hình như app thật, và **chạy offline hoàn toàn** sau lần mở đầu (mọi file chương trình được cache; dữ liệu vẫn là localStorage riêng của từng máy, không nằm trong cache này).
 - Cập nhật: số phiên bản trong `sw.js` (`VERSION`) và danh sách precache `?v=N` **phải khớp số bản phát hành** — đây là bước bắt buộc trong quy trình ra bản. SW mới kích hoạt ngay (skipWaiting + clients.claim), cache của bản cũ bị xóa; phía trang (app.js `registerServiceWorker`) nghe `controllerchange` và tự tải lại đúng một lần **chỉ khi đang rảnh** (không mở form/quét/xem) — đang thao tác dở thì bản mới áp dụng ở lần mở kế tiếp. Điều hướng mở app là network-first nên có mạng là nhận bản mới nhất.
 - Chia sẻ cho người khác = gửi địa chỉ HTTPS; mỗi người tự cài trên máy mình và bắt đầu với dữ liệu trống của riêng họ. Bản 1 file (`lab-entry-single.html`) không phải PWA (không cài đặt được, chỉ mở xem/dùng trong trình duyệt).
-- Giới hạn thật: cài đặt PWA cần HTTPS (bản GitHub Pages đạt); quét QR bằng camera vẫn cần BarcodeDetector (Chrome Android) và nhập giọng nói vẫn cần Chrome — PWA không thay đổi các giới hạn nền tảng đó; jsdom không chạy được service worker nên test tự động chỉ kiểm chứng khai báo manifest/icon/phiên bản SW và app vẫn chạy bình thường khi trình duyệt không có service worker — hành vi cài đặt/offline thật cần thử trên điện thoại.
+- Giới hạn thật: cài đặt PWA cần HTTPS (bản GitHub Pages đạt); quét QR bằng camera vẫn cần BarcodeDetector (Chrome) và nhập giọng nói vẫn cần Chrome — PWA không thay đổi các giới hạn nền tảng đó; jsdom không chạy được service worker nên test tự động chỉ kiểm chứng khai báo manifest/icon/phiên bản SW và app vẫn chạy bình thường khi trình duyệt không có service worker — hành vi cài đặt/offline thật cần thử trên điện thoại.
 
 ### F15 — Nút nhập kết quả nhanh theo loại xét nghiệm (bổ sung theo yêu cầu của Minh, 2026-11-05)
 

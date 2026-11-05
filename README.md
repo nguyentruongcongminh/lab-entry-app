@@ -32,7 +32,7 @@
 
 ## Bắt đầu nhanh / Quick start
 
-1. Mở ứng dụng bằng **Chrome trên Android** (cần Chrome để quét mã bằng camera và nhập giọng nói). · *Open the app in Chrome on Android (required for camera scanning and voice input).*
+1. Mở ứng dụng bằng **Chrome** (cần Chrome để quét mã bằng camera và nhập giọng nói). · *Open the app in Chrome (required for camera scanning and voice input).*
 2. Ở mục **KTV trực**, bấm **Quản lý** để thêm kỹ thuật viên kèm mã PIN của từng người, rồi chọn người đang trực. · *Add technicians with their PINs, then pick who is on duty.*
 3. Bấm **+** hoặc **Quét mã** để tiếp nhận mẫu; nhập kết quả, bấm **Phát hành** khi xong. · *Receive samples, enter results, release when done.*
 4. Sang tab **Lọc & Xuất PDF** để in bảng kết quả và **sao lưu dữ liệu thường xuyên**. · *Print result sheets and back up regularly from the export tab.*
@@ -44,7 +44,7 @@ Toàn bộ dữ liệu nằm trong bộ nhớ của trình duyệt **trên chín
 ## Hạn chế cần biết / Known limitations
 
 - Chưa đồng bộ tự động giữa nhiều máy — chuyển dữ liệu bằng file sao lưu/gộp thủ công. · *No automatic multi-device sync yet — transfer data with backup/merge files.*
-- Quét mã bằng camera và nhập giọng nói cần Chrome trên Android. · *Camera scanning and voice input require Chrome on Android.*
+- Quét mã bằng camera và nhập giọng nói cần Chrome. · *Camera scanning and voice input require Chrome.*
 - Màu nền đầu bảng khi in cần bật tùy chọn "Đồ họa nền / Background graphics" trong hộp thoại in của Chrome. · *Print header colours need "Background graphics" enabled in Chrome's print dialog.*
 - Giao diện hiện bằng tiếng Việt. · *The interface is currently Vietnamese.*
 

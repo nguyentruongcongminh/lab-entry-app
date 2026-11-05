@@ -980,7 +980,7 @@ function saveTypeForm() {
 }
 
 /* ================= Nhập bằng giọng nói (F11) =================
-   Dùng Web Speech API (Chrome trên Android hỗ trợ tiếng Việt, cần có mạng cho
+   Dùng Web Speech API (Chrome hỗ trợ tiếng Việt, cần có mạng cho
    dịch vụ nhận giọng của Google). Chỉ gắn cho các ô NHẬP CHỮ (trường kết quả
    dạng text + ô ghi chú) — trường dạng nút chip thì chọn tay chính xác hơn.
    Trình duyệt không hỗ trợ -> không hiện nút mic, tính năng tự ẩn. */
@@ -992,7 +992,7 @@ function voiceSupported() {
 
 function startVoiceInput(inputEl, btnEl) {
   if (!voiceSupported()) {
-    toast('Trình duyệt này không hỗ trợ nhập giọng nói — hãy dùng Chrome trên Android');
+    toast('Trình duyệt này không hỗ trợ nhập giọng nói — hãy dùng Chrome');
     return false;
   }
   if (voiceRec) { /* đang nghe -> bấm lần nữa để dừng */
