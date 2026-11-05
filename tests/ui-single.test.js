@@ -13,6 +13,14 @@ function test(name, fn) {
   console.log('PASS  ' + name);
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function nhapPinVao(pin) {
+  for (let i = 0; i < 60 && $('pin-modal').classList.contains('hidden'); i++) await sleep(20);
+  assert.ok(!$('pin-modal').classList.contains('hidden'), 'phải hiện hộp thoại nhập PIN');
+  setInput($('pin-input'), pin);
+  $('btn-pin-ok').click();
+  for (let i = 0; i < 60 && !$('pin-modal').classList.contains('hidden'); i++) await sleep(20);
+  assert.ok($('pin-modal').classList.contains('hidden'), 'nhập đúng PIN thì hộp thoại phải đóng');
+}
 
 (async () => {
   const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
@@ -473,7 +481,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v31 và precache đúng URL ?v=31 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v32 và precache đúng URL ?v=32 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +499,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v31'"), 'sw.js phải gắn VERSION v31');
-    for (const a of ['styles.css?v=31', 'print.css?v=31', 'config.js?v=31', 'store.js?v=31', 'app.js?v=31', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v32'"), 'sw.js phải gắn VERSION v32');
+    for (const a of ['styles.css?v=32', 'print.css?v=32', 'config.js?v=32', 'store.js?v=32', 'app.js?v=32', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -708,19 +716,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual($('list-today').children.length, countAfterFirst, 'gộp lại cùng một file không được tạo bản sao trùng');
   });
 
-  test('KTV (v27): chọn KTV trực -> quét nhận đóng dấu người nhận; lưu kết quả đóng dấu người thực hiện; sửa kết quả thì người thực hiện đổi sang người trực đang sửa; phát hành đóng dấu người phát hành; hủy phát hành xóa dấu', () => {
+  test('KTV (v27): chọn KTV trực -> quét nhận đóng dấu người nhận; lưu kết quả đóng dấu người thực hiện; sửa kết quả thì người thực hiện đổi sang người trực đang sửa; phát hành đóng dấu người phát hành; hủy phát hành xóa dấu', async () => {
     /* Dựng danh sách KTV qua hộp thoại quản lý */
     document.querySelector('[data-view="today"]').click();
     $('btn-staff-manage').click();
     assert.ok(visible($('staff-modal')));
     setInput($('input-staff-name'), 'Nguyễn Văn A');
+    setInput($('input-staff-pin'), '111111');
+    setInput($('input-staff-pin2'), '111111');
     $('btn-staff-add').click();
+    await sleep(80);
     setInput($('input-staff-name'), 'Lê Thị Bình');
+    setInput($('input-staff-pin'), '222222');
+    setInput($('input-staff-pin2'), '222222');
     $('btn-staff-add').click();
+    await sleep(80);
     assert.strictEqual($('staff-list').children.length, 2);
     $('btn-staff-close').click();
     /* A trực: quét nhận một mẫu */
     setSelect($('operator-select'), 'Nguyễn Văn A');
+    await nhapPinVao('111111');
     assert.strictEqual($('scanner-operator-select').value, 'Nguyễn Văn A', 'ô KTV ở màn quét phải đồng bộ với KTV trực');
     $('btn-scan-today').click();
     setSelect($('scanner-type-select'), 'cao-tim-nam');
@@ -734,6 +749,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     /* Đổi sang B trực, nhập kết quả rồi lưu: người thực hiện = B */
     $('btn-cancel').click();
     setSelect($('operator-select'), 'Lê Thị Bình');
+    await nhapPinVao('222222');
     row.querySelector('[data-action="edit"]').click();
     setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
     assert.strictEqual($('input-performer').value, 'Lê Thị Bình', 'vừa sửa kết quả thì ô người thực hiện tự chuyển sang người trực');
@@ -760,6 +776,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     /* A trực lại, sửa kết quả -> người thực hiện đổi sang A (yêu cầu của Minh) */
     document.querySelector('[data-view="today"]').click();
     setSelect($('operator-select'), 'Nguyễn Văn A');
+    await nhapPinVao('111111');
     const row4 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
     row4.querySelector('[data-action="edit"]').click();
     setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Có sợi nấm');
@@ -769,6 +786,44 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual($('sum-performer').textContent, 'Nguyễn Văn A', 'sửa kết quả thì KTV thực hiện phải đổi sang người trực đang sửa');
     assert.strictEqual($('sum-releaser').textContent, '—', 'dấu phát hành đã bị xóa khi hủy phát hành');
     $('btn-summary-close').click();
+  });
+
+  test('PIN của KTV (v32): đổi KTV trực phải nhập đúng PIN — sai thì báo lỗi và hủy thì không đổi; đúng mới đổi; file sao lưu không chứa PIN dạng gốc, chỉ có băm', async () => {
+    document.querySelector('[data-view="today"]').click();
+    assert.strictEqual($('operator-select').value, 'Nguyễn Văn A');
+    /* Sai PIN: hộp thoại báo lỗi và còn mở; hủy thì KTV trực giữ nguyên */
+    setSelect($('operator-select'), 'Lê Thị Bình');
+    for (let i = 0; i < 60 && $('pin-modal').classList.contains('hidden'); i++) await sleep(20);
+    assert.ok(!$('pin-modal').classList.contains('hidden'), 'đổi KTV trực phải hiện hộp thoại PIN');
+    setInput($('pin-input'), '999999');
+    $('btn-pin-ok').click();
+    await sleep(100);
+    assert.ok(!$('pin-modal').classList.contains('hidden'), 'sai PIN thì hộp thoại còn mở để nhập lại');
+    assert.ok(visible($('pin-error')), 'sai PIN phải hiện thông báo lỗi');
+    $('btn-pin-cancel').click();
+    await sleep(60);
+    assert.strictEqual($('operator-select').value, 'Nguyễn Văn A', 'hủy nhập PIN thì KTV trực giữ nguyên');
+    /* Đúng PIN: đổi được, ô ở màn quét đồng bộ */
+    setSelect($('operator-select'), 'Lê Thị Bình');
+    await nhapPinVao('222222');
+    assert.strictEqual($('operator-select').value, 'Lê Thị Bình');
+    assert.strictEqual($('scanner-operator-select').value, 'Lê Thị Bình', 'đổi trực có PIN xong, ô ở màn quét phải đồng bộ');
+    /* File sao lưu: PIN chỉ ở dạng băm, không lộ dạng gốc */
+    document.querySelector('[data-view="export"]').click();
+    let captured = null;
+    const origDl = window.downloadTextFile;
+    window.downloadTextFile = (name, text) => { captured = text; };
+    $('btn-backup-export').click();
+    window.downloadTextFile = origDl;
+    assert.ok(captured && !captured.includes('222222') && !captured.includes('111111'), 'file sao lưu TUYỆT ĐỐI không chứa PIN dạng gốc');
+    const parsedFile = JSON.parse(captured);
+    const binh = parsedFile.staff.find((x) => (typeof x === 'string' ? x : x.name) === 'Lê Thị Bình');
+    assert.ok(binh && typeof binh.pinHash === 'string' && binh.pinHash.length >= 16, 'danh sách KTV trong file phải mang băm PIN thay cho PIN gốc');
+    /* Đổi về A để các test sau giữ nguyên trạng thái */
+    document.querySelector('[data-view="today"]').click();
+    setSelect($('operator-select'), 'Nguyễn Văn A');
+    await nhapPinVao('111111');
+    assert.strictEqual($('operator-select').value, 'Nguyễn Văn A');
   });
 
   test('tùy chỉnh bản in (v27): mặc định đúng 7 cột cũ; bật cột KTV thì xem trước và vùng in thật đều có; ghi tên đơn vị hiện ở đầu trang; khôi phục mặc định đưa mọi thứ về cũ', () => {
@@ -889,7 +944,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.deepStrictEqual(dataRows.map((tr) => tr.children[1].textContent), ['G-A1', 'G-A2', 'G-B1'], 'hai mẫu Cạo tìm nấm phải nằm cạnh nhau trong cùng một nhóm');
   });
 
-  test('sao lưu trọn gói (v30): file kèm danh sách KTV + KTV trực + mẫu bố cục; phục hồi dùng theo file; gộp chỉ thêm phần chưa có và không đổi KTV trực', () => {
+  test('sao lưu trọn gói (v30): file kèm danh sách KTV + KTV trực + mẫu bố cục; phục hồi dùng theo file; gộp chỉ thêm phần chưa có và không đổi KTV trực', async () => {
     document.querySelector('[data-view="today"]').click();
     setSelect($('operator-select'), 'Nguyễn Văn A');
     /* Chụp file sao lưu hiện tại (đã có 2 KTV + mẫu "Mẫu T28" từ các test trước) */
@@ -900,7 +955,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-backup-export').click();
     window.downloadTextFile = origDl;
     const parsedFile = JSON.parse(captured);
-    assert.ok(Array.isArray(parsedFile.staff) && parsedFile.staff.includes('Lê Thị Bình'), 'file phải kèm danh sách KTV');
+    assert.ok(Array.isArray(parsedFile.staff) && parsedFile.staff.some((x) => (typeof x === 'string' ? x : x.name) === 'Lê Thị Bình'), 'file phải kèm danh sách KTV');
     assert.strictEqual(parsedFile.operator, 'Nguyễn Văn A', 'file phải kèm KTV trực đang chọn');
     assert.ok(Array.isArray(parsedFile.printPresets) && parsedFile.printPresets.some((p) => p.name === 'Mẫu T28'), 'file phải kèm thư viện mẫu bố cục');
     /* Làm lệch trạng thái máy: xóa 1 KTV, bỏ KTV trực, xóa 1 mẫu bố cục */
@@ -946,7 +1001,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-printcfg').click();
     assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28'), 'gộp phải thêm lại mẫu bố cục còn thiếu');
     $('btn-pcfg-back').click();
+    document.querySelector('[data-view="today"]').click();
     setSelect($('operator-select'), 'Nguyễn Văn A');
+    await nhapPinVao('111111');
   });
 
   test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {

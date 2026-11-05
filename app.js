@@ -579,7 +579,7 @@ function importBackupText(text, mode) {
     const res = store.mergeBackup(text);
     if (fileStaff) {
       const before = staffList.length;
-      fileStaff.forEach((n) => { if (!staffList.some((x) => x.toLowerCase() === n.toLowerCase())) staffList.push(n); });
+      fileStaff.forEach((n) => { if (!staffList.some((x) => x.name.toLowerCase() === n.name.toLowerCase())) staffList.push(n); });
       if (staffList.length !== before) { persistStaff(); renderOperatorControls(); }
     }
     if (filePresets) {
@@ -1069,6 +1069,7 @@ function openForm(uid) {
   fillStaffSelect($('input-receiver'), rec ? (rec.receiver || '') : currentOperator);
   fillStaffSelect($('input-performer'), rec ? (rec.performer || '') : '');
   fillStaffSelect($('input-releaser'), rec ? (rec.releaser || '') : '');
+  ['input-receiver', 'input-performer', 'input-releaser'].forEach((id) => { $(id).dataset.prev = $(id).value; });
   hideFormError();
   renderFields();
   switchView('form');
@@ -1394,18 +1395,33 @@ const OPERATOR_KEY = 'labentry.operator.v1';
 let staffList = [];
 let currentOperator = '';
 
+function normalizeStaffEntry(x) {
+  if (typeof x === 'string' && x.trim()) return { name: x.trim(), salt: '', pinHash: null };
+  if (x && typeof x.name === 'string' && x.name.trim()) {
+    return {
+      name: x.name.trim(),
+      salt: typeof x.salt === 'string' ? x.salt : '',
+      pinHash: typeof x.pinHash === 'string' && x.pinHash ? x.pinHash : null,
+    };
+  }
+  return null;
+}
+
 function loadStaff() {
   try {
     const list = JSON.parse(localStorage.getItem(STAFF_KEY) || '[]');
-    staffList = Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x.trim()) : [];
+    staffList = (Array.isArray(list) ? list : []).map(normalizeStaffEntry).filter(Boolean);
   } catch (e) { staffList = []; }
   try { currentOperator = localStorage.getItem(OPERATOR_KEY) || ''; } catch (e) { currentOperator = ''; }
 }
 function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } }
 function persistOperator() { try { localStorage.setItem(OPERATOR_KEY, currentOperator); } catch (e) { /* bỏ qua */ } }
 
+function staffNames() { return staffList.map((x) => x.name); }
+function findStaff(name) { return staffList.find((x) => x.name === name) || null; }
+
 function staffOptionsHTML(extraValues) {
-  const names = staffList.slice();
+  const names = staffNames();
   (extraValues || []).forEach((n) => { if (n && !names.includes(n)) names.push(n); });
   return '<option value="">(chưa chọn)</option>' +
     names.map((n) => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
@@ -1442,22 +1458,137 @@ function noteResultEdited() {
 
 function sanitizeStaffList(list) {
   const out = [];
-  (Array.isArray(list) ? list : []).forEach((n) => {
-    if (typeof n !== 'string') return;
-    const name = n.trim();
-    if (name && !out.some((x) => x.toLowerCase() === name.toLowerCase())) out.push(name);
+  (Array.isArray(list) ? list : []).forEach((x) => {
+    const e = normalizeStaffEntry(x);
+    if (e && !out.some((y) => y.name.toLowerCase() === e.name.toLowerCase())) out.push(e);
   });
   return out;
+}
+
+/* ---------- Mã PIN của KTV (v32) ----------
+   PIN dài đúng 6 ký tự (chữ/số/ký hiệu). App KHÔNG lưu PIN gốc ở bất cứ đâu —
+   chỉ lưu băm SHA-256 kèm muối riêng từng KTV (không có khóa giải mã, không
+   đọc ngược được). File sao lưu vì thế chỉ mang theo băm: mở file ra cũng
+   không thấy PIN, mà mang sang máy khác vẫn gõ PIN cũ để dùng tiếp. */
+function newSalt() {
+  const a = new Uint32Array(2);
+  crypto.getRandomValues(a);
+  return a[0].toString(36) + a[1].toString(36);
+}
+
+async function hashPin(pin, salt) {
+  const text = (salt || '') + ':' + pin;
+  try {
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) { /* rơi xuống hàm băm dự phòng bên dưới */ }
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+
+async function verifyStaffPin(name, pin) {
+  const st = findStaff(name);
+  if (!st || !st.pinHash) return false;
+  return (await hashPin(pin, st.salt)) === st.pinHash;
+}
+
+let pinSession = null; /* { mode: 'verify' | 'set', name, resolve } */
+
+function pinPrompt(mode, name) {
+  return new Promise((resolve) => {
+    pinSession = { mode, name, resolve };
+    $('pin-title').textContent = mode === 'set' ? 'Tạo mã PIN' : 'Nhập mã PIN';
+    $('pin-desc').textContent = mode === 'set'
+      ? 'Tạo PIN 6 ký tự cho KTV ' + name + '. Từ nay, đổi sang tên này làm KTV trực phải nhập đúng PIN này.'
+      : 'Nhập PIN 6 ký tự của KTV ' + name + ' để tiếp tục.';
+    $('pin-input').value = '';
+    $('pin-input2').value = '';
+    $('pin-input2').classList.toggle('hidden', mode !== 'set');
+    $('pin-error').classList.add('hidden');
+    $('pin-modal').classList.remove('hidden');
+    setTimeout(() => { try { $('pin-input').focus(); } catch (e) { /* bỏ qua */ } }, 60);
+  });
+}
+
+function closePinModal(value) {
+  if (!pinSession) return;
+  const resolve = pinSession.resolve;
+  pinSession = null;
+  $('pin-modal').classList.add('hidden');
+  resolve(value);
+}
+
+async function submitPinModal() {
+  if (!pinSession) return;
+  const { mode, name } = pinSession;
+  const err = (m) => { const e = $('pin-error'); e.textContent = m; e.classList.remove('hidden'); };
+  const pin = $('pin-input').value;
+  if (mode === 'set') {
+    if (pin.length !== 6) { err('PIN phải đúng 6 ký tự (chữ, số hoặc ký hiệu đều được)'); return; }
+    if (pin !== $('pin-input2').value) { err('Hai lần nhập PIN chưa khớp nhau'); return; }
+    const salt = newSalt();
+    const pinHash = await hashPin(pin, salt);
+    const st = findStaff(name);
+    if (st) { st.salt = salt; st.pinHash = pinHash; }
+    else staffList.push({ name, salt, pinHash });
+    persistStaff();
+    renderStaffList();
+    closePinModal(true);
+  } else {
+    if (await verifyStaffPin(name, pin)) closePinModal(true);
+    else { err('PIN chưa đúng — mời nhập lại'); $('pin-input').value = ''; }
+  }
+}
+
+function promptPinVerify(name) { return pinPrompt('verify', name); }
+function promptPinSet(name) { return pinPrompt('set', name); }
+
+/* Đổi KTV trực: phải nhập đúng PIN của người được chọn (chưa có PIN thì tạo luôn).
+   Bỏ chọn (về "chưa chọn") thì không hỏi PIN. */
+async function requestOperatorChange(name) {
+  if (!name) { setOperator(''); return; }
+  if (name === currentOperator) { renderOperatorControls(); return; }
+  const st = findStaff(name);
+  if (st && st.pinHash) {
+    if (!(await promptPinVerify(name))) {
+      renderOperatorControls();
+      toast('Chưa đổi KTV trực — chưa nhập đúng PIN của ' + name);
+      return;
+    }
+  } else if (st) {
+    if (!(await promptPinSet(name))) { renderOperatorControls(); return; }
+    toast('Đã tạo PIN cho KTV ' + name);
+  }
+  setOperator(name);
+}
+
+async function changeStaffPin(name) {
+  const st = findStaff(name);
+  if (!st) return;
+  if (st.pinHash && !(await promptPinVerify(name))) return;
+  if (await promptPinSet(name)) toast('Đã cập nhật PIN cho KTV ' + name);
+  renderStaffList();
 }
 
 function renderStaffList() {
   const ul = $('staff-list');
   ul.innerHTML = '';
-  staffList.forEach((name) => {
+  staffList.forEach((st) => {
     const li = document.createElement('li');
-    li.innerHTML = '<span class="staff-name">' + esc(name) + '</span>' +
-      (name === currentOperator ? '<span class="staff-current">đang trực</span>' : '') +
-      '<button type="button" class="mini-btn danger" data-staff-del="' + esc(name) + '">Xóa</button>';
+    li.innerHTML = '<span class="staff-name">' + esc(st.name) + '</span>' +
+      (st.name === currentOperator ? '<span class="staff-current">đang trực</span>' : '') +
+      '<span class="staff-pin-state">' + (st.pinHash ? '🔒 có PIN' : 'chưa có PIN') + '</span>' +
+      '<button type="button" class="mini-btn" data-staff-pin="' + esc(st.name) + '">' + (st.pinHash ? 'Đổi PIN' : 'Đặt PIN') + '</button>' +
+      '<button type="button" class="mini-btn danger" data-staff-del="' + esc(st.name) + '">Xóa</button>';
     ul.appendChild(li);
   });
   $('staff-empty').classList.toggle('hidden', staffList.length > 0);
@@ -1466,21 +1597,28 @@ function renderStaffList() {
 function openStaffDialog() { renderStaffList(); $('staff-modal').classList.remove('hidden'); }
 function closeStaffDialog() { $('staff-modal').classList.add('hidden'); }
 
-function addStaffFromDialog() {
+async function addStaffFromDialog() {
   const inp = $('input-staff-name');
   const name = inp.value.trim();
-  if (!name) return;
-  if (staffList.some((n) => n.toLowerCase() === name.toLowerCase())) { toast('Đã có KTV này trong danh sách'); return; }
-  staffList.push(name);
+  if (!name) { toast('Chưa nhập họ tên KTV'); return; }
+  if (staffList.some((n) => n.name.toLowerCase() === name.toLowerCase())) { toast('Đã có KTV này trong danh sách'); return; }
+  const pin = $('input-staff-pin').value;
+  if (pin.length !== 6) { toast('PIN phải đúng 6 ký tự'); return; }
+  if (pin !== $('input-staff-pin2').value) { toast('Hai lần nhập PIN chưa khớp nhau'); return; }
+  const salt = newSalt();
+  const pinHash = await hashPin(pin, salt);
+  staffList.push({ name, salt, pinHash });
   persistStaff();
   inp.value = '';
+  $('input-staff-pin').value = '';
+  $('input-staff-pin2').value = '';
   renderStaffList();
   renderOperatorControls();
   toast('Đã thêm KTV: ' + name);
 }
 
 function deleteStaff(name) {
-  staffList = staffList.filter((n) => n !== name);
+  staffList = staffList.filter((n) => n.name !== name);
   persistStaff();
   if (currentOperator === name) setOperator('');
   renderStaffList();
@@ -2005,15 +2143,38 @@ function init() {
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
   $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
-  $('operator-select').addEventListener('change', () => setOperator($('operator-select').value));
-  $('scanner-operator-select').addEventListener('change', () => setOperator($('scanner-operator-select').value));
+  $('operator-select').addEventListener('change', () => requestOperatorChange($('operator-select').value));
+  $('scanner-operator-select').addEventListener('change', () => requestOperatorChange($('scanner-operator-select').value));
   $('btn-staff-manage').addEventListener('click', openStaffDialog);
   $('btn-staff-close').addEventListener('click', closeStaffDialog);
   $('btn-staff-add').addEventListener('click', addStaffFromDialog);
   $('input-staff-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addStaffFromDialog(); } });
   $('staff-list').addEventListener('click', (e) => {
+    const pb = e.target.closest('[data-staff-pin]');
+    if (pb) { changeStaffPin(pb.dataset.staffPin); return; }
     const b = e.target.closest('[data-staff-del]');
     if (b) deleteStaff(b.dataset.staffDel);
+  });
+  $('btn-pin-ok').addEventListener('click', submitPinModal);
+  $('btn-pin-cancel').addEventListener('click', () => closePinModal(false));
+  ['pin-input', 'pin-input2'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitPinModal(); } }));
+  /* 3 ô chọn KTV trong form: đổi sang tên người KHÁC người trực mà người đó có PIN
+     thì phải nhập đúng PIN của họ (chặn sửa tay dấu tên người khác) */
+  ['input-receiver', 'input-performer', 'input-releaser'].forEach((id) => {
+    $(id).addEventListener('change', async (ev) => {
+      const el = ev.target;
+      const name = el.value;
+      const prev = el.dataset.prev || '';
+      if (name && name !== currentOperator) {
+        const st = findStaff(name);
+        if (st && st.pinHash && !(await promptPinVerify(name))) {
+          el.value = prev;
+          toast('Chưa đổi — chưa nhập đúng PIN của ' + name);
+          return;
+        }
+      }
+      el.dataset.prev = el.value;
+    });
   });
   $('btn-summary-release').addEventListener('click', releaseFromSummary);
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
