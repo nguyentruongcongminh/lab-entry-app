@@ -37,16 +37,14 @@
 3. Bấm **+** hoặc **Quét mã** để tiếp nhận mẫu; nhập kết quả, bấm **Phát hành** khi xong. · *Receive samples, enter results, release when done.*
 4. Sang tab **Lọc & Xuất PDF** để in bảng kết quả và **sao lưu dữ liệu thường xuyên**. · *Print result sheets and back up regularly from the export tab.*
 
+## Cài đặt & dùng không cần mạng / Install & offline use
+
+- **Cài như một ứng dụng thật** — mở ứng dụng bằng Chrome, bấm menu **⋮** rồi chọn **"Cài ứng dụng"** (hoặc "Thêm vào màn hình chính"): biểu tượng LabEntry xuất hiện ngay trên màn hình chính, mở lên chạy toàn màn hình như ứng dụng thường. Trên máy tính, bấm biểu tượng cài đặt ở cuối thanh địa chỉ của Chrome. · *Install it like a real app — open it in Chrome, tap the ⋮ menu and choose "Install app" (or "Add to Home screen"): the LabEntry icon lands on the home screen and opens full-screen like a regular app. On a computer, use the install icon at the end of Chrome's address bar.*
+- **Chạy hoàn toàn không cần mạng** — sau lần mở đầu tiên, ứng dụng tự lưu sẵn trên thiết bị: mất mạng vẫn tiếp nhận mẫu, nhập và phát hành kết quả, in bảng kết quả bình thường; khi có mạng lại, ứng dụng tự cập nhật lên bản mới nhất. · *Fully offline after the first visit — the app stores itself on the device, so sample intake, result entry, release and printing all keep working with no connection; updates arrive automatically once you are back online.*
+
 ## Dữ liệu & riêng tư / Data & privacy
 
 Toàn bộ dữ liệu nằm trong bộ nhớ của trình duyệt **trên chính thiết bị đang dùng** — không có máy chủ, không gửi đi đâu, mỗi thiết bị một bộ dữ liệu riêng. Hãy sao lưu định kỳ (tab Lọc & Xuất PDF) và giữ file sao lưu ở nơi an toàn. · *All data lives in the browser storage of the device itself — no server, nothing is sent anywhere, each device keeps its own dataset. Back up regularly and keep backup files safe.*
-
-## Hạn chế cần biết / Known limitations
-
-- Chưa đồng bộ tự động giữa nhiều máy — chuyển dữ liệu bằng file sao lưu/gộp thủ công. · *No automatic multi-device sync yet — transfer data with backup/merge files.*
-- Quét mã bằng camera và nhập giọng nói cần Chrome. · *Camera scanning and voice input require Chrome.*
-- Màu nền đầu bảng khi in cần bật tùy chọn "Đồ họa nền / Background graphics" trong hộp thoại in của Chrome. · *Print header colours need "Background graphics" enabled in Chrome's print dialog.*
-- Giao diện hiện bằng tiếng Việt. · *The interface is currently Vietnamese.*
 
 ## Giấy phép / License
 
