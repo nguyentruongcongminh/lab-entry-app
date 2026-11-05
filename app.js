@@ -22,6 +22,12 @@ function fmtFull(iso) {
   const d = new Date(iso);
   return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + ' ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
 }
+/* yyyy-mm-dd (giá trị ô chọn ngày) -> dd/mm/yyyy để in ra giấy; đổi thuần chuỗi
+   nên không lệch ngày theo múi giờ */
+function fmtDayInput(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : (v || '...');
+}
 function toLocalInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -430,7 +436,7 @@ function applyExport() {
       : 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
         ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes));
   /* Vùng in: dựng theo cấu hình bản in của người dùng (v27) */
-  const rangeText = (c.from || c.to) ? '(' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '';
+  const rangeText = (c.from || c.to) ? '(' + (c.from ? fmtDayInput(c.from) : '...') + ' đến ' + (c.to ? fmtDayInput(c.to) : '...') + ')' : '';
   const tatText = (tat.count > 0)
     ? 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
       ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes)

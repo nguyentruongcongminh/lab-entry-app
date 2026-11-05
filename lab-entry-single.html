@@ -685,7 +685,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v38</span>
+    <span class="app-version">LabEntry v39</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1663,6 +1663,12 @@ function fmtFull(iso) {
   const d = new Date(iso);
   return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()) + ' ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
 }
+/* yyyy-mm-dd (giá trị ô chọn ngày) -> dd/mm/yyyy để in ra giấy; đổi thuần chuỗi
+   nên không lệch ngày theo múi giờ */
+function fmtDayInput(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : (v || '...');
+}
 function toLocalInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -2071,7 +2077,7 @@ function applyExport() {
       : 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
         ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes));
   /* Vùng in: dựng theo cấu hình bản in của người dùng (v27) */
-  const rangeText = (c.from || c.to) ? '(' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '';
+  const rangeText = (c.from || c.to) ? '(' + (c.from ? fmtDayInput(c.from) : '...') + ' đến ' + (c.to ? fmtDayInput(c.to) : '...') + ')' : '';
   const tatText = (tat.count > 0)
     ? 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
       ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes)

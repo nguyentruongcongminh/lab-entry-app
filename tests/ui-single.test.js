@@ -481,7 +481,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v38 và precache đúng URL ?v=38 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v39 và precache đúng URL ?v=39 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +499,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v38'"), 'sw.js phải gắn VERSION v38');
-    for (const a of ['styles.css?v=38', 'print.css?v=38', 'config.js?v=38', 'store.js?v=38', 'app.js?v=38', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v39'"), 'sw.js phải gắn VERSION v39');
+    for (const a of ['styles.css?v=39', 'print.css?v=39', 'config.js?v=39', 'store.js?v=39', 'app.js?v=39', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -867,6 +867,15 @@ async function nhapPinVao(pin) {
     assert.ok(css.includes('table-footer-group'), 'CSS phải khai tfoot lặp cuối mỗi trang');
     assert.ok(css.includes('table-header-group'), 'CSS phải khai thead lặp đầu mỗi trang');
     assert.ok(css.includes('break-inside: avoid'), 'CSS phải chống cắt đôi một dòng mẫu qua hai trang');
+  });
+
+  test('phụ đề khoảng ngày trên bản in (v39): ngày lọc yyyy-mm-dd phải in ra dd/mm/yyyy kiểu Việt Nam', () => {
+    document.querySelector('[data-view="export"]').click();
+    setInput($('f-from'), '2026-11-05');
+    setInput($('f-to'), '2026-11-05');
+    const sub = $('print-area').querySelector('.sh-subtitle');
+    assert.ok(sub, 'bản in phải có phụ đề khoảng ngày khi đã đặt lọc ngày');
+    assert.strictEqual(sub.textContent, '(05/11/2026 đến 05/11/2026)');
   });
 
   test('bản in đợt 2 (v28): tách mỗi trường thành cột riêng + phân nhóm theo loại + sọc xen kẽ + màu nền tiêu đề đậm', () => {
