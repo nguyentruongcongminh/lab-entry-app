@@ -59,7 +59,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 ### F3d — Nút Xem lớn + bảng tóm tắt kết quả (bổ sung theo yêu cầu của Minh, 2026-11-04)
 
 - Kết quả **đã có nội dung** (Chờ phát hành hoặc Đã phát hành) có thêm **nút "Xem" lớn, nền xanh, cạnh ID** — nổi bật hơn các nút icon còn lại. Kết quả Chưa kết quả thì không có nút này.
-- Bấm Xem mở **bảng tóm tắt** thiết kế gọn, chữ to, dễ đọc để nhìn và chép kết quả vào máy ở lab: ID (chữ rất lớn), loại XN, thẻ trạng thái, mỗi trường kết quả một dòng (nhãn bên trái, **giá trị chữ to đậm** bên phải; trường mức độ bỏ trống hiện "Âm tính", trường chữ bỏ trống hiện "—"), ghi chú nếu có, giờ nhận mẫu và giờ phát hành. Đóng bằng nút "Đóng" hoặc bấm ra ngoài bảng. **Trong trang xem có luôn nút "Phát hành kết quả"** khi kết quả đang Chờ phát hành — bấm là phát hành ngay (không hỏi lại) và trang xem tự cập nhật trạng thái + giờ phát hành, nút tự ẩn đi.
+- Bấm Xem mở **bảng tóm tắt** thiết kế gọn, chữ to, dễ đọc để nhìn và chép kết quả vào máy ở lab: ID (chữ rất lớn), loại XN, thẻ trạng thái, mỗi trường kết quả một dòng (nhãn bên trái, **giá trị chữ to đậm** bên phải; trường mức độ bỏ trống hiện "Âm tính", trường chữ bỏ trống hiện "—"), ghi chú nếu có, giờ nhận mẫu và giờ phát hành. Đóng bằng nút "Đóng" hoặc bấm ra ngoài bảng. **Trong trang xem có luôn nút "Phát hành kết quả"** khi kết quả đang Chờ phát hành — bấm là phát hành ngay (không hỏi lại) và **trang xem tự thoát về danh sách** (từ v26, theo yêu cầu của Minh — không bắt người dùng bấm thêm nút Đóng).
 
 ### F3c — Quét mã liên tục để tiếp nhận mẫu (bổ sung theo yêu cầu của Minh, 2026-11-04)
 

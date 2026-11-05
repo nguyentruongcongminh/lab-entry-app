@@ -208,7 +208,9 @@ function closeSummary() {
   $('summary-modal').classList.add('hidden');
 }
 
-/* Phát hành ngay từ trang xem tóm tắt — không hỏi lại, cập nhật luôn trang xem */
+/* Phát hành ngay từ trang xem tóm tắt — không hỏi lại, và phát hành xong
+   TỰ THOÁT trang xem về danh sách (yêu cầu của Minh, v26) — không bắt người
+   dùng bấm thêm nút Đóng */
 function releaseFromSummary() {
   if (!summaryUid) return;
   const rec = store.getByUid(summaryUid);
@@ -216,8 +218,8 @@ function releaseFromSummary() {
   const res = store.update(rec.uid, { releaseAt: new Date().toISOString() });
   if (!res.ok) { toast(res.errors.join('. ')); return; }
   toast('Đã phát hành kết quả ' + rec.testId);
+  closeSummary();
   refreshCurrent();
-  openSummary(rec.uid);
 }
 
 /* ================= Bấm giờ chờ kết quả (test nhanh) =================

@@ -284,10 +284,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('btn-summary-release')), 'trang Xem có nút Phát hành khi đang chờ phát hành');
     $('btn-summary-release').click();
     assert.strictEqual(confirmCalls, 0, 'phát hành từ trang Xem không hỏi lại');
-    assert.ok($('sum-status').textContent.includes('Đã phát hành'), 'trang Xem cập nhật trạng thái ngay');
-    assert.ok(!$('sum-release').textContent.includes('Chưa phát hành'), 'trang Xem hiện giờ phát hành');
-    assert.ok(!visible($('btn-summary-release')), 'đã phát hành thì trang Xem ẩn nút Phát hành');
-    $('btn-summary-close').click();
+    assert.ok(!visible($('summary-modal')), 'phát hành xong trang Xem phải TỰ THOÁT về danh sách — không cần bấm Đóng (v26)');
     const li2 = [...$('list-today').children].find((x) => x.textContent.includes('2611041999'));
     assert.ok(li2.textContent.includes('Đã phát hành'));
     assert.strictEqual(li2.querySelector('[data-action="release"]'), null, 'đã phát hành thì mất nút trên dòng');
@@ -476,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v25 và precache đúng URL ?v=25 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v26 và precache đúng URL ?v=26 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -494,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v25'"), 'sw.js phải gắn VERSION v25');
-    for (const a of ['styles.css?v=25', 'print.css?v=25', 'config.js?v=25', 'store.js?v=25', 'app.js?v=25', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v26'"), 'sw.js phải gắn VERSION v26');
+    for (const a of ['styles.css?v=26', 'print.css?v=26', 'config.js?v=26', 'store.js?v=26', 'app.js?v=26', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
