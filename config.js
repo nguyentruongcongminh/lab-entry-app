@@ -20,6 +20,9 @@ const LAB_CONFIG = {
       fields: [
         { key: 'ketQua', label: 'Kết quả', type: 'text' },
       ],
+      quick: [
+        { label: 'Âm tính', values: { ketQua: 'Âm tính' } },
+      ],
     },
     {
       id: 'soi-muc-tau-dnt',
@@ -27,12 +30,18 @@ const LAB_CONFIG = {
       fields: [
         { key: 'ketQua', label: 'Kết quả', type: 'text' },
       ],
+      quick: [
+        { label: 'Âm tính', values: { ketQua: 'Âm tính' } },
+      ],
     },
     {
       id: 'soi-tinh-the-dich',
       name: 'Soi tinh thể dịch',
       fields: [
         { key: 'ketQua', label: 'Kết quả', type: 'text' },
+      ],
+      quick: [
+        { label: 'Âm tính', values: { ketQua: 'Âm tính' } },
       ],
     },
     {
@@ -59,6 +68,9 @@ const LAB_CONFIG = {
       fields: [
         { key: 'ketQua', label: 'Kết quả', type: 'text' },
       ],
+      quick: [
+        { label: 'Âm tính', values: { ketQua: 'Âm tính' } },
+      ],
     },
     {
       id: 'sp',
@@ -68,6 +80,9 @@ const LAB_CONFIG = {
         { key: 'bachCau', label: 'Bạch cầu', type: 'chips', levels: ['(+)', '(++)', '(+++)'] },
         { key: 'kySinhTrung', label: 'Ký sinh trùng', type: 'text' },
         { key: 'khac', label: 'Khác', type: 'text' },
+      ],
+      quick: [
+        { label: 'Âm tính', values: { hongCau: '', bachCau: '', kySinhTrung: 'Âm tính', khac: '' } },
       ],
     },
   ],

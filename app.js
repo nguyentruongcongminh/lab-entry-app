@@ -574,17 +574,41 @@ function validateTypeDefs(list) {
     if (t.waitMinutes !== undefined && (!isFinite(t.waitMinutes) || t.waitMinutes < 1)) errors.push(where + ': số phút bấm giờ không hợp lệ');
     if (!Array.isArray(t.fields) || !t.fields.length) { errors.push(where + ': phải có ít nhất 1 trường kết quả'); return; }
     const seenKeys = new Set();
+    const fieldMap = {};
     t.fields.forEach((f, fi) => {
       const fw = where + ', trường thứ ' + (fi + 1);
       if (!f || typeof f.key !== 'string' || !f.key.trim()) { errors.push(fw + ': thiếu khóa trường'); return; }
       if (seenKeys.has(f.key)) errors.push(fw + ': khóa trường bị trùng');
       seenKeys.add(f.key);
+      fieldMap[f.key] = f;
       if (typeof f.label !== 'string' || !f.label.trim()) errors.push(fw + ': thiếu nhãn trường');
       if (f.type !== 'text' && f.type !== 'chips') errors.push(fw + ': dạng trường phải là text hoặc chips');
       if (f.type === 'chips' && (!Array.isArray(f.levels) || !f.levels.length || f.levels.some((lv) => typeof lv !== 'string' || !lv))) {
         errors.push(fw + ': trường dạng nút chọn phải có ít nhất 1 mức');
       }
     });
+    /* Nút nhập kết quả nhanh (v25): không bắt buộc phải có; nếu có thì phải hợp lệ */
+    if (t.quick !== undefined) {
+      if (!Array.isArray(t.quick)) {
+        errors.push(where + ': mục nhập nhanh phải là một danh sách');
+      } else {
+        if (t.quick.length > 8) errors.push(where + ': mỗi loại tối đa 8 nút nhập nhanh');
+        t.quick.forEach((q, qi) => {
+          const qw = where + ', nút nhập nhanh thứ ' + (qi + 1);
+          if (!q || typeof q.label !== 'string' || !q.label.trim()) { errors.push(qw + ': thiếu tên nút'); return; }
+          if (!q.values || typeof q.values !== 'object' || Array.isArray(q.values)) { errors.push(qw + ': thiếu bộ giá trị kết quả'); return; }
+          Object.keys(q.values).forEach((k) => {
+            const fd = fieldMap[k];
+            if (!fd) { errors.push(qw + ': giá trị gắn cho trường không tồn tại (' + k + ')'); return; }
+            const v = q.values[k];
+            if (typeof v !== 'string') { errors.push(qw + ': giá trị của trường ' + fd.label + ' phải là dạng chữ'); return; }
+            if (fd.type === 'chips' && v !== '' && !(fd.levels || []).includes(v)) {
+              errors.push(qw + ': mức của trường ' + fd.label + ' không nằm trong các mức cho phép của trường');
+            }
+          });
+        });
+      }
+    }
   });
   return errors;
 }
@@ -629,6 +653,7 @@ function renderTypes() {
     li.innerHTML =
       '<div class="type-info"><div class="type-name">' + esc(t.name) + '</div>' +
       '<div class="type-meta">' + t.fields.length + ' trường kết quả' +
+      (t.quick && t.quick.length ? ' · ⚡ ' + t.quick.length + ' nút nhập nhanh' : '') +
       (t.waitMinutes ? ' · ⏱ bấm giờ ' + t.waitMinutes + ' phút' : '') +
       (used ? ' · đang có ' + used + ' bản ghi' : '') + '</div></div>' +
       '<div class="type-actions">' +
@@ -690,14 +715,85 @@ function uniqueKey(base, used) {
 function openTypeForm(typeId) {
   const src = typeId ? getTestType(typeId) : null;
   typeFormState = src
-    ? { id: src.id, fields: src.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, levels: (f.levels || LEVELS_PRESETS['3']).slice() })) }
-    : { id: null, fields: [{ key: '', label: '', type: 'text', levels: LEVELS_PRESETS['3'].slice() }] };
+    ? { id: src.id, fields: src.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, levels: (f.levels || LEVELS_PRESETS['3']).slice() })),
+        quick: (src.quick || []).map((q) => ({ label: q.label, values: Object.assign({}, q.values) })) }
+    : { id: null, fields: [{ key: '', label: '', type: 'text', levels: LEVELS_PRESETS['3'].slice() }], quick: [] };
+  ensureTypeFormKeys();
   $('tf-title').textContent = src ? 'Sửa loại xét nghiệm' : 'Thêm loại xét nghiệm';
   $('tf-name').value = src ? src.name : '';
   $('tf-wait').value = src && src.waitMinutes ? src.waitMinutes : '';
   $('tf-error').classList.add('hidden');
   renderTypeFieldRows();
+  renderTypeQuickRows();
   switchView('typeform');
+}
+
+/* Mọi trường trong form sửa loại phải có khóa ngay từ đầu (v25): các nút nhập
+   nhanh gắn giá trị theo khóa trường, nên không thể chờ tới lúc lưu mới sinh khóa.
+   Trường mới chưa có nhãn thì nhận khóa tạm "truong..." và được sinh lại theo
+   nhãn ngay khi người dùng gõ nhãn (xem maybeRegenFieldKey). */
+function ensureTypeFormKeys() {
+  const used = new Set(typeFormState.fields.map((f) => f.key).filter(Boolean));
+  typeFormState.fields.forEach((f) => {
+    if (f.key) return;
+    const words = slugWords((f.label || '').trim());
+    const camel = words.length ? words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('') : '';
+    f.key = uniqueKey(camel, used);
+  });
+}
+
+function maybeRegenFieldKey(i) {
+  const f = typeFormState.fields[i];
+  if (!f.key || !/^truong\d*$/.test(f.key)) return;
+  const words = slugWords((f.label || '').trim());
+  if (!words.length) return;
+  const camel = words[0] + words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+  const used = new Set(typeFormState.fields.map((x, xi) => (xi === i ? null : x.key)).filter(Boolean));
+  const nk = uniqueKey(camel, used);
+  if (nk === f.key) return;
+  const old = f.key;
+  f.key = nk;
+  typeFormState.quick.forEach((q) => {
+    if (Object.prototype.hasOwnProperty.call(q.values, old)) { q.values[nk] = q.values[old]; delete q.values[old]; }
+  });
+}
+
+/* Thẻ sửa từng nút nhập nhanh: tên nút + một ô giá trị cho mỗi trường kết quả */
+function renderTypeQuickRows() {
+  const wrap = $('tf-quicks');
+  if (!wrap || !typeFormState) return;
+  wrap.innerHTML = '';
+  typeFormState.quick.forEach((q, qi) => {
+    const card = document.createElement('div');
+    card.className = 'tf-quick';
+    let html = '<div class="tf-quick-head">' +
+      '<input type="text" class="tq-label" placeholder="Tên nút, vd: Âm tính" value="' + esc(q.label) + '">' +
+      '<button type="button" class="mini-btn danger tq-del" title="Xóa nút nhập nhanh">✕</button></div>';
+    typeFormState.fields.forEach((f) => {
+      const v = q.values[f.key] || '';
+      html += '<div class="tq-row"><span class="tq-flabel">' + esc(f.label || '(chưa đặt tên trường)') + '</span>';
+      if (f.type === 'chips') {
+        html += '<select class="tq-val" data-qfield="' + esc(f.key) + '">' +
+          '<option value=""' + (v === '' ? ' selected' : '') + '>— Âm tính (bỏ trống)</option>' +
+          (f.levels || []).map((lv) => '<option value="' + esc(lv) + '"' + (v === lv ? ' selected' : '') + '>' + esc(lv) + '</option>').join('') +
+          '</select>';
+      } else {
+        html += '<input type="text" class="tq-val" data-qfield="' + esc(f.key) + '" value="' + esc(v) + '" placeholder="Để trống = không ghi" autocomplete="off">';
+      }
+      html += '</div>';
+    });
+    card.innerHTML = html;
+    card.querySelector('.tq-label').addEventListener('input', (e) => { typeFormState.quick[qi].label = e.target.value; });
+    card.querySelectorAll('.tq-val').forEach((inp) => {
+      inp.addEventListener('input', () => { typeFormState.quick[qi].values[inp.dataset.qfield] = inp.value; });
+      inp.addEventListener('change', () => { typeFormState.quick[qi].values[inp.dataset.qfield] = inp.value; });
+    });
+    card.querySelector('.tq-del').addEventListener('click', () => {
+      typeFormState.quick.splice(qi, 1);
+      renderTypeQuickRows();
+    });
+    wrap.appendChild(card);
+  });
 }
 
 function renderTypeFieldRows() {
@@ -720,16 +816,27 @@ function renderTypeFieldRows() {
     const labelInp = row.querySelector('.tf-flabel');
     const kindSel = row.querySelector('.tf-fkind');
     const levelsSel = row.querySelector('.tf-flevels');
-    labelInp.addEventListener('input', () => { typeFormState.fields[i].label = labelInp.value; });
+    labelInp.addEventListener('input', () => {
+      typeFormState.fields[i].label = labelInp.value;
+      maybeRegenFieldKey(i);
+    });
+    labelInp.addEventListener('change', () => renderTypeQuickRows());
     kindSel.addEventListener('change', () => {
       typeFormState.fields[i].type = kindSel.value;
       levelsSel.disabled = kindSel.value !== 'chips';
+      renderTypeQuickRows();
     });
-    levelsSel.addEventListener('change', () => { typeFormState.fields[i].levels = LEVELS_PRESETS[levelsSel.value].slice(); });
+    levelsSel.addEventListener('change', () => {
+      typeFormState.fields[i].levels = LEVELS_PRESETS[levelsSel.value].slice();
+      renderTypeQuickRows();
+    });
     row.querySelector('.tf-fdel').addEventListener('click', () => {
       if (typeFormState.fields.length <= 1) { toast('Mỗi loại cần ít nhất 1 trường kết quả'); return; }
+      const removedKey = typeFormState.fields[i].key;
       typeFormState.fields.splice(i, 1);
+      typeFormState.quick.forEach((q) => { delete q.values[removedKey]; });
       renderTypeFieldRows();
+      renderTypeQuickRows();
     });
     wrap.appendChild(row);
   });
@@ -771,8 +878,20 @@ function saveTypeForm() {
     let n = 2;
     while (usedIds.has(id)) { id = base + '-' + (n++); }
   }
+  /* Nút nhập nhanh: tên nút bắt buộc; giá trị chỉ giữ cho các trường còn tồn tại */
+  const fieldKeys = new Set(fields.map((f) => f.key));
+  const quick = [];
+  for (let qi = 0; qi < typeFormState.quick.length; qi++) {
+    const q = typeFormState.quick[qi];
+    const qlabel = (q.label || '').trim();
+    if (!qlabel) { showTypeError('Nút nhập nhanh thứ ' + (qi + 1) + ' chưa có tên — hãy đặt tên hoặc xóa nút đó'); return; }
+    const values = {};
+    Object.keys(q.values || {}).forEach((k) => { if (fieldKeys.has(k)) values[k] = q.values[k]; });
+    quick.push({ label: qlabel, values });
+  }
   const def = { id, name, fields };
   if (waitMinutes) def.waitMinutes = waitMinutes;
+  if (quick.length) def.quick = quick;
   const newList = typeFormState.id
     ? getTestTypes().map((t) => (t.id === typeFormState.id ? def : t))
     : getTestTypes().concat([def]);
@@ -878,10 +997,32 @@ function openForm(uid) {
   switchView('form');
 }
 
+/* Bấm một nút nhập nhanh: điền CẢ bộ kết quả theo mẫu đã định cho loại XN
+   (trường không có trong mẫu = để trống). Chỉ điền vào form — không tự lưu,
+   người dùng vẫn xem lại và bấm Lưu như thường. */
+function applyQuickTemplate(qi) {
+  const type = getTestType(formState.typeId);
+  const q = type && type.quick ? type.quick[qi] : null;
+  if (!q) return;
+  type.fields.forEach((f) => {
+    formState.results[f.key] = Object.prototype.hasOwnProperty.call(q.values, f.key) ? q.values[f.key] : '';
+  });
+  renderFields();
+  const btn = $('fields-container').querySelector('[data-quick="' + qi + '"]');
+  if (btn) btn.classList.add('flash');
+}
+
 function renderFields() {
   const type = getTestType(formState.typeId);
   const wrap = $('fields-container');
-  wrap.innerHTML = type.fields.map((f) => {
+  /* Hàng nút nhập nhanh (v25): nhỏ gọn, nằm trên cùng của khu vực trường kết
+     quả; loại nào không định nghĩa nút thì không hiện gì cả */
+  const quickHtml = type.quick && type.quick.length
+    ? '<div class="quick-row"><span class="quick-caption">⚡ Nhập nhanh:</span>' +
+      type.quick.map((q, qi) => '<button type="button" class="quick-btn" data-quick="' + qi + '">' + esc(q.label) + '</button>').join('') +
+      '</div>'
+    : '';
+  wrap.innerHTML = quickHtml + type.fields.map((f) => {
     const label = esc(type.name) + ': ' + esc(f.label);
     if (f.type === 'text') {
       return '<div class="form-row"><label class="form-label">' + label + '</label>' +
@@ -904,6 +1045,9 @@ function renderFields() {
         b.classList.toggle('selected', formState.results[key] === b.dataset.value));
     });
   });
+  wrap.querySelectorAll('[data-quick]').forEach((btn) => {
+    btn.addEventListener('click', () => applyQuickTemplate(Number(btn.dataset.quick)));
+  });
 }
 
 function showFormError(msg) {
@@ -924,11 +1068,15 @@ function saveForm() {
   };
   /* Đã có kết quả thì đồng hồ bấm giờ của mẫu tự xóa */
   if (store.hasResult({ typeId: payload.typeId, results: payload.results })) payload.timerEndsAt = null;
+  const wasAdd = !formState.uid;
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
   if (!res.ok) {
     showFormError(res.errors.join('. '));
     return;
   }
+  /* Nhận mẫu mới (thêm mới, không phải sửa) trong lúc đang ở tab Quản lý:
+     quay về Quản lý thì mở khung Chưa kết quả để thấy ngay mẫu vừa nhận (v25) */
+  if (wasAdd && mainView === 'manage') managePanel = 'noresult';
   toast('Đã lưu kết quả');
   /* Quay về đúng tab đang dùng trước khi mở form (vd Quản lý) — không nhảy về tab đầu */
   switchView(mainView);
@@ -1041,6 +1189,9 @@ function acceptScanCode(rawCode) {
     return false;
   }
   scannerState.count += 1;
+  /* Mẫu mới nhận là việc ở khung Chưa kết quả: nếu đang đứng ở tab Quản lý
+     (dù đang xem khung Chờ phát hành) thì tự chuyển khung về Chưa kết quả (v25) */
+  if (mainView === 'manage') managePanel = 'noresult';
   updateScanCount();
   const li = document.createElement('li');
   li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-type">' + esc(type ? type.name : typeId) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
@@ -1142,8 +1293,9 @@ function closeScanner() {
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
     /* Tiếp nhận từ nút + (form thêm mới): bắn nhận xong tự chuyển sang tab Quản lý
-       để xử lý tiếp hàng chờ — không giữ ở tab Kết quả hôm nay (yêu cầu của Minh) */
-    if (fromFormNew) switchView('manage'); else refreshCurrent();
+       để xử lý tiếp hàng chờ — không giữ ở tab Kết quả hôm nay (yêu cầu của Minh).
+       Vừa nhận mẫu mới nên Quản lý mở ở khung Chưa kết quả (v25). */
+    if (fromFormNew) { managePanel = 'noresult'; switchView('manage'); } else refreshCurrent();
   }
 }
 
@@ -1218,7 +1370,16 @@ function init() {
   $('btn-tf-save').addEventListener('click', saveTypeForm);
   $('btn-tf-add-field').addEventListener('click', () => {
     typeFormState.fields.push({ key: '', label: '', type: 'text', levels: LEVELS_PRESETS['3'].slice() });
+    ensureTypeFormKeys();
     renderTypeFieldRows();
+    renderTypeQuickRows();
+  });
+  $('btn-tf-add-quick').addEventListener('click', () => {
+    if (typeFormState.quick.length >= 8) { toast('Mỗi loại tối đa 8 nút nhập nhanh'); return; }
+    typeFormState.quick.push({ label: '', values: {} });
+    renderTypeQuickRows();
+    const labels = $('tf-quicks').querySelectorAll('.tq-label');
+    if (labels.length) labels[labels.length - 1].focus();
   });
 
   $('btn-backup-export').addEventListener('click', exportBackupFile);

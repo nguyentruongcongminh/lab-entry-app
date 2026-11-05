@@ -476,7 +476,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v24 và precache đúng URL ?v=24 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v25 và precache đúng URL ?v=25 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -494,11 +494,79 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v24'"), 'sw.js phải gắn VERSION v24');
-    for (const a of ['styles.css?v=24', 'print.css?v=24', 'config.js?v=24', 'store.js?v=24', 'app.js?v=24', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v25'"), 'sw.js phải gắn VERSION v25');
+    for (const a of ['styles.css?v=25', 'print.css?v=25', 'config.js?v=25', 'store.js?v=25', 'app.js?v=25', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
+  });
+
+  test('nút nhập kết quả nhanh: loại có mẫu thì hiện hàng nút gọn, bấm là điền cả bộ kết quả nhưng KHÔNG tự lưu; loại chưa có mẫu thì không hiện hàng nút (v25)', () => {
+    document.querySelector('[data-view="today"]').click();
+    $('fab-add').click();
+    /* Loại mặc định Cạo tìm nấm có sẵn nút "Âm tính" từ config */
+    const qbtns = $('fields-container').querySelectorAll('[data-quick]');
+    assert.ok(qbtns.length >= 1, 'loại Cạo tìm nấm phải có nút nhập nhanh mặc định');
+    assert.strictEqual(qbtns[0].textContent, 'Âm tính');
+    qbtns[0].click();
+    assert.strictEqual($('fields-container').querySelector('[data-field="ketQua"]').value, 'Âm tính', 'bấm nút là điền ngay vào trường kết quả');
+    assert.ok(visible($('view-form')), 'điền xong vẫn ở form nhập — không tự lưu');
+    /* Soi tươi huyết trắng chưa có mẫu mặc định -> không hiện hàng nút */
+    setSelect($('select-type'), 'soi-tuoi-huyet-trang');
+    assert.strictEqual($('fields-container').querySelectorAll('[data-quick]').length, 0, 'loại chưa định nghĩa nút thì không hiện hàng nhập nhanh');
+    /* SP: mẫu Âm tính điền Ký sinh trùng = "Âm tính" và bỏ chọn mọi chip đang chọn */
+    setSelect($('select-type'), 'sp');
+    $('fields-container').querySelector('[data-chip="hongCau"][data-value="(++)"]').click();
+    assert.ok($('fields-container').querySelector('[data-chip="hongCau"][data-value="(++)"]').classList.contains('selected'));
+    $('fields-container').querySelector('[data-quick="0"]').click();
+    assert.strictEqual($('fields-container').querySelector('[data-field="kySinhTrung"]').value, 'Âm tính');
+    assert.ok(!$('fields-container').querySelector('[data-chip="hongCau"]').classList.contains('selected'), 'chip phải bị bỏ chọn theo mẫu');
+    $('btn-cancel').click();
+  });
+
+  test('quản lý loại: tự thêm nút nhập nhanh cho một loại (chọn mức chip trong thẻ sửa) rồi dùng được ngay trong form nhập (v25)', () => {
+    document.querySelector('[data-view="manage"]').click();
+    $('btn-types').click();
+    const li = [...$('types-list').children].find((x) => x.querySelector('.type-name').textContent === 'Soi tươi huyết trắng');
+    assert.ok(li);
+    li.querySelector('[data-tedit]').click();
+    assert.ok(visible($('view-typeform')));
+    $('btn-tf-add-quick').click();
+    const card = $('tf-quicks').querySelector('.tf-quick');
+    assert.ok(card, 'phải thêm được thẻ nút nhập nhanh');
+    setInput(card.querySelector('.tq-label'), 'Nấm nhẹ');
+    const chipSel = card.querySelector('select.tq-val[data-qfield="nam"]');
+    assert.ok(chipSel, 'trường dạng chip phải có ô chọn mức trong thẻ nút');
+    setSelect(chipSel, '(+)');
+    $('btn-tf-save').click();
+    assert.ok(visible($('view-types')), 'lưu xong quay về danh sách loại');
+    const li2 = [...$('types-list').children].find((x) => x.querySelector('.type-name').textContent === 'Soi tươi huyết trắng');
+    assert.ok(li2.textContent.includes('nút nhập nhanh'), 'danh sách loại phải hiện số nút nhập nhanh của loại');
+    $('btn-types-back').click();
+    $('fab-add').click();
+    setSelect($('select-type'), 'soi-tuoi-huyet-trang');
+    const qb = $('fields-container').querySelector('[data-quick="0"]');
+    assert.ok(qb && qb.textContent === 'Nấm nhẹ', 'nút vừa tạo phải hiện trong form nhập của đúng loại đó');
+    qb.click();
+    assert.ok($('fields-container').querySelector('[data-chip="nam"][data-value="(+)"]').classList.contains('selected'), 'bấm nút phải chọn chip Nấm ở mức (+)');
+    $('btn-cancel').click();
+  });
+
+  test('tab Quản lý: đang xem khung Chờ phát hành mà quét nhận mẫu mới thì tự chuyển sang khung Chưa kết quả, mẫu mới hiện ngay (v25)', () => {
+    document.querySelector('[data-view="manage"]').click();
+    $('btn-panel-pending').click();
+    assert.ok(!$('group-pending').classList.contains('hidden'), 'đang ở khung Chờ phát hành');
+    assert.ok($('group-noresult').classList.contains('hidden'));
+    $('fab-add').click();
+    $('btn-scan').click();
+    assert.ok(visible($('scanner-modal')), 'mở được màn hình quét từ form thêm mới');
+    setSelect($('scanner-type-select'), 'cao-tim-nam');
+    assert.strictEqual(window.acceptScanCode('V25-SCAN-1'), true, 'nhận mã mới phải thành công');
+    $('btn-scanner-close').click();
+    assert.ok(visible($('view-manage')), 'dừng quét xong quay về tab Quản lý');
+    assert.ok(!$('group-noresult').classList.contains('hidden'), 'khung Chưa kết quả phải tự hiện sau khi nhận mẫu mới');
+    assert.ok($('group-pending').classList.contains('hidden'), 'khung Chờ phát hành phải ẩn đi');
+    assert.ok([...$('list-noresult').children].some((x) => x.textContent.includes('V25-SCAN-1')), 'mẫu vừa quét phải nằm trong danh sách Chưa kết quả');
   });
 
   test('bấm giờ Máu ẩn: mỗi ID một đồng hồ riêng — bắt đầu, hủy, tới giờ báo đỏ và mở thẳng form nhập', () => {

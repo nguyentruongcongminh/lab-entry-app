@@ -475,3 +475,35 @@ svg { width: 24px; height: 24px; display: block; }
   min-width: 24px; padding: 1px 7px; font-size: 13.5px; text-align: center;
 }
 .switch-btn.active .switch-count { background: rgba(255, 255, 255, .25); }
+
+/* ---------- Nút nhập kết quả nhanh (v25) ---------- */
+/* Hàng nút trong form nhập: nhỏ gọn, tự xuống dòng nếu nhiều nút */
+.quick-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 10px 16px 2px;
+}
+.quick-caption { font-size: 13px; font-weight: 600; color: var(--muted); }
+.quick-btn {
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--blue); background: #fff; color: var(--blue);
+  font-size: 13.5px; font-weight: 600; line-height: 1.25;
+}
+.quick-btn:active { background: var(--blue); color: #fff; }
+@keyframes quickFlash {
+  0% { background: var(--blue); color: #fff; }
+  100% { background: #fff; color: var(--blue); }
+}
+.quick-btn.flash { animation: quickFlash .9s ease-out; }
+
+/* Thẻ sửa nút nhập nhanh trong form quản lý loại: cùng ngôn ngữ với .tf-field */
+.form-hint { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.tf-quick {
+  border: 1px solid var(--line); border-radius: 10px; background: #f7f9fb;
+  padding: 12px; margin-bottom: 10px;
+}
+.tf-quick-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.tf-quick-head .tq-label { flex: 1 1 auto; font-weight: 600; }
+.tq-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tq-flabel { flex: 0 0 34%; font-size: 14px; color: var(--muted); }
+.tq-row .tq-val { flex: 1 1 auto; min-width: 0; }
+#btn-tf-add-quick { border-style: dashed; background: #f2f8fe; }

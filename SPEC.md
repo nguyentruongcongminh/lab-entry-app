@@ -133,6 +133,18 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Chia sẻ cho người khác = gửi địa chỉ HTTPS; mỗi người tự cài trên máy mình và bắt đầu với dữ liệu trống của riêng họ. Bản 1 file (`lab-entry-single.html`) không phải PWA (không cài đặt được, chỉ mở xem/dùng trong trình duyệt).
 - Giới hạn thật: cài đặt PWA cần HTTPS (bản GitHub Pages đạt); quét QR bằng camera vẫn cần BarcodeDetector (Chrome Android) và nhập giọng nói vẫn cần Chrome — PWA không thay đổi các giới hạn nền tảng đó; jsdom không chạy được service worker nên test tự động chỉ kiểm chứng khai báo manifest/icon/phiên bản SW và app vẫn chạy bình thường khi trình duyệt không có service worker — hành vi cài đặt/offline thật cần thử trên điện thoại.
 
+### F15 — Nút nhập kết quả nhanh theo loại xét nghiệm (bổ sung theo yêu cầu của Minh, 2026-11-05)
+
+- Mỗi loại xét nghiệm có thể định nghĩa tối đa **8 nút nhập nhanh** (trường `quick` trong định nghĩa loại: `[{label, values}]`, `values` gắn giá trị cho từng khóa trường; trường chips nhận `''` = bỏ chọn/âm tính hoặc một mức trong `levels`, trường text nhận chuỗi). Khai báo này đi cùng danh mục: sửa trong app qua trình quản lý loại (F9), nằm trong file sao lưu/gộp như phần còn lại của danh mục, và được `validateTypeDefs` kiểm tra (tên nút bắt buộc, khóa phải tồn tại, mức chip phải hợp lệ).
+- Trong **form nhập kết quả**, các nút của loại đang chọn hiện thành **một hàng nút nhỏ gọn** (dạng viên, tự xuống dòng) ngay trên khu vực trường kết quả; loại không có nút thì không hiện gì. Bấm một nút = **điền cả bộ kết quả** theo mẫu (trường không khai trong mẫu = để trống) — **không tự lưu**, người dùng xem lại/sửa tiếp rồi bấm Lưu như thường.
+- Trong **trình sửa loại**, mỗi nút là một thẻ: ô tên nút + một ô giá trị cho từng trường kết quả hiện có của loại (ô chữ cho trường text, ô chọn mức có thêm lựa chọn "Âm tính (bỏ trống)" cho trường chips) + nút xóa. Thêm/xóa trường hoặc đổi dạng trường thì các thẻ tự dựng lại theo bộ trường mới.
+- Mặc định ban đầu: các loại Cạo tìm nấm, Soi nhuộm mực tàu DNT, Soi tinh thể dịch, Máu ẩn và SP có sẵn nút **"Âm tính"**; Soi tươi huyết trắng không cài sẵn (các trường đếm của nó không có mẫu âm tính chung) — người dùng tự thêm theo thói quen của khoa.
+
+### F16 — Tự chuyển khung Chưa kết quả khi nhận mẫu mới ở tab Quản lý (bổ sung theo yêu cầu của Minh, 2026-11-05)
+
+- Tab Quản lý đang hiện khung **Chờ phát hành** (xem F3/v23) mà có **mẫu mới được nhận** thì khung tự chuyển về **Chưa kết quả** để mẫu mới hiện ngay: áp dụng cho cả ba đường nhận mẫu — quét liên tục (mỗi mã nhận thành công trong phiên, kể cả khi phiên quét mở từ tab khác rồi quay về Quản lý), và lưu form ở chế độ **thêm mới** khi đang đứng ở tab Quản lý.
+- Chỉ áp dụng khi *thêm mới thành công*; sửa bản ghi cũ hoặc quét trùng (bị bỏ qua) không làm chuyển khung.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.
