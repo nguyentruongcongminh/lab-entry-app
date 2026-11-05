@@ -151,12 +151,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     // (Danh sách hôm nay xếp cũ -> mới nên chọn nhiều đã xóa bản ghi cũ nhất 2611041225.)
     document.querySelector('[data-view="export"]').click();
     assert.strictEqual($('list-export').children.length, 1); // còn 1 bản ghi hôm nay, mặc định lọc hôm nay
-    assert.strictEqual($('print-table-body').children.length, 1);
+    assert.strictEqual($('print-area').querySelectorAll('tbody tr').length, 1);
     setSelect($('f-status'), 'released');
     $('btn-apply-filter').click();
     assert.strictEqual($('list-export').children.length, 0);
     assert.ok(visible($('empty-export')));
-    assert.strictEqual($('print-table-body').innerHTML, '');
+    assert.strictEqual($('print-area').querySelector('tbody').innerHTML, '');
     setSelect($('f-status'), 'no-result');
     $('btn-apply-filter').click();
     assert.strictEqual($('list-export').children.length, 1);
@@ -167,7 +167,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setSelect($('f-status'), 'no-result');
     setSelect($('f-type'), '');
     $('btn-apply-filter').click();
-    const html = $('print-table-body').innerHTML;
+    const html = $('print-area').querySelector('tbody').innerHTML;
     assert.ok(html.includes('2611041238'));
     assert.ok(html.includes('Hồng cầu: Âm tính'));
     assert.ok(html.includes('Bạch cầu: Âm tính'));
@@ -184,7 +184,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setSelect($('f-type'), 'soi-tuoi-huyet-trang');
     setSelect($('f-status'), '');
     $('btn-apply-filter').click();
-    const html = $('print-table-body').innerHTML;
+    const html = $('print-area').querySelector('tbody').innerHTML;
     assert.ok(html.includes('Nấm: Âm tính'), 'Nấm bỏ trống -> Âm tính');
     assert.ok(html.includes('Clue cell: Âm tính'), 'Clue cell bỏ trống -> Âm tính');
     assert.ok(html.includes('Trichomonas: (+)'), 'Trichomonas hiện đúng mức đã chọn');
@@ -473,7 +473,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v26 và precache đúng URL ?v=26 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v27 và precache đúng URL ?v=27 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -491,8 +491,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v26'"), 'sw.js phải gắn VERSION v26');
-    for (const a of ['styles.css?v=26', 'print.css?v=26', 'config.js?v=26', 'store.js?v=26', 'app.js?v=26', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v27'"), 'sw.js phải gắn VERSION v27');
+    for (const a of ['styles.css?v=27', 'print.css?v=27', 'config.js?v=27', 'store.js?v=27', 'app.js?v=27', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -706,6 +706,100 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     window.confirm = oldConfirm;
     document.querySelector('[data-view="today"]').click();
     assert.strictEqual($('list-today').children.length, countAfterFirst, 'gộp lại cùng một file không được tạo bản sao trùng');
+  });
+
+  test('KTV (v27): chọn KTV trực -> quét nhận đóng dấu người nhận; lưu kết quả đóng dấu người thực hiện; sửa kết quả thì người thực hiện đổi sang người trực đang sửa; phát hành đóng dấu người phát hành; hủy phát hành xóa dấu', () => {
+    /* Dựng danh sách KTV qua hộp thoại quản lý */
+    document.querySelector('[data-view="today"]').click();
+    $('btn-staff-manage').click();
+    assert.ok(visible($('staff-modal')));
+    setInput($('input-staff-name'), 'Nguyễn Văn A');
+    $('btn-staff-add').click();
+    setInput($('input-staff-name'), 'Lê Thị Bình');
+    $('btn-staff-add').click();
+    assert.strictEqual($('staff-list').children.length, 2);
+    $('btn-staff-close').click();
+    /* A trực: quét nhận một mẫu */
+    setSelect($('operator-select'), 'Nguyễn Văn A');
+    assert.strictEqual($('scanner-operator-select').value, 'Nguyễn Văn A', 'ô KTV ở màn quét phải đồng bộ với KTV trực');
+    $('btn-scan-today').click();
+    setSelect($('scanner-type-select'), 'cao-tim-nam');
+    assert.strictEqual(window.acceptScanCode('V27-0001'), true);
+    $('btn-scanner-close').click();
+    const row = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    assert.ok(row);
+    /* Mẫu chưa có kết quả thì chưa có nút Xem — kiểm dấu người nhận qua form sửa */
+    row.querySelector('[data-action="edit"]').click();
+    assert.strictEqual($('input-receiver').value, 'Nguyễn Văn A', 'quét nhận phải đóng dấu KTV nhận = người trực lúc quét');
+    /* Đổi sang B trực, nhập kết quả rồi lưu: người thực hiện = B */
+    $('btn-cancel').click();
+    setSelect($('operator-select'), 'Lê Thị Bình');
+    row.querySelector('[data-action="edit"]').click();
+    setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    assert.strictEqual($('input-performer').value, 'Lê Thị Bình', 'vừa sửa kết quả thì ô người thực hiện tự chuyển sang người trực');
+    $('btn-save').click();
+    const row2 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    row2.querySelector('[data-action="view"]').click();
+    assert.ok(visible($('summary-modal')));
+    assert.ok(visible($('sum-staff')), 'trang Xem phải hiện khối KTV khi đã có dấu');
+    assert.strictEqual($('sum-receiver').textContent, 'Nguyễn Văn A');
+    assert.strictEqual($('sum-performer').textContent, 'Lê Thị Bình');
+    /* B phát hành ngay trong Xem -> tự thoát (v26) + đóng dấu người phát hành = B */
+    $('btn-summary-release').click();
+    assert.ok(!visible($('summary-modal')), 'phát hành xong Xem tự thoát');
+    const row3 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    row3.querySelector('[data-action="view"]').click();
+    assert.strictEqual($('sum-releaser').textContent, 'Lê Thị Bình', 'phát hành phải đóng dấu KTV phát hành = người trực lúc phát hành');
+    assert.ok(visible($('btn-summary-unrelease')), 'đã phát hành thì Xem có nút Hủy phát hành');
+    /* Hủy phát hành: quay về Chờ phát hành, dấu phát hành bị xóa */
+    $('btn-summary-unrelease').click();
+    assert.ok(!visible($('summary-modal')), 'hủy phát hành xong Xem tự thoát');
+    document.querySelector('[data-view="manage"]').click();
+    $('btn-panel-pending').click();
+    assert.ok([...$('list-pending').children].some((x) => x.textContent.includes('V27-0001')), 'hủy phát hành xong mẫu quay về nhóm Chờ phát hành');
+    /* A trực lại, sửa kết quả -> người thực hiện đổi sang A (yêu cầu của Minh) */
+    document.querySelector('[data-view="today"]').click();
+    setSelect($('operator-select'), 'Nguyễn Văn A');
+    const row4 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    row4.querySelector('[data-action="edit"]').click();
+    setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Có sợi nấm');
+    $('btn-save').click();
+    const row5 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    row5.querySelector('[data-action="view"]').click();
+    assert.strictEqual($('sum-performer').textContent, 'Nguyễn Văn A', 'sửa kết quả thì KTV thực hiện phải đổi sang người trực đang sửa');
+    assert.strictEqual($('sum-releaser').textContent, '—', 'dấu phát hành đã bị xóa khi hủy phát hành');
+    $('btn-summary-close').click();
+  });
+
+  test('tùy chỉnh bản in (v27): mặc định đúng 7 cột cũ; bật cột KTV thì xem trước và vùng in thật đều có; ghi tên đơn vị hiện ở đầu trang; khôi phục mặc định đưa mọi thứ về cũ', () => {
+    document.querySelector('[data-view="export"]').click();
+    const defHeads = [...$('print-area').querySelectorAll('thead th')].map((th) => th.textContent);
+    assert.deepStrictEqual(defHeads, ['STT', 'ID Xét Nghiệm', 'Loại xét nghiệm', 'Kết quả', 'Ghi chú', 'Ngày giờ nhập', 'Ngày giờ phát hành'], 'bố cục mặc định phải y như bản in trước đây');
+    $('btn-printcfg').click();
+    assert.ok(visible($('view-printcfg')));
+    assert.ok($('pcfg-preview').textContent.includes('2611050001'), 'xem trước phải có dữ liệu mẫu');
+    assert.ok(!$('pcfg-preview').textContent.includes('KTV nhận'), 'cột KTV mặc định tắt nên chưa hiện');
+    /* Bật 3 cột KTV (hàng theo thứ tự registry: receiver/performer/releaser ở cuối) */
+    const colRows = $('pcfg-columns').children;
+    assert.strictEqual(colRows.length, 12, 'phải có đủ 12 cột để tùy chỉnh');
+    colRows[9].querySelector('.pc-visible').click();
+    colRows[10].querySelector('.pc-visible').click();
+    colRows[11].querySelector('.pc-visible').click();
+    assert.ok($('pcfg-preview').textContent.includes('KTV nhận'), 'xem trước phải hiện cột KTV sau khi bật');
+    assert.ok($('pcfg-preview').textContent.includes('Trần Văn An'), 'xem trước phải hiện tên KTV mẫu ở cột KTV');
+    setInput($('pcfg-org'), 'BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM');
+    assert.ok($('pcfg-preview').textContent.includes('BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM'), 'tên đơn vị phải hiện ở đầu trang xem trước');
+    $('btn-pcfg-back').click();
+    assert.ok(visible($('view-export')));
+    const heads2 = [...$('print-area').querySelectorAll('thead th')].map((th) => th.textContent);
+    assert.ok(heads2.includes('KTV nhận') && heads2.includes('KTV thực hiện') && heads2.includes('KTV phát hành'), 'vùng in thật phải có 3 cột KTV sau khi bật');
+    assert.ok($('print-area').textContent.includes('BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM'), 'vùng in thật phải có đầu trang đơn vị');
+    /* Khôi phục mặc định */
+    $('btn-printcfg').click();
+    $('btn-pcfg-reset').click();
+    assert.strictEqual($('pcfg-org').value, '', 'khôi phục mặc định phải xóa tên đơn vị');
+    assert.ok(!$('pcfg-preview').textContent.includes('KTV nhận'), 'khôi phục mặc định phải tắt lại cột KTV');
+    $('btn-pcfg-back').click();
   });
 
   test('sao lưu kèm danh mục: file sao lưu có "types" thì phục hồi áp dụng cả danh mục của file (chạy trước test sao lưu cuối)', () => {

@@ -273,4 +273,21 @@ test('gộp dữ liệu: file hỏng bị từ chối và dữ liệu hiện t�
   assert.deepStrictEqual(s.getAll().map((r) => r.testId), ['KEEP2']);
 });
 
+test('dấu KTV (v27): add/update lưu 3 tên; file sao lưu CŨ không có dấu thì phục hồi cho dấu rỗng, file MỚI giữ nguyên dấu', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'KTV1', typeId: 'sp', results: {}, receiver: 'Nguyễn Văn A' });
+  assert.strictEqual(r.record.receiver, 'Nguyễn Văn A');
+  assert.strictEqual(r.record.performer, '', 'chưa truyền thì dấu là chuỗi rỗng');
+  const u = s.update(r.record.uid, { performer: 'Lê Thị Bình', releaser: 'Phạm Văn Cường' });
+  assert.strictEqual(u.record.performer, 'Lê Thị Bình');
+  assert.strictEqual(u.record.receiver, 'Nguyễn Văn A', 'update không truyền receiver thì giữ nguyên');
+  const parsed = s.parseBackup(s.exportBackup());
+  assert.strictEqual(parsed.records[0].releaser, 'Phạm Văn Cường', 'dấu đi theo file sao lưu');
+  const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x1', testId: 'OLD1', typeId: 'sp', results: {}, note: '', releaseAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
+  const parsedOld = s.parseBackup(oldFile);
+  assert.strictEqual(parsedOld.records[0].receiver, '', 'file cũ thiếu dấu -> mặc định rỗng, không lỗi');
+  assert.strictEqual(parsedOld.records[0].performer, '');
+  assert.strictEqual(parsedOld.records[0].releaser, '');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

@@ -43,8 +43,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form', 'types', 'typeform'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform';
+  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export');
@@ -142,7 +142,7 @@ function handleListClick(e) {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
       if (rec && store.statusOf(rec) === 'pending-release') {
-        const res = store.update(uid, { releaseAt: new Date().toISOString() });
+        const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
         if (res.ok) { toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
         else toast(res.errors.join('. '));
       }
@@ -201,6 +201,15 @@ function openSummary(uid) {
   }
   $('sum-created').textContent = fmtFull(rec.createdAt);
   $('sum-release').textContent = rec.releaseAt ? fmtFull(rec.releaseAt) : 'Chưa phát hành';
+  /* Dấu KTV (v27): chỉ hiện khối khi có ít nhất một dấu */
+  const hasStaff = !!(rec.receiver || rec.performer || rec.releaser);
+  $('sum-staff').classList.toggle('hidden', !hasStaff);
+  if (hasStaff) {
+    $('sum-receiver').textContent = rec.receiver || '—';
+    $('sum-performer').textContent = rec.performer || '—';
+    $('sum-releaser').textContent = rec.releaser || '—';
+  }
+  $('btn-summary-unrelease').classList.toggle('hidden', status !== 'released');
   $('summary-modal').classList.remove('hidden');
 }
 
@@ -215,9 +224,23 @@ function releaseFromSummary() {
   if (!summaryUid) return;
   const rec = store.getByUid(summaryUid);
   if (!rec || store.statusOf(rec) !== 'pending-release') return;
-  const res = store.update(rec.uid, { releaseAt: new Date().toISOString() });
+  const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
   if (!res.ok) { toast(res.errors.join('. ')); return; }
   toast('Đã phát hành kết quả ' + rec.testId);
+  closeSummary();
+  refreshCurrent();
+}
+
+/* Hủy phát hành từ trang xem — có hỏi xác nhận 1 lần (v27): xóa giờ phát hành
+   và dấu KTV phát hành, bản ghi quay về Chờ phát hành */
+function unreleaseFromSummary() {
+  if (!summaryUid) return;
+  const rec = store.getByUid(summaryUid);
+  if (!rec || store.statusOf(rec) !== 'released') return;
+  if (!confirm('Hủy phát hành kết quả ' + rec.testId + '? Mẫu sẽ quay về trạng thái Chờ phát hành.')) return;
+  const res = store.update(rec.uid, { releaseAt: null, releaser: '' });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  toast('Đã hủy phát hành kết quả ' + rec.testId);
   closeSummary();
   refreshCurrent();
 }
@@ -406,14 +429,14 @@ function applyExport() {
       ? 'Chưa có mẫu nào đã phát hành trong danh sách này nên chưa tính được thời gian trả kết quả.'
       : 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
         ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes));
-  $('print-title').textContent = 'Danh sách kết quả xét nghiệm' +
-    (c.from || c.to ? ' (' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '');
-  $('print-table-body').innerHTML = recs.map((rec, i) => {
-    const type = getTestType(rec.typeId);
-    return '<tr><td>' + (i + 1) + '</td><td>' + esc(rec.testId) + '</td><td>' + esc(type ? type.name : rec.typeId) + '</td>' +
-      '<td>' + resultSummary(rec) + '</td><td>' + esc(rec.note || '') + '</td>' +
-      '<td>' + esc(fmtList(rec.createdAt)) + '</td><td>' + esc(rec.releaseAt ? fmtList(rec.releaseAt) : '—') + '</td></tr>';
-  }).join('');
+  /* Vùng in: dựng theo cấu hình bản in của người dùng (v27) */
+  const rangeText = (c.from || c.to) ? '(' + (c.from || '...') + ' đến ' + (c.to || '...') + ')' : '';
+  const tatText = (tat.count > 0)
+    ? 'Đã phát hành ' + tat.count + '/' + recs.length + ' mẫu · Thời gian trả kết quả: trung bình ' + fmtDur(tat.avgMinutes) +
+      ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes)
+    : '';
+  $('print-area').innerHTML = renderSheet(printSettings, recs, { rangeText, tatText });
+  updatePrintPageStyle();
   return recs;
 }
 
@@ -994,6 +1017,10 @@ function openForm(uid) {
   $('input-note').value = rec ? rec.note : '';
   $('input-release').value = rec ? toLocalInput(rec.releaseAt) : '';
   $('created-display').textContent = fmtFull(formState.createdAt);
+  /* Khối KTV (v27): mẫu mới -> KTV nhận điền sẵn người đang trực; mẫu cũ -> dấu đã lưu */
+  fillStaffSelect($('input-receiver'), rec ? (rec.receiver || '') : currentOperator);
+  fillStaffSelect($('input-performer'), rec ? (rec.performer || '') : '');
+  fillStaffSelect($('input-releaser'), rec ? (rec.releaser || '') : '');
   hideFormError();
   renderFields();
   switchView('form');
@@ -1010,6 +1037,7 @@ function applyQuickTemplate(qi) {
     formState.results[f.key] = Object.prototype.hasOwnProperty.call(q.values, f.key) ? q.values[f.key] : '';
   });
   renderFields();
+  noteResultEdited();
   const btn = $('fields-container').querySelector('[data-quick="' + qi + '"]');
   if (btn) btn.classList.add('flash');
 }
@@ -1036,7 +1064,7 @@ function renderFields() {
   }).join('');
 
   wrap.querySelectorAll('[data-field]').forEach((inp) => {
-    inp.addEventListener('input', () => { formState.results[inp.dataset.field] = inp.value; });
+    inp.addEventListener('input', () => { formState.results[inp.dataset.field] = inp.value; noteResultEdited(); });
     wrapWithMic(inp); /* ô nhập chữ có thêm nút micro khi trình duyệt hỗ trợ giọng nói */
   });
   wrap.querySelectorAll('[data-chip]').forEach((btn) => {
@@ -1045,6 +1073,7 @@ function renderFields() {
       formState.results[key] = formState.results[key] === btn.dataset.value ? '' : btn.dataset.value;
       wrap.querySelectorAll('[data-chip="' + key + '"]').forEach((b) =>
         b.classList.toggle('selected', formState.results[key] === b.dataset.value));
+      noteResultEdited();
     });
   });
   wrap.querySelectorAll('[data-quick]').forEach((btn) => {
@@ -1069,7 +1098,14 @@ function saveForm() {
     releaseAt: releaseVal ? new Date(releaseVal).toISOString() : null,
   };
   /* Đã có kết quả thì đồng hồ bấm giờ của mẫu tự xóa */
-  if (store.hasResult({ typeId: payload.typeId, results: payload.results })) payload.timerEndsAt = null;
+  const hasRes = store.hasResult({ typeId: payload.typeId, results: payload.results });
+  if (hasRes) payload.timerEndsAt = null;
+  /* Dấu KTV (v27): lấy từ 3 ô chọn trong form; ô thực hiện/phát hành để trống
+     thì tự lấy tên KTV trực; không có kết quả -> không có người thực hiện;
+     không có giờ phát hành -> không có người phát hành */
+  payload.receiver = $('input-receiver').value;
+  payload.performer = hasRes ? ($('input-performer').value || currentOperator) : '';
+  payload.releaser = payload.releaseAt ? ($('input-releaser').value || currentOperator) : '';
   const wasAdd = !formState.uid;
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
   if (!res.ok) {
@@ -1184,7 +1220,7 @@ function acceptScanCode(rawCode) {
     if (navigator.vibrate) navigator.vibrate(120);
     return false;
   }
-  const res = store.add({ testId: code, typeId, results: {} });
+  const res = store.add({ testId: code, typeId, results: {}, receiver: currentOperator });
   if (!res.ok) {
     setScanMsg(res.errors.join('. '), 'err');
     beepErr();
@@ -1301,9 +1337,413 @@ function closeScanner() {
   }
 }
 
+/* ================= Danh sách KTV + KTV trực (v27) =================
+   App không có tài khoản: nhiều KTV dùng chung máy theo ca. Một "KTV trực"
+   (người đang thao tác) được chọn 1 lần, nhớ giữa các phiên; mọi thao tác
+   nhận mẫu / lưu kết quả / phát hành đều đóng dấu tên người đó lên bản ghi. */
+const STAFF_KEY = 'labentry.staff.v1';
+const OPERATOR_KEY = 'labentry.operator.v1';
+let staffList = [];
+let currentOperator = '';
+
+function loadStaff() {
+  try {
+    const list = JSON.parse(localStorage.getItem(STAFF_KEY) || '[]');
+    staffList = Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x.trim()) : [];
+  } catch (e) { staffList = []; }
+  try { currentOperator = localStorage.getItem(OPERATOR_KEY) || ''; } catch (e) { currentOperator = ''; }
+}
+function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } }
+function persistOperator() { try { localStorage.setItem(OPERATOR_KEY, currentOperator); } catch (e) { /* bỏ qua */ } }
+
+function staffOptionsHTML(extraValues) {
+  const names = staffList.slice();
+  (extraValues || []).forEach((n) => { if (n && !names.includes(n)) names.push(n); });
+  return '<option value="">(chưa chọn)</option>' +
+    names.map((n) => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+}
+
+function renderOperatorControls() {
+  ['operator-select', 'scanner-operator-select'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.innerHTML = staffOptionsHTML([currentOperator]);
+    el.value = currentOperator;
+  });
+}
+
+function setOperator(name) {
+  currentOperator = name || '';
+  persistOperator();
+  renderOperatorControls();
+}
+
+/* Điền một ô chọn KTV trong form nhập: danh sách + giá trị hiện tại + người trực */
+function fillStaffSelect(el, value) {
+  if (!el) return;
+  el.innerHTML = staffOptionsHTML([value, currentOperator]);
+  el.value = value || '';
+}
+
+/* Sửa nội dung kết quả trong form -> KTV thực hiện tự chuyển sang người trực
+   đang sửa (đúng yêu cầu của Minh); người dùng vẫn đổi tay lại trong form được */
+function noteResultEdited() {
+  const sel = $('input-performer');
+  if (sel && currentOperator) sel.value = currentOperator;
+}
+
+function renderStaffList() {
+  const ul = $('staff-list');
+  ul.innerHTML = '';
+  staffList.forEach((name) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="staff-name">' + esc(name) + '</span>' +
+      (name === currentOperator ? '<span class="staff-current">đang trực</span>' : '') +
+      '<button type="button" class="mini-btn danger" data-staff-del="' + esc(name) + '">Xóa</button>';
+    ul.appendChild(li);
+  });
+  $('staff-empty').classList.toggle('hidden', staffList.length > 0);
+}
+
+function openStaffDialog() { renderStaffList(); $('staff-modal').classList.remove('hidden'); }
+function closeStaffDialog() { $('staff-modal').classList.add('hidden'); }
+
+function addStaffFromDialog() {
+  const inp = $('input-staff-name');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (staffList.some((n) => n.toLowerCase() === name.toLowerCase())) { toast('Đã có KTV này trong danh sách'); return; }
+  staffList.push(name);
+  persistStaff();
+  inp.value = '';
+  renderStaffList();
+  renderOperatorControls();
+  toast('Đã thêm KTV: ' + name);
+}
+
+function deleteStaff(name) {
+  staffList = staffList.filter((n) => n !== name);
+  persistStaff();
+  if (currentOperator === name) setOperator('');
+  renderStaffList();
+  renderOperatorControls();
+}
+
+/* ================= Tùy chỉnh bản in PDF (v27, đợt 1) =================
+   Cấu hình lưu ở localStorage (labentry.print.v1). Chưa có cấu hình ->
+   dùng mặc định = đúng bố cục bản in trước đây. renderSheet() dựng HTML
+   của tờ kết quả, dùng chung cho vùng in thật và khung xem trước. */
+const PRINT_KEY = 'labentry.print.v1';
+const PRINT_COLUMNS = [
+  { id: 'stt', label: 'STT' },
+  { id: 'testId', label: 'ID Xét Nghiệm' },
+  { id: 'type', label: 'Loại xét nghiệm' },
+  { id: 'results', label: 'Kết quả' },
+  { id: 'note', label: 'Ghi chú' },
+  { id: 'created', label: 'Ngày giờ nhập' },
+  { id: 'released', label: 'Ngày giờ phát hành' },
+  { id: 'status', label: 'Trạng thái' },
+  { id: 'wait', label: 'Thời gian chờ' },
+  { id: 'receiver', label: 'KTV nhận' },
+  { id: 'performer', label: 'KTV thực hiện' },
+  { id: 'releaser', label: 'KTV phát hành' },
+];
+const PRINT_DEFAULT_VISIBLE = ['stt', 'testId', 'type', 'results', 'note', 'created', 'released'];
+let printSettings = null;
+
+function defaultPrintSettings() {
+  return {
+    logo: '', logoPos: 'left', logoSize: 'm',
+    org: '', dept: '', address: '', phone: '', email: '',
+    headerLayout: 'side', divider: true,
+    title: 'Danh sách kết quả xét nghiệm', subtitle: true,
+    columns: PRINT_COLUMNS.map((c) => ({
+      id: c.id, label: c.label,
+      visible: PRINT_DEFAULT_VISIBLE.includes(c.id),
+      width: 0, align: c.id === 'stt' ? 'center' : 'left',
+    })),
+    pageSize: 'A4', orient: 'portrait', margin: 'normal',
+    font: 'arial', fontSize: '12.5', density: 'normal', borders: 'full',
+    footnote: '', printDate: false, tat: false,
+    sigs: [
+      { on: false, title: 'Người lập bảng', name: '' },
+      { on: false, title: 'Trưởng khoa', name: '' },
+      { on: false, title: '', name: '' },
+    ],
+  };
+}
+
+function loadPrintSettings() {
+  const def = defaultPrintSettings();
+  try {
+    const raw = localStorage.getItem(PRINT_KEY);
+    if (!raw) { printSettings = def; return printSettings; }
+    const saved = JSON.parse(raw);
+    const merged = Object.assign({}, def, saved);
+    /* Cột: dựng lại theo registry — cột có trong bản lưu thì lấy, thiếu thì mặc định */
+    const savedCols = Array.isArray(saved.columns) ? saved.columns : [];
+    merged.columns = PRINT_COLUMNS.map((reg) => {
+      const sc = savedCols.find((c) => c && c.id === reg.id);
+      const dc = def.columns.find((c) => c.id === reg.id);
+      return sc ? {
+        id: reg.id,
+        label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
+        visible: !!sc.visible,
+        width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
+        align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
+      } : dc;
+    });
+    if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+    printSettings = merged;
+  } catch (e) { printSettings = def; }
+  return printSettings;
+}
+
+function savePrintSettings() {
+  try { localStorage.setItem(PRINT_KEY, JSON.stringify(printSettings)); } catch (e) { /* logo quá lớn có thể làm đầy bộ nhớ */ }
+}
+
+function printCellValue(colId, rec, idx) {
+  const type = getTestType(rec.typeId);
+  switch (colId) {
+    case 'stt': return String(idx + 1);
+    case 'testId': return esc(rec.testId);
+    case 'type': return esc(type ? type.name : rec.typeId);
+    case 'results': return resultSummary(rec);
+    case 'note': return esc(rec.note || '');
+    case 'created': return esc(fmtList(rec.createdAt));
+    case 'released': return esc(rec.releaseAt ? fmtList(rec.releaseAt) : '—');
+    case 'status': return esc(STATUS_LABEL[store.statusOf(rec)]);
+    case 'wait': {
+      if (!rec.releaseAt) return '—';
+      const mins = Math.round((new Date(rec.releaseAt) - new Date(rec.createdAt)) / 60000);
+      return esc(isFinite(mins) && mins >= 0 ? fmtDur(mins) : '—');
+    }
+    case 'receiver': return esc(rec.receiver || '—');
+    case 'performer': return esc(rec.performer || '—');
+    case 'releaser': return esc(rec.releaser || '—');
+    default: return '';
+  }
+}
+
+/* Dựng HTML tờ kết quả theo cấu hình. opts: { rangeText, tatText } */
+function renderSheet(s, recs, opts) {
+  const o = opts || {};
+  const logoHtml = s.logo
+    ? '<img class="sh-logo sz-' + s.logoSize + '" src="' + s.logo + '" alt="">'
+    : '';
+  const contact = [s.address, s.phone, s.email].filter((x) => x && x.trim()).map(esc).join(' · ');
+  const infoHtml =
+    (s.org && s.org.trim() ? '<div class="sh-org">' + esc(s.org) + '</div>' : '') +
+    (s.dept && s.dept.trim() ? '<div class="sh-dept">' + esc(s.dept) + '</div>' : '') +
+    (contact ? '<div class="sh-contact">' + contact + '</div>' : '');
+  let headerHtml = '';
+  if (logoHtml || infoHtml) {
+    if (s.headerLayout === 'center' || s.logoPos === 'center') {
+      headerHtml = '<div class="sh-header center">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div></div>';
+    } else if (s.logoPos === 'right') {
+      headerHtml = '<div class="sh-header side"><div class="sh-info">' + infoHtml + '</div>' + logoHtml + '</div>';
+    } else {
+      headerHtml = '<div class="sh-header side">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div></div>';
+    }
+    if (s.divider) headerHtml += '<hr class="sh-divider">';
+  }
+  const cols = s.columns.filter((c) => c.visible);
+  const thead = '<tr>' + cols.map((c) =>
+    '<th style="text-align:' + c.align + (c.width > 0 ? ';width:' + c.width + '%' : '') + '">' + esc(c.label) + '</th>').join('') + '</tr>';
+  const tbody = recs.map((rec, i) =>
+    '<tr>' + cols.map((c) => '<td style="text-align:' + c.align + '">' + printCellValue(c.id, rec, i) + '</td>').join('') + '</tr>').join('');
+  const sigs = (s.sigs || []).filter((g) => g && g.on);
+  const sigHtml = sigs.length
+    ? '<div class="sh-sigs">' + sigs.map((g) =>
+      '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+      '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space"></div>' +
+      '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>').join('') + '</div>'
+    : '';
+  const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
+    ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
+      (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
+    : '';
+  return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px">' +
+    headerHtml +
+    '<h1 class="sh-title">' + esc(s.title || 'Danh sách kết quả xét nghiệm') + '</h1>' +
+    (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
+    (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
+    '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
+    sigHtml + footHtml + '</div>';
+}
+
+function updatePrintPageStyle() {
+  const el = $('print-page-style');
+  if (!el || !printSettings) return;
+  const mm = printSettings.margin === 'narrow' ? 10 : printSettings.margin === 'wide' ? 20 : 15;
+  el.textContent = '@page { size: ' + printSettings.pageSize + ' ' + printSettings.orient + '; margin: ' + mm + 'mm; }';
+}
+
+/* Dữ liệu mẫu cho khung xem trước của trang tùy chỉnh */
+function sampleSheetRecords() {
+  const now = Date.now();
+  const iso = (msAgo) => new Date(now - msAgo).toISOString();
+  return [
+    { uid: 'pv1', testId: '2611050001', typeId: 'soi-tuoi-huyet-trang',
+      results: { nam: '(+)', tapTrung: '', trichomonas: '', bachCau: '5-10/HPF', teBao: '', hongCau: '', clueCell: '', lactobacilli: '(++)', khac: '' },
+      note: '', releaseAt: iso(20 * 60000), receiver: 'Trần Văn An', performer: 'Lê Thị Bình', releaser: 'Phạm Văn Cường',
+      timerEndsAt: null, createdAt: iso(65 * 60000), updatedAt: iso(20 * 60000) },
+    { uid: 'pv2', testId: '2611050002', typeId: 'mau-an',
+      results: { ketQua: 'Âm tính' }, note: '', releaseAt: null,
+      receiver: 'Trần Văn An', performer: 'Lê Thị Bình', releaser: '',
+      timerEndsAt: null, createdAt: iso(30 * 60000), updatedAt: iso(28 * 60000) },
+    { uid: 'pv3', testId: '2611050003', typeId: 'cao-tim-nam',
+      results: {}, note: 'Mẫu hơi mờ', releaseAt: null,
+      receiver: 'Trần Văn An', performer: '', releaser: '',
+      timerEndsAt: null, createdAt: iso(10 * 60000), updatedAt: iso(10 * 60000) },
+  ];
+}
+
+function renderPrintPreview() {
+  $('pcfg-preview').innerHTML = renderSheet(printSettings, sampleSheetRecords(), {
+    rangeText: '(01/11/2026 đến 05/11/2026)',
+    tatText: 'Đã phát hành 1/3 mẫu · Thời gian trả kết quả: trung bình 45 phút · nhanh nhất 45 phút · lâu nhất 45 phút',
+  });
+}
+
+function fillPrintCfgControls() {
+  const s = printSettings;
+  $('pcfg-logo-thumb').src = s.logo || '';
+  $('pcfg-logo-thumb').classList.toggle('hidden', !s.logo);
+  $('btn-pcfg-logo-remove').classList.toggle('hidden', !s.logo);
+  $('pcfg-logo-pos').value = s.logoPos;
+  $('pcfg-logo-size').value = s.logoSize;
+  $('pcfg-org').value = s.org; $('pcfg-dept').value = s.dept;
+  $('pcfg-address').value = s.address; $('pcfg-phone').value = s.phone; $('pcfg-email').value = s.email;
+  $('pcfg-header-layout').value = s.headerLayout;
+  $('pcfg-divider').checked = !!s.divider;
+  $('pcfg-title').value = s.title;
+  $('pcfg-subtitle').checked = !!s.subtitle;
+  $('pcfg-pagesize').value = s.pageSize;
+  $('pcfg-orient').value = s.orient;
+  $('pcfg-margin').value = s.margin;
+  $('pcfg-font').value = s.font;
+  $('pcfg-fontsize').value = String(s.fontSize);
+  $('pcfg-density').value = s.density;
+  $('pcfg-borders').value = s.borders;
+  $('pcfg-footnote').value = s.footnote;
+  $('pcfg-printdate').checked = !!s.printDate;
+  $('pcfg-tat').checked = !!s.tat;
+  s.sigs.forEach((g, i) => {
+    $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
+    $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
+    $('pcfg-sig' + (i + 1) + '-name').value = g.name || '';
+  });
+  renderPrintCfgColumns();
+}
+
+function renderPrintCfgColumns() {
+  const wrap = $('pcfg-columns');
+  wrap.innerHTML = '';
+  printSettings.columns.forEach((col, i) => {
+    const row = document.createElement('div');
+    row.className = 'pcfg-col';
+    row.innerHTML =
+      '<label class="check"><input type="checkbox" class="pc-visible"' + (col.visible ? ' checked' : '') + '></label>' +
+      '<input type="text" class="pc-label" value="' + esc(col.label) + '" aria-label="Tên cột">' +
+      '<input type="number" class="pc-width" min="0" max="60" step="1" value="' + (col.width || 0) + '" title="Độ rộng % (0 = tự động)" aria-label="Độ rộng %">' +
+      '<select class="pc-align" aria-label="Căn lề"><option value="left">Trái</option><option value="center">Giữa</option><option value="right">Phải</option></select>' +
+      '<span class="pc-moves">' +
+      '<button type="button" class="mini-btn pc-up" title="Lên">↑</button>' +
+      '<button type="button" class="mini-btn pc-down" title="Xuống">↓</button></span>';
+    row.querySelector('.pc-align').value = col.align;
+    const upd = () => { savePrintSettings(); renderPrintPreview(); updatePrintPageStyle(); };
+    row.querySelector('.pc-visible').addEventListener('change', (e) => { col.visible = e.target.checked; upd(); });
+    row.querySelector('.pc-label').addEventListener('input', (e) => { col.label = e.target.value; upd(); });
+    row.querySelector('.pc-width').addEventListener('input', (e) => { col.width = Math.max(0, Math.min(60, Number(e.target.value) || 0)); upd(); });
+    row.querySelector('.pc-align').addEventListener('change', (e) => { col.align = e.target.value; upd(); });
+    row.querySelector('.pc-up').addEventListener('click', () => {
+      if (i === 0) return;
+      const t = printSettings.columns[i - 1]; printSettings.columns[i - 1] = col; printSettings.columns[i] = t;
+      savePrintSettings(); renderPrintCfgColumns(); renderPrintPreview();
+    });
+    row.querySelector('.pc-down').addEventListener('click', () => {
+      if (i === printSettings.columns.length - 1) return;
+      const t = printSettings.columns[i + 1]; printSettings.columns[i + 1] = col; printSettings.columns[i] = t;
+      savePrintSettings(); renderPrintCfgColumns(); renderPrintPreview();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+function openPrintCfg() {
+  fillPrintCfgControls();
+  renderPrintPreview();
+  switchView('printcfg');
+}
+
+/* Nén ảnh logo về tối đa 360px rồi lưu dạng data URL (PNG; quá lớn thì JPEG) */
+function handleLogoFile(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    const max = 360;
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.width * scale));
+    cv.height = Math.max(1, Math.round(img.height * scale));
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    URL.revokeObjectURL(url);
+    let data = cv.toDataURL('image/png');
+    if (data.length > 340000) data = cv.toDataURL('image/jpeg', 0.85);
+    printSettings.logo = data;
+    savePrintSettings();
+    fillPrintCfgControls();
+    renderPrintPreview();
+    toast('Đã đặt logo cho bản in');
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('Không đọc được ảnh đã chọn'); };
+  img.src = url;
+}
+
+function bindPrintCfg() {
+  const upd = () => { savePrintSettings(); renderPrintPreview(); updatePrintPageStyle(); };
+  const txt = (id, key) => $(id).addEventListener('input', () => { printSettings[key] = $(id).value; upd(); });
+  const sel = (id, key) => $(id).addEventListener('change', () => { printSettings[key] = $(id).value; upd(); });
+  const chk = (id, key) => $(id).addEventListener('change', () => { printSettings[key] = $(id).checked; upd(); });
+  sel('pcfg-logo-pos', 'logoPos'); sel('pcfg-logo-size', 'logoSize');
+  txt('pcfg-org', 'org'); txt('pcfg-dept', 'dept'); txt('pcfg-address', 'address');
+  txt('pcfg-phone', 'phone'); txt('pcfg-email', 'email'); txt('pcfg-title', 'title');
+  sel('pcfg-header-layout', 'headerLayout'); chk('pcfg-divider', 'divider'); chk('pcfg-subtitle', 'subtitle');
+  sel('pcfg-pagesize', 'pageSize'); sel('pcfg-orient', 'orient'); sel('pcfg-margin', 'margin');
+  sel('pcfg-font', 'font'); sel('pcfg-fontsize', 'fontSize'); sel('pcfg-density', 'density'); sel('pcfg-borders', 'borders');
+  txt('pcfg-footnote', 'footnote'); chk('pcfg-printdate', 'printDate'); chk('pcfg-tat', 'tat');
+  printSettings.sigs.forEach((g, i) => {
+    $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
+    $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
+    $('pcfg-sig' + (i + 1) + '-name').addEventListener('input', (e) => { g.name = e.target.value; upd(); });
+  });
+  $('btn-pcfg-logo').addEventListener('click', () => $('pcfg-logo-file').click());
+  $('pcfg-logo-file').addEventListener('change', (e) => { handleLogoFile(e.target.files && e.target.files[0]); e.target.value = ''; });
+  $('btn-pcfg-logo-remove').addEventListener('click', () => {
+    printSettings.logo = '';
+    savePrintSettings(); fillPrintCfgControls(); renderPrintPreview();
+  });
+  $('btn-pcfg-reset').addEventListener('click', () => {
+    if (!confirm('Khôi phục bố cục bản in về mặc định ban đầu? Mọi tùy chỉnh (logo, cột, chữ ký...) sẽ bị xóa.')) return;
+    printSettings = defaultPrintSettings();
+    savePrintSettings(); fillPrintCfgControls(); renderPrintPreview(); updatePrintPageStyle();
+    toast('Đã khôi phục bố cục bản in mặc định');
+  });
+  $('btn-pcfg-print').addEventListener('click', () => { applyExport(); window.print(); });
+  $('btn-pcfg-back').addEventListener('click', () => switchView('export'));
+  $('btn-printcfg').addEventListener('click', openPrintCfg);
+}
+
 /* ================= Khởi tạo ================= */
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
+  loadStaff(); /* danh sách KTV + KTV trực đã lưu */
+  loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
+  renderOperatorControls();
+  bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
@@ -1349,6 +1789,17 @@ function init() {
 
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
+  $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
+  $('operator-select').addEventListener('change', () => setOperator($('operator-select').value));
+  $('scanner-operator-select').addEventListener('change', () => setOperator($('scanner-operator-select').value));
+  $('btn-staff-manage').addEventListener('click', openStaffDialog);
+  $('btn-staff-close').addEventListener('click', closeStaffDialog);
+  $('btn-staff-add').addEventListener('click', addStaffFromDialog);
+  $('input-staff-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addStaffFromDialog(); } });
+  $('staff-list').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-staff-del]');
+    if (b) deleteStaff(b.dataset.staffDel);
+  });
   $('btn-summary-release').addEventListener('click', releaseFromSummary);
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 

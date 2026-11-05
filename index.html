@@ -11,8 +11,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=26">
-<link rel="stylesheet" href="print.css?v=26">
+<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="print.css?v=27">
+<style id="print-page-style"></style>
 </head>
 <body>
 
@@ -22,7 +23,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v26</span>
+    <span class="app-version">LabEntry v27</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -47,6 +48,12 @@
     <span id="selected-count">Đã chọn 0</span>
     <button id="btn-delete-selected" class="text-btn danger">Xóa đã chọn</button>
     <button id="btn-cancel-select" class="text-btn">Đóng</button>
+  </div>
+
+  <div id="operator-bar" class="operator-bar">
+    <label for="operator-select">👤 KTV trực:</label>
+    <select id="operator-select"></select>
+    <button type="button" id="btn-staff-manage" class="mini-btn">Danh sách KTV</button>
   </div>
 
   <ul id="list-today" class="record-list"></ul>
@@ -113,6 +120,7 @@
       <button type="button" id="btn-apply-filter" class="primary-btn">Lọc</button>
       <button type="button" id="btn-print" class="primary-btn outline">Xuất PDF</button>
       <button type="button" id="btn-export-csv" class="primary-btn outline">Xuất CSV</button>
+      <button type="button" id="btn-printcfg" class="primary-btn outline">🎨 Tùy chỉnh bản in</button>
     </div>
   </form>
   <div id="export-count" class="export-count"></div>
@@ -224,6 +232,15 @@
       <input id="input-release" type="datetime-local">
     </div>
 
+    <div class="form-row form-row-stack">
+      <span class="form-label">Kỹ thuật viên</span>
+      <div class="ktv-grid">
+        <label class="ktv-item"><span>KTV nhận</span><select id="input-receiver"></select></label>
+        <label class="ktv-item"><span>KTV thực hiện</span><select id="input-performer"></select></label>
+        <label class="ktv-item"><span>KTV phát hành</span><select id="input-releaser"></select></label>
+      </div>
+    </div>
+
     <div class="form-row">
       <span class="form-label">Ngày Giờ</span>
       <div id="created-display" class="created-display"></div>
@@ -235,6 +252,127 @@
   <div class="form-actions">
     <button id="btn-cancel" class="cancel-btn">Hủy</button>
     <button id="btn-save" class="save-btn">Lưu</button>
+  </div>
+</section>
+
+<!-- ============ TÙY CHỈNH BẢN IN PDF ============ -->
+<section id="view-printcfg" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-pcfg-back" class="icon-btn" title="Quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Tùy chỉnh bản in PDF</span>
+    <span class="toolbar-spacer"></span>
+  </header>
+
+  <div class="pcfg-preview-head">Xem trước (dữ liệu mẫu — bản in thật dùng dữ liệu đang lọc ở tab Xuất)</div>
+  <div class="pcfg-preview-wrap"><div id="pcfg-preview"></div></div>
+
+  <details class="pcfg-group" open>
+    <summary>Đầu trang &amp; tiêu đề</summary>
+    <div class="pcfg-body">
+      <div class="pcfg-row">
+        <span class="pcfg-label">Logo</span>
+        <img id="pcfg-logo-thumb" class="pcfg-logo-thumb hidden" alt="Logo">
+        <button type="button" id="btn-pcfg-logo" class="primary-btn outline small">Chọn ảnh logo…</button>
+        <button type="button" id="btn-pcfg-logo-remove" class="mini-btn danger hidden">Bỏ logo</button>
+        <input type="file" id="pcfg-logo-file" accept="image/*" class="hidden">
+      </div>
+      <label class="pcfg-row"><span class="pcfg-label">Vị trí logo</span>
+        <select id="pcfg-logo-pos">
+          <option value="left">Bên trái</option>
+          <option value="center">Ở giữa (trên cùng)</option>
+          <option value="right">Bên phải</option>
+        </select>
+        <select id="pcfg-logo-size">
+          <option value="s">Cỡ nhỏ</option>
+          <option value="m">Cỡ vừa</option>
+          <option value="l">Cỡ lớn</option>
+        </select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Tên đơn vị</span><input id="pcfg-org" type="text" placeholder="Vd: BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM"></label>
+      <label class="pcfg-row"><span class="pcfg-label">Tên khoa/phòng</span><input id="pcfg-dept" type="text" placeholder="Vd: Khoa Xét nghiệm"></label>
+      <label class="pcfg-row"><span class="pcfg-label">Địa chỉ</span><input id="pcfg-address" type="text" placeholder="Địa chỉ đơn vị (để trống = không in)"></label>
+      <label class="pcfg-row"><span class="pcfg-label">Điện thoại</span><input id="pcfg-phone" type="text" placeholder="Số điện thoại (để trống = không in)"></label>
+      <label class="pcfg-row"><span class="pcfg-label">Email</span><input id="pcfg-email" type="text" placeholder="Email (để trống = không in)"></label>
+      <label class="pcfg-row"><span class="pcfg-label">Kiểu đầu trang</span>
+        <select id="pcfg-header-layout">
+          <option value="side">Logo một bên, chữ bên cạnh</option>
+          <option value="center">Tất cả căn giữa</option>
+        </select>
+      </label>
+      <label class="pcfg-row check"><input id="pcfg-divider" type="checkbox"> <span>Đường kẻ ngang dưới đầu trang</span></label>
+      <label class="pcfg-row"><span class="pcfg-label">Tiêu đề bản in</span><input id="pcfg-title" type="text"></label>
+      <label class="pcfg-row check"><input id="pcfg-subtitle" type="checkbox"> <span>Hiện khoảng ngày đang lọc dưới tiêu đề</span></label>
+    </div>
+  </details>
+
+  <details class="pcfg-group">
+    <summary>Cột bảng kết quả</summary>
+    <div class="pcfg-body">
+      <p class="pcfg-hint">Bật/tắt cột, sửa tên cột, đổi thứ tự bằng nút ↑ ↓, chỉnh độ rộng tương đối và căn lề. Cột KTV lấy tên đã đóng dấu trên từng mẫu.</p>
+      <div id="pcfg-columns"></div>
+    </div>
+  </details>
+
+  <details class="pcfg-group">
+    <summary>Khổ giấy &amp; kiểu dáng</summary>
+    <div class="pcfg-body">
+      <label class="pcfg-row"><span class="pcfg-label">Khổ giấy</span>
+        <select id="pcfg-pagesize"><option value="A4">A4</option><option value="A5">A5</option></select>
+        <select id="pcfg-orient"><option value="portrait">Dọc</option><option value="landscape">Ngang</option></select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Lề trang</span>
+        <select id="pcfg-margin"><option value="narrow">Hẹp (10mm)</option><option value="normal">Vừa (15mm)</option><option value="wide">Rộng (20mm)</option></select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Phông chữ</span>
+        <select id="pcfg-font"><option value="times">Times New Roman</option><option value="arial">Arial</option></select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Cỡ chữ bảng</span>
+        <select id="pcfg-fontsize">
+          <option value="11">11</option><option value="12">12</option><option value="12.5">12.5</option>
+          <option value="13">13</option><option value="14">14</option>
+        </select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Mật độ dòng</span>
+        <select id="pcfg-density"><option value="compact">Gọn</option><option value="normal">Vừa</option><option value="roomy">Thoáng</option></select>
+      </label>
+      <label class="pcfg-row"><span class="pcfg-label">Kẻ bảng</span>
+        <select id="pcfg-borders"><option value="full">Kẻ đầy đủ</option><option value="rows">Chỉ đường ngang</option><option value="none">Không kẻ</option></select>
+      </label>
+    </div>
+  </details>
+
+  <details class="pcfg-group">
+    <summary>Chân trang &amp; chữ ký</summary>
+    <div class="pcfg-body">
+      <label class="pcfg-row"><span class="pcfg-label">Ghi chú chân trang</span><input id="pcfg-footnote" type="text" placeholder="Dòng chữ nhỏ cuối trang (để trống = không in)"></label>
+      <label class="pcfg-row check"><input id="pcfg-printdate" type="checkbox"> <span>Hiện ngày giờ in ở chân trang</span></label>
+      <label class="pcfg-row check"><input id="pcfg-tat" type="checkbox"> <span>Đưa dòng thống kê thời gian trả kết quả (TAT) vào bản in</span></label>
+      <div class="pcfg-sig-block">
+        <div class="pcfg-sig-title">Khối chữ ký cuối bảng (tối đa 3 ô)</div>
+        <div class="pcfg-sig-row">
+          <label class="check"><input id="pcfg-sig1-on" type="checkbox"></label>
+          <input id="pcfg-sig1-title" type="text" placeholder="Chức danh 1, vd: Người lập bảng">
+          <input id="pcfg-sig1-name" type="text" placeholder="Họ tên 1">
+        </div>
+        <div class="pcfg-sig-row">
+          <label class="check"><input id="pcfg-sig2-on" type="checkbox"></label>
+          <input id="pcfg-sig2-title" type="text" placeholder="Chức danh 2, vd: Trưởng khoa">
+          <input id="pcfg-sig2-name" type="text" placeholder="Họ tên 2">
+        </div>
+        <div class="pcfg-sig-row">
+          <label class="check"><input id="pcfg-sig3-on" type="checkbox"></label>
+          <input id="pcfg-sig3-title" type="text" placeholder="Chức danh 3">
+          <input id="pcfg-sig3-name" type="text" placeholder="Họ tên 3">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <div class="form-actions padded-actions">
+    <button type="button" id="btn-pcfg-reset" class="primary-btn outline">Khôi phục mặc định</button>
+    <button type="button" id="btn-pcfg-print" class="primary-btn">In thử với dữ liệu đang lọc</button>
   </div>
 </section>
 
@@ -272,6 +410,10 @@
     <div class="scanner-type-row">
       <label for="scanner-type-select">Loại xét nghiệm</label>
       <select id="scanner-type-select"></select>
+    </div>
+    <div class="scanner-type-row">
+      <label for="scanner-operator-select">KTV nhận mẫu</label>
+      <select id="scanner-operator-select"></select>
     </div>
     <div class="wedge-note">⌨ Có máy quét mã vạch cầm tay (USB/Bluetooth)? Cứ bắn thẳng — app tự nhận như camera.</div>
     <div id="scan-frame" class="scan-frame">
@@ -312,12 +454,34 @@
       <div>Nhận mẫu: <b id="sum-created"></b></div>
       <div>Phát hành: <b id="sum-release"></b></div>
     </div>
+    <div id="sum-staff" class="summary-meta hidden">
+      <div>KTV nhận: <b id="sum-receiver"></b></div>
+      <div>KTV thực hiện: <b id="sum-performer"></b></div>
+      <div>KTV phát hành: <b id="sum-releaser"></b></div>
+    </div>
     <div class="summary-actions">
       <button id="btn-summary-release" class="primary-btn release-action hidden">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5M21 3l-6.8 18-3.7-7.5L3 9.8z"/></svg>
         Phát hành kết quả
       </button>
+      <button id="btn-summary-unrelease" class="secondary-btn danger hidden">Hủy phát hành</button>
       <button id="btn-summary-close" class="secondary-btn">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div id="staff-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3 class="staff-title">Danh sách kỹ thuật viên</h3>
+    <ul id="staff-list" class="staff-list"></ul>
+    <div id="staff-empty" class="empty-msg hidden">Chưa có KTV nào — thêm tên ở ô dưới.</div>
+    <div class="staff-add-row">
+      <input id="input-staff-name" type="text" placeholder="Họ tên KTV mới" autocomplete="off">
+      <button type="button" id="btn-staff-add" class="primary-btn small">Thêm</button>
+    </div>
+    <p class="staff-note">Tên KTV được dùng để đóng dấu KTV nhận / thực hiện / phát hành trên từng mẫu. Xóa một tên khỏi danh sách không làm đổi các mẫu đã đóng dấu.</p>
+    <div class="summary-actions">
+      <button id="btn-staff-close" class="secondary-btn">Đóng</button>
     </div>
   </div>
 </div>
@@ -325,18 +489,11 @@
 <div id="toast" class="toast hidden"></div>
 
 <!-- ============ VÙNG IN PDF ============ -->
-<div id="print-area">
-  <h1 id="print-title">Danh sách kết quả xét nghiệm</h1>
-  <table>
-    <thead>
-      <tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Kết quả</th><th>Ghi chú</th><th>Ngày giờ nhập</th><th>Ngày giờ phát hành</th></tr>
-    </thead>
-    <tbody id="print-table-body"></tbody>
-  </table>
+<div id="print-area"></div>
 </div>
 
-<script src="config.js?v=26"></script>
-<script src="store.js?v=26"></script>
-<script src="app.js?v=26"></script>
+<script src="config.js?v=27"></script>
+<script src="store.js?v=27"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

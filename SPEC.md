@@ -145,6 +145,23 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - Tab Quản lý đang hiện khung **Chờ phát hành** (xem F3/v23) mà có **mẫu mới được nhận** thì khung tự chuyển về **Chưa kết quả** để mẫu mới hiện ngay: áp dụng cho cả ba đường nhận mẫu — quét liên tục (mỗi mã nhận thành công trong phiên, kể cả khi phiên quét mở từ tab khác rồi quay về Quản lý), và lưu form ở chế độ **thêm mới** khi đang đứng ở tab Quản lý.
 - Chỉ áp dụng khi *thêm mới thành công*; sửa bản ghi cũ hoặc quét trùng (bị bỏ qua) không làm chuyển khung.
 
+### F17 — Đóng dấu KTV theo thao tác + Hủy phát hành (bổ sung theo yêu cầu của Minh, 2026-11-05)
+
+- Bản ghi có 3 trường dấu tên: `receiver` (KTV nhận), `performer` (KTV thực hiện), `releaser` (KTV phát hành) — chuỗi tên chụp tại thời điểm thao tác, `''` = chưa ghi. File sao lưu cũ không có các trường này vẫn phục hồi bình thường (dấu mặc định rỗng); dấu đi theo bản ghi khi sao lưu/gộp.
+- **Danh sách KTV** (localStorage `labentry.staff.v1`): quản lý trong hộp thoại mở từ thanh "KTV trực" ở tab Kết quả hôm nay (thêm/xóa tên). **KTV trực** (localStorage `labentry.operator.v1`) là người đang thao tác: chọn một lần, nhớ giữa các phiên, đổi 1 chạm; ô chọn có ở tab Hôm nay và trong màn hình quét (đồng bộ hai nơi).
+- **Quy tắc đóng dấu:** tạo bản ghi (quét liên tục/thêm tay) → `receiver` = KTV trực; **mỗi lần lưu mà bản ghi có kết quả** → `performer` = KTV trực lúc lưu (đang sửa kết quả trong form thì ô KTV thực hiện tự chuyển sang người trực; xóa hết kết quả → xóa dấu thực hiện); đặt giờ phát hành (nút trên dòng / nút trong Xem / lưu form) → `releaser` = KTV trực lúc phát hành. Form nhập có khối "Kỹ thuật viên" gồm 3 ô chọn để **sửa tay** từng dấu (nhập hộ/sửa sai). Chưa chọn KTV trực thì không chặn thao tác nào — dấu để trống, in ra "—".
+- **Hủy phát hành:** nút "Hủy phát hành" trong trang Xem (hiện khi đã phát hành), **hỏi xác nhận 1 lần**; hủy xong xóa giờ phát hành + dấu `releaser`, bản ghi quay về Chờ phát hành, trang Xem tự thoát. Phát hành xong trang Xem cũng tự thoát (F3, từ v26). Trang Xem hiện khối KTV khi bản ghi có ít nhất một dấu.
+
+### F18 — Tùy chỉnh bố cục bản in PDF, đợt 1 (theo thiết kế PRINT-LAYOUT-DESIGN.md đã được Minh duyệt, 2026-11-05)
+
+- Cấu hình lưu ở localStorage `labentry.print.v1`; chưa có cấu hình thì dùng **mặc định = đúng bố cục bản in cũ** (7 cột, Arial 12.5, không đầu trang/chữ ký). `renderSheet(settings, records)` dựng toàn bộ tờ kết quả (dùng cho cả vùng in thật và xem trước).
+- **Đầu trang:** logo (tải ảnh, tự nén ≤360px thành data URL; vị trí trái/giữa/phải; cỡ nhỏ/vừa/lớn), tên đơn vị, khoa/phòng, địa chỉ, điện thoại, email (dòng nào trống thì không in), kiểu xếp logo-một-bên/căn giữa, đường kẻ dưới đầu trang, tiêu đề bản in tùy ý, phụ đề khoảng ngày.
+- **Cột:** 12 cột khả dụng (STT, ID, Loại, Kết quả gộp, Ghi chú, Giờ nhập, Giờ phát hành, Trạng thái, Thời gian chờ, KTV nhận/thực hiện/phát hành) — mỗi cột bật/tắt, đổi tên, đổi thứ tự (↑↓), độ rộng % (0 = tự động), căn lề. Ba cột KTV mặc định **tắt**.
+- **Kiểu dáng:** khổ A4/A5, hướng dọc/ngang (sinh `@page` động), lề hẹp/vừa/rộng, font Times/Arial, cỡ chữ, mật độ dòng, kẻ bảng đầy đủ/ngang/không.
+- **Chân trang & chữ ký:** dòng ghi chú tự do, ngày giờ in, dòng thống kê TAT vào bản in (bật/tắt), tối đa 3 ô chữ ký (bật/tắt, chức danh, họ tên).
+- **Trang chỉnh** (nút "🎨 Tùy chỉnh bản in" ở tab Xuất): xem trước trực tiếp bằng dữ liệu mẫu, thay đổi áp dụng + lưu ngay, nút In thử (in với dữ liệu đang lọc), nút Khôi phục mặc định.
+- Đợt 2 (chưa làm): tách cột kết quả theo trường, nhiều mẫu bố cục (presets), bố cục đi kèm file sao lưu, phân nhóm theo ngày/loại, màu nền/sọc xen kẽ.
+
 ### F4 — Tab "Lọc & Xuất kết quả PDF"
 
 - Lọc theo: khoảng ngày, loại xét nghiệm, trạng thái, ID.
