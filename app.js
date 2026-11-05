@@ -525,14 +525,12 @@ function importBackupText(text, mode) {
   let fileLayout = null;
   let fileStaff = null;
   let filePresets = null;
-  let fileOperator = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
     if (raw && raw.printLayout && typeof raw.printLayout === 'object') fileLayout = raw.printLayout;
     if (raw && Array.isArray(raw.staff)) fileStaff = sanitizeStaffList(raw.staff);
     if (raw && Array.isArray(raw.printPresets)) filePresets = raw.printPresets.filter((p) => p && typeof p.name === 'string' && p.name.trim() && p.settings && typeof p.settings === 'object');
-    if (raw && typeof raw.operator === 'string') fileOperator = raw.operator;
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -565,8 +563,8 @@ function importBackupText(text, mode) {
     : '';
   const packNote = (fileStaff || filePresets)
     ? (merge
-      ? '\nFile có kèm danh sách KTV và mẫu bố cục — chỉ thêm những tên/mẫu máy này chưa có.'
-      : '\nFile có kèm danh sách KTV, KTV trực và các mẫu bố cục — máy này sẽ dùng theo file.')
+      ? '\nFile có kèm danh sách KTV và mẫu bố cục — chỉ thêm những tên/mẫu máy này chưa có. KTV trực của máy được giữ nguyên.'
+      : '\nFile có kèm danh sách KTV và các mẫu bố cục — máy này sẽ dùng theo file. Riêng KTV trực sẽ đặt lại thành \'chưa chọn\' — phục hồi xong hãy chọn lại người trực.')
     : '';
   const ask = merge
     ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
@@ -603,8 +601,12 @@ function importBackupText(text, mode) {
       updatePrintPageStyle();
     }
     if (fileStaff) { staffList = fileStaff; persistStaff(); }
-    if (fileOperator !== null) { currentOperator = fileOperator; persistOperator(); }
-    if (fileStaff || fileOperator !== null) renderOperatorControls();
+    /* Theo yêu cầu của Minh (v34): phục hồi KHÔNG nhận KTV trực từ file — luôn
+       đặt lại thành "chưa chọn" để người dùng máy này tự chọn lại ca trực (qua PIN).
+       Ngược lại, GỘP dữ liệu thì giữ nguyên KTV trực đang chọn của máy. */
+    currentOperator = '';
+    persistOperator();
+    renderOperatorControls();
     if (filePresets) {
       printPresets = filePresets.map((p) => ({ name: p.name, settings: normalizePrintSettings(p.settings) }));
       savePresets();

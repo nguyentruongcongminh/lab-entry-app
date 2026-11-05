@@ -481,7 +481,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v33 và precache đúng URL ?v=33 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v34 và precache đúng URL ?v=34 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +499,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v33'"), 'sw.js phải gắn VERSION v33');
-    for (const a of ['styles.css?v=33', 'print.css?v=33', 'config.js?v=33', 'store.js?v=33', 'app.js?v=33', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v34'"), 'sw.js phải gắn VERSION v34');
+    for (const a of ['styles.css?v=34', 'print.css?v=34', 'config.js?v=34', 'store.js?v=34', 'app.js?v=34', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -980,7 +980,7 @@ async function nhapPinVao(pin) {
     $('btn-staff-close').click();
     /* PHỤC HỒI: danh sách KTV + KTV trực + mẫu quay lại đúng theo file */
     assert.strictEqual(window.importBackupText(captured), true);
-    assert.strictEqual($('operator-select').value, 'Nguyễn Văn A', 'phục hồi phải đặt lại KTV trực theo file');
+    assert.strictEqual($('operator-select').value, '', 'phục hồi phải đặt KTV trực về "chưa chọn" — không nhận KTV trực từ file (v34)');
     $('btn-staff-manage').click();
     assert.strictEqual($('staff-list').children.length, 2, 'phục hồi phải khôi phục đủ 2 KTV');
     $('btn-staff-close').click();
