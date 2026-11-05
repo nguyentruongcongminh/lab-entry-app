@@ -4,8 +4,6 @@
 
 **Manual lab test results manager for small laboratories** — barcode sample intake, result entry and release, PIN-protected technician stamps, and fully customizable printable result sheets. Runs right on a phone, no server needed, data stays on the device.
 
-🔗 **Dùng thử / Live demo:** https://nguyentruongcongminh.github.io/lab-entry-app/
-
 ![Màn hình chính](screenshots/01-trang-chinh.png)
 
 | | |
@@ -34,7 +32,7 @@
 
 ## Bắt đầu nhanh / Quick start
 
-1. Mở [trang demo](https://nguyentruongcongminh.github.io/lab-entry-app/) bằng **Chrome trên Android** (cần Chrome để quét mã bằng camera và nhập giọng nói). · *Open the demo in Chrome on Android (required for camera scanning and voice input).*
+1. Mở ứng dụng bằng **Chrome trên Android** (cần Chrome để quét mã bằng camera và nhập giọng nói). · *Open the app in Chrome on Android (required for camera scanning and voice input).*
 2. Ở mục **KTV trực**, bấm **Quản lý** để thêm kỹ thuật viên kèm mã PIN của từng người, rồi chọn người đang trực. · *Add technicians with their PINs, then pick who is on duty.*
 3. Bấm **+** hoặc **Quét mã** để tiếp nhận mẫu; nhập kết quả, bấm **Phát hành** khi xong. · *Receive samples, enter results, release when done.*
 4. Sang tab **Lọc & Xuất PDF** để in bảng kết quả và **sao lưu dữ liệu thường xuyên**. · *Print result sheets and back up regularly from the export tab.*
@@ -49,10 +47,6 @@ Toàn bộ dữ liệu nằm trong bộ nhớ của trình duyệt **trên chín
 - Quét mã bằng camera và nhập giọng nói cần Chrome trên Android. · *Camera scanning and voice input require Chrome on Android.*
 - Màu nền đầu bảng khi in cần bật tùy chọn "Đồ họa nền / Background graphics" trong hộp thoại in của Chrome. · *Print header colours need "Background graphics" enabled in Chrome's print dialog.*
 - Giao diện hiện bằng tiếng Việt. · *The interface is currently Vietnamese.*
-
-## Dùng thử ngay / Try it now
-
-👉 **[Mở bản live demo / Open the live app](https://nguyentruongcongminh.github.io/lab-entry-app/)** — chạy ngay trên trình duyệt điện thoại hoặc máy tính, không cần cài đặt hay đăng ký. / *Runs right in your phone or desktop browser — no install, no sign-up.*
 
 ## Giấy phép / License
 
