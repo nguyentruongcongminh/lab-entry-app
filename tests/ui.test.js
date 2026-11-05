@@ -481,7 +481,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v32 và precache đúng URL ?v=32 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v33 và precache đúng URL ?v=33 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +499,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v32'"), 'sw.js phải gắn VERSION v32');
-    for (const a of ['styles.css?v=32', 'print.css?v=32', 'config.js?v=32', 'store.js?v=32', 'app.js?v=32', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v33'"), 'sw.js phải gắn VERSION v33');
+    for (const a of ['styles.css?v=33', 'print.css?v=33', 'config.js?v=33', 'store.js?v=33', 'app.js?v=33', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -842,13 +842,13 @@ async function nhapPinVao(pin) {
     colRows[11].querySelector('.pc-visible').click();
     assert.ok($('pcfg-preview').textContent.includes('KTV nhận'), 'xem trước phải hiện cột KTV sau khi bật');
     assert.ok($('pcfg-preview').textContent.includes('Trần Văn An'), 'xem trước phải hiện tên KTV mẫu ở cột KTV');
-    setInput($('pcfg-org'), 'BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM');
-    assert.ok($('pcfg-preview').textContent.includes('BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM'), 'tên đơn vị phải hiện ở đầu trang xem trước');
+    setInput($('pcfg-org'), 'TRUNG TÂM XÉT NGHIỆM MẪU');
+    assert.ok($('pcfg-preview').textContent.includes('TRUNG TÂM XÉT NGHIỆM MẪU'), 'tên đơn vị phải hiện ở đầu trang xem trước');
     $('btn-pcfg-back').click();
     assert.ok(visible($('view-export')));
     const heads2 = [...$('print-area').querySelectorAll('thead th')].map((th) => th.textContent);
     assert.ok(heads2.includes('KTV nhận') && heads2.includes('KTV thực hiện') && heads2.includes('KTV phát hành'), 'vùng in thật phải có 3 cột KTV sau khi bật');
-    assert.ok($('print-area').textContent.includes('BỆNH VIỆN ĐẠI HỌC Y DƯỢC TP.HCM'), 'vùng in thật phải có đầu trang đơn vị');
+    assert.ok($('print-area').textContent.includes('TRUNG TÂM XÉT NGHIỆM MẪU'), 'vùng in thật phải có đầu trang đơn vị');
     /* Khôi phục mặc định */
     $('btn-printcfg').click();
     $('btn-pcfg-reset').click();
