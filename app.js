@@ -265,13 +265,99 @@ function unreleaseFromSummary() {
  * - Đang đếm: bấm nút -> hủy bấm giờ
  * - Tới giờ: dòng mẫu sáng đỏ + nút thành "Nhập KQ ngay" -> bấm mở thẳng form nhập
  */
-const dueAlerted = new Set();
-
+/* Một đợt kêu báo tới giờ (F23): hai tông xen kẽ, âm lượng lớn (0.6), rung 3 nhịp */
 function beepDue() {
-  beep(1560, 130);
-  setTimeout(() => beep(1560, 130), 240);
-  setTimeout(() => beep(1560, 220), 480);
-  if (navigator.vibrate) navigator.vibrate([220, 110, 220]);
+  [[1560, 0], [2093, 200], [1560, 400], [2093, 600], [1560, 800], [2093, 1000]]
+    .forEach(([f, at]) => setTimeout(() => beep(f, 150, 0.6), at));
+  if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]);
+}
+
+/* ---- Báo động mẫu tới giờ (F23, v42) ----
+ * Mẫu "tới giờ" = chưa có kết quả + timerEndsAt đã qua; trạng thái suy ra từ
+ * DỮ LIỆU GỐC mỗi giây (không phụ thuộc mẫu có đang hiển thị hay không — bản
+ * trước chỉ quét các số đếm đang render nên ở tab khác là im lặng).
+ * - Đợt kêu đầu ngay khi tới giờ; sau đó lặp mỗi 15 giây, chỉ trong 15 phút
+ *   đầu quá giờ. Banner đỏ + huy hiệu trên icon app giữ tới khi mẫu được xử lý.
+ * - Mẫu đang mở trong form nhập thì không kêu (đang xử lý chính nó).
+ * - Thông báo hệ thống: xin quyền một lần khi bắt đầu bấm giờ; mỗi mẫu bắn
+ *   một thông báo nằm nguyên (requireInteraction) khi vừa tới giờ, bấm vào
+ *   mở thẳng form của mẫu. Khi app bị thu nhỏ, nhịp kiểm tra do trình duyệt
+ *   quyết định nên thông báo có thể chậm — không web app nào đảm bảo tuyệt đối. */
+const notifiedDue = new Set();
+let prevDueIds = new Set();
+let lastBurstAt = 0;
+let wakeLock = null;
+let lastWakeCheckAt = 0;
+
+function dueTimerRecords() {
+  const now = Date.now();
+  return store.getAll()
+    .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() <= now)
+    .sort((a, b) => (a.timerEndsAt < b.timerEndsAt ? -1 : 1));
+}
+
+function dueBannerRecords(due) {
+  const formOpen = !$('view-form').classList.contains('hidden');
+  return due.filter((r) => !(formOpen && formState && formState.uid === r.uid));
+}
+
+function updateAlarmBanner(due) {
+  const banner = $('alarm-banner');
+  const shown = dueBannerRecords(due);
+  if (!banner) return shown;
+  if (!shown.length) { banner.classList.add('hidden'); banner.innerHTML = ''; return shown; }
+  banner.innerHTML = '⏰ Tới giờ nhập kết quả: <b>' + esc(shown.slice(0, 3).map((r) => r.testId).join(', ')) + '</b>' +
+    (shown.length > 3 ? ' và ' + (shown.length - 3) + ' mẫu nữa' : '') + ' — bấm để nhập ngay';
+  banner.classList.remove('hidden');
+  return shown;
+}
+
+function updateAppBadge(n) {
+  try {
+    if (!navigator.setAppBadge) return;
+    if (n > 0) navigator.setAppBadge(n);
+    else if (navigator.clearAppBadge) navigator.clearAppBadge();
+  } catch (e) { /* bỏ qua */ }
+}
+
+function maybeRequestNotifyPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const p = Notification.requestPermission();
+      if (p && p.catch) p.catch(() => {});
+    }
+  } catch (e) { /* bỏ qua */ }
+}
+
+function showDueNotification(rec) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = new Notification('Tới giờ nhập kết quả — LabEntry', {
+      body: rec.testId + ' (' + ((getTestType(rec.typeId) || {}).name || rec.typeId) + '). Bấm để nhập kết quả.',
+      tag: 'labentry-due-' + rec.uid,
+      requireInteraction: true,
+      vibrate: [300, 100, 300, 100, 300],
+      icon: 'icon-192.png',
+    });
+    n.onclick = () => { try { window.focus(); } catch (e) { /* bỏ qua */ } openForm(rec.uid); n.close(); };
+  } catch (e) { /* bỏ qua */ }
+}
+
+/* Giữ màn hình sáng trong lúc có mẫu đang đếm ngược (nhả khi hết mẫu chờ) */
+async function manageWakeLock() {
+  try {
+    if (!('wakeLock' in navigator)) return;
+    const now = Date.now();
+    const anyRunning = store.getAll().some((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now);
+    if (anyRunning && document.visibilityState === 'visible' && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!anyRunning && wakeLock) {
+      const wl = wakeLock;
+      wakeLock = null;
+      await wl.release();
+    }
+  } catch (e) { wakeLock = null; }
 }
 
 function toggleTimer(uid) {
@@ -282,7 +368,6 @@ function toggleTimer(uid) {
   const endsMs = rec.timerEndsAt ? new Date(rec.timerEndsAt).getTime() : 0;
   if (rec.timerEndsAt && endsMs > Date.now()) {
     store.update(uid, { timerEndsAt: null });
-    dueAlerted.delete(uid);
     toast('Đã hủy bấm giờ cho ' + rec.testId);
     refreshCurrent();
     return;
@@ -295,6 +380,8 @@ function toggleTimer(uid) {
   const res = store.update(uid, { timerEndsAt: ends });
   if (res.ok) {
     beepOk();
+    maybeRequestNotifyPermission(); /* xin quyền thông báo hệ thống ngay lần bấm giờ đầu (F23) */
+    manageWakeLock();
     toast('Đã bấm giờ ' + type.waitMinutes + ' phút cho ' + rec.testId + ' (' + type.name + ')');
     refreshCurrent();
   } else {
@@ -302,25 +389,33 @@ function toggleTimer(uid) {
   }
 }
 
-/* Chạy mỗi giây: cập nhật số đếm ngược tại chỗ; mẫu nào vừa tới giờ thì báo đặc biệt một lần.
-   Mốc kết thúc luôn đọc từ dữ liệu gốc (store), không đọc từ thuộc tính đã render. */
+/* Chạy mỗi giây: cập nhật số đếm ngược đang hiển thị + phát hiện mẫu tới giờ
+   từ dữ liệu gốc (F23) để báo động lặp, banner, thông báo và huy hiệu */
 function timerTick() {
   const now = Date.now();
-  let crossed = false;
   document.querySelectorAll('[data-countdown]').forEach((el) => {
     const rec = store.getByUid(el.dataset.uid);
     if (!rec || !rec.timerEndsAt) return;
     const remain = new Date(rec.timerEndsAt).getTime() - now;
-    if (remain > 0) {
-      el.textContent = fmtCountdown(remain);
-    } else if (!dueAlerted.has(rec.uid)) {
-      dueAlerted.add(rec.uid);
-      crossed = true;
-      beepDue();
-      toast('Tới giờ nhập kết quả: ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')');
-    }
+    if (remain > 0) el.textContent = fmtCountdown(remain);
   });
-  if (crossed) refreshCurrent();
+  const due = dueTimerRecords();
+  const newly = due.filter((r) => !prevDueIds.has(r.uid));
+  prevDueIds = new Set(due.map((r) => r.uid));
+  const shown = updateAlarmBanner(due);
+  updateAppBadge(due.length);
+  newly.forEach((rec) => {
+    const key = rec.uid + '|' + rec.timerEndsAt;
+    if (!notifiedDue.has(key)) { notifiedDue.add(key); showDueNotification(rec); }
+    toast('Tới giờ nhập kết quả: ' + rec.testId + ' (' + ((getTestType(rec.typeId) || {}).name || rec.typeId) + ')');
+  });
+  const withinBurstWindow = shown.some((r) => now - new Date(r.timerEndsAt).getTime() <= 15 * 60000);
+  if (shown.length && withinBurstWindow && (newly.some((r) => shown.includes(r)) || now - lastBurstAt >= 15000)) {
+    beepDue();
+    lastBurstAt = now;
+  }
+  if (newly.length) refreshCurrent();
+  if (now - lastWakeCheckAt >= 5000) { lastWakeCheckAt = now; manageWakeLock(); }
 }
 
 function refreshCurrent() {
@@ -1275,7 +1370,7 @@ function unlockAudio() {
     if (audioCtx.state === 'suspended') audioCtx.resume();
   } catch (e) { /* thiết bị không hỗ trợ: bỏ qua */ }
 }
-function beep(freq, ms) {
+function beep(freq, ms, vol) {
   try {
     if (!audioCtx) unlockAudio();
     if (!audioCtx) return;
@@ -1286,7 +1381,7 @@ function beep(freq, ms) {
     osc.type = 'sine';
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.25, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(vol || 0.25, t + 0.01);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -2514,6 +2609,13 @@ function init() {
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
   $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
+  $('alarm-banner').addEventListener('click', () => {
+    const shown = dueBannerRecords(dueTimerRecords());
+    if (shown.length) openForm(shown[0].uid);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { timerTick(); manageWakeLock(); }
+  });
   $('btn-audit').addEventListener('click', () => switchView('audit'));
   $('btn-audit-back').addEventListener('click', () => switchView('manage'));
   $('audit-filter').addEventListener('change', renderAuditLog);

@@ -546,7 +546,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v41 và precache đúng URL ?v=41 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v42 và precache đúng URL ?v=42 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -564,8 +564,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v41'"), 'sw.js phải gắn VERSION v41');
-    for (const a of ['styles.css?v=41', 'print.css?v=41', 'config.js?v=41', 'store.js?v=41', 'app.js?v=41', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v42'"), 'sw.js phải gắn VERSION v42');
+    for (const a of ['styles.css?v=42', 'print.css?v=42', 'config.js?v=42', 'store.js?v=42', 'app.js?v=42', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1176,6 +1176,32 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     if ($('pcfg-doc-barcode').checked) $('pcfg-doc-barcode').click();
   });
 
+
+  test('báo động mẫu tới giờ: banner hiện kể cả ở tab khác, bấm banner mở form, nhập kết quả thì tắt (v42 F23)', () => {
+    /* Tạo một mẫu rồi đặt hẹn giờ đã quá hạn ngay (qua store, như dữ liệu thật) */
+    $2('fab-add').click();
+    setInput2($2('input-testid'), 'TIMER-001');
+    $2('btn-save').click();
+    const uid = w2.eval("store.getAll().find((r) => r.testId === 'TIMER-001').uid");
+    assert.ok(uid, 'phải tạo được mẫu TIMER-001');
+    w2.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() - 60000).toISOString() })");
+    /* Đang ở tab Lọc & Xuất (mẫu không hề hiển thị) mà vẫn phải báo — đúng lỗi bản cũ */
+    d2.querySelector('[data-view="export"]').click();
+    w2.eval('timerTick()');
+    assert.ok(visible2($2('alarm-banner')), 'mẫu tới giờ phải hiện banner kể cả khi đang ở tab khác');
+    assert.ok($2('alarm-banner').textContent.includes('TIMER-001'), 'banner phải ghi rõ ID mẫu tới giờ');
+    /* Bấm banner -> mở form của mẫu; mẫu đang được xử lý thì banner ẩn */
+    $2('alarm-banner').click();
+    assert.ok(visible2($2('view-form')), 'bấm banner phải mở form nhập của mẫu tới giờ');
+    w2.eval('timerTick()');
+    assert.ok(!visible2($2('alarm-banner')), 'mẫu đang mở trong form thì banner phải ẩn');
+    /* Nhập kết quả -> hẹn giờ tự xóa -> banner tắt hẳn */
+    setInput2($2('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $2('btn-save').click();
+    w2.eval('timerTick()');
+    assert.ok(!visible2($2('alarm-banner')), 'nhập kết quả xong banner phải tắt');
+    d2.querySelector('[data-view="today"]').click();
+  });
 
   test('cổng KTV trực + nhật ký kiểm toán + log mang theo sao lưu (v41 F22)', () => {
     const auditNow = () => JSON.parse(w2.localStorage.getItem('labentry.audit.v1') || '[]');
