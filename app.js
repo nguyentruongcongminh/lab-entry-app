@@ -442,6 +442,7 @@ function applyExport() {
       ' · nhanh nhất ' + fmtDur(tat.minMinutes) + ' · lâu nhất ' + fmtDur(tat.maxMinutes)
     : '';
   $('print-area').innerHTML = renderSheet(printSettings, recs, { rangeText, tatText });
+  drawSheetBarcodes($('print-area')); /* mã vạch khối tài liệu (F21) */
   updatePrintPageStyle();
   return recs;
 }
@@ -1657,9 +1658,18 @@ let printSettings = null;
 
 function defaultPrintSettings() {
   return {
-    logo: '', logoPos: 'left', logoSize: 'm',
+    logo: '', logoPos: 'auto', logoSize: 'm',
     org: '', dept: '', address: '', phone: '', email: '',
     headerLayout: 'side', divider: true,
+    rightZone: 'none', docBoxStyle: 'box', docBarcode: false, docBarcodeSize: 'm',
+    docRows: [
+      { on: true, label: 'Mã tài liệu', value: '' },
+      { on: true, label: 'Lần ban hành', value: '' },
+      { on: true, label: 'Ngày hiệu lực', value: '' },
+      { on: false, label: '', value: '' },
+      { on: false, label: '', value: '' },
+    ],
+    logo2: '', logo2Size: 'm',
     title: 'Danh sách kết quả xét nghiệm', subtitle: true,
     columns: PRINT_COLUMNS.map((c) => ({
       id: c.id, label: c.label,
@@ -1695,6 +1705,21 @@ function normalizePrintSettings(saved) {
     } : dc;
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+  if (!['left', 'center', 'right', 'auto'].includes(merged.logoPos)) merged.logoPos = 'auto';
+  if (!['side', 'center', 'grid3'].includes(merged.headerLayout)) merged.headerLayout = 'side';
+  if (!['none', 'doc', 'image'].includes(merged.rightZone)) merged.rightZone = 'none';
+  if (!['box', 'plain'].includes(merged.docBoxStyle)) merged.docBoxStyle = 'box';
+  merged.docBarcode = !!merged.docBarcode;
+  if (!['s', 'm'].includes(merged.docBarcodeSize)) merged.docBarcodeSize = 'm';
+  if (typeof merged.logo2 !== 'string') merged.logo2 = '';
+  if (!['s', 'm', 'l'].includes(merged.logo2Size)) merged.logo2Size = 'm';
+  const savedRows = Array.isArray(merged.docRows) ? merged.docRows : [];
+  merged.docRows = def.docRows.map((dr, i) => {
+    const sr = savedRows[i];
+    return sr && typeof sr === 'object'
+      ? { on: !!sr.on, label: typeof sr.label === 'string' ? sr.label : dr.label, value: typeof sr.value === 'string' ? sr.value : '' }
+      : dr;
+  });
   if (!['grouped', 'split'].includes(merged.resultsMode)) merged.resultsMode = 'grouped';
   if (!['none', 'day', 'type'].includes(merged.groupBy)) merged.groupBy = 'none';
   if (!/^#[0-9a-fA-F]{6}$/.test(merged.headerColor || '')) merged.headerColor = '#e8e8e8';
@@ -1793,6 +1818,75 @@ function groupRecords(s, recs) {
   return order.reduce((acc, k) => acc.concat(buckets.get(k)), []);
 }
 
+/* ---------- Mã vạch Code128 (F21): bộ mã hóa viết tại chỗ, không thư viện ngoài ----------
+   Bảng độ rộng vạch chuẩn Code128 (giá trị 0–106; giá trị 106 là mã dừng, 7 số). */
+const CODE128_PATTERNS = [
+  '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
+  '221312', '231212', '112232', '122132', '122231', '113222', '123122', '123221', '223211', '221132',
+  '221231', '213212', '223112', '312131', '311222', '321122', '321221', '312212', '322112', '322211',
+  '212123', '212321', '232121', '111323', '131123', '131321', '112313', '132113', '132311', '211313',
+  '231113', '231311', '112133', '112331', '132131', '113123', '113321', '133121', '313121', '211331',
+  '231131', '213113', '213311', '213131', '311123', '311321', '331121', '312113', '312311', '332111',
+  '314111', '221411', '431111', '111224', '111422', '121124', '121421', '141122', '141221', '112214',
+  '112412', '122114', '122411', '142112', '142211', '241211', '221114', '413111', '241112', '134111',
+  '111242', '121142', '121241', '114212', '124112', '124211', '411212', '421112', '421211', '212141',
+  '214121', '412121', '111143', '111341', '131141', '114113', '114311', '411113', '411311', '113141',
+  '114131', '311141', '411131', '211412', '211214', '211232', '2331112',
+];
+
+/* Chuỗi bit '1' = vạch đen của mã Code128-B cho text (ký tự ngoài ASCII 32–126,
+   kể cả tiếng Việt có dấu, được bỏ dấu/loại trước khi mã hóa). '' nếu không còn gì để mã hóa. */
+function code128Pattern(text) {
+  const clean = String(text || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .split('').filter((c) => { const n = c.charCodeAt(0); return n >= 32 && n <= 126; }).join('');
+  if (!clean) return '';
+  const values = [104];
+  for (const c of clean) values.push(c.charCodeAt(0) - 32);
+  let sum = 104;
+  for (let i = 1; i < values.length; i++) sum += values[i] * i;
+  values.push(sum % 103, 106);
+  let bits = '';
+  values.forEach((v) => {
+    let bar = true;
+    for (const ch of CODE128_PATTERNS[v]) { bits += (bar ? '1' : '0').repeat(Number(ch)); bar = !bar; }
+  });
+  const quiet = '0'.repeat(10);
+  return quiet + bits + quiet;
+}
+
+/* Nội dung mã vạch của khối tài liệu: dòng đang bật có nhãn chứa chữ "Mã" và có nội dung
+   (mặc định là Mã tài liệu); không có thì lấy dòng đang bật đầu tiên có nội dung. */
+function barcodePayloadOf(s) {
+  const rows = Array.isArray(s.docRows) ? s.docRows : [];
+  const usable = rows.filter((r) => r && r.on && String(r.value || '').trim());
+  if (!usable.length) return '';
+  const ma = usable.find((r) => /mã/i.test(String(r.label || '')));
+  return String((ma || usable[0]).value).trim();
+}
+
+/* Vẽ mọi canvas.sh-barcode trong một vùng (xem trước / vùng in) sau khi dựng HTML */
+function drawSheetBarcodes(root) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('canvas.sh-barcode').forEach((cv) => {
+    const bits = code128Pattern(cv.getAttribute('data-text') || '');
+    if (!bits) return;
+    const small = cv.classList.contains('sz-s');
+    const scale = small ? 2 : 3;
+    cv.width = bits.length * scale;
+    cv.height = small ? 52 : 76;
+    const ctx = cv.getContext && cv.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#000000';
+    for (let i = 0; i < bits.length; i++) {
+      if (bits[i] === '1') ctx.fillRect(i * scale, 0, scale, cv.height);
+    }
+  });
+}
+
 function renderSheet(s, recs, opts) {
   const o = opts || {};
   const logoHtml = s.logo
@@ -1803,14 +1897,40 @@ function renderSheet(s, recs, opts) {
     (s.org && s.org.trim() ? '<div class="sh-org">' + esc(s.org) + '</div>' : '') +
     (s.dept && s.dept.trim() ? '<div class="sh-dept">' + esc(s.dept) + '</div>' : '') +
     (contact ? '<div class="sh-contact">' + contact + '</div>' : '');
+  /* Vùng góc phải (F21): khối thông tin tài liệu / ảnh thứ hai / trống */
+  let rightHtml = '';
+  if (s.rightZone === 'doc') {
+    const rows = (Array.isArray(s.docRows) ? s.docRows : [])
+      .filter((r) => r && r.on && (String(r.label || '').trim() || String(r.value || '').trim()));
+    let inner = rows.map((r) =>
+      '<div class="sh-doc-row">' +
+      (String(r.label || '').trim() ? '<span class="sh-doc-label">' + esc(r.label.trim()) + ':</span> ' : '') +
+      '<span class="sh-doc-value">' + esc(r.value || '') + '</span></div>').join('');
+    if (s.docBarcode) {
+      const payload = barcodePayloadOf(s);
+      if (payload) {
+        inner += '<canvas class="sh-barcode sz-' + s.docBarcodeSize + '" data-text="' + esc(payload) + '"></canvas>' +
+          '<div class="sh-barcode-cap">' + esc(payload) + '</div>';
+      }
+    }
+    if (inner) rightHtml = '<div class="sh-docbox' + (s.docBoxStyle === 'plain' ? ' plain' : '') + '">' + inner + '</div>';
+  } else if (s.rightZone === 'image' && s.logo2) {
+    rightHtml = '<img class="sh-logo sz-' + s.logo2Size + '" src="' + s.logo2 + '" alt="">';
+  }
+  /* Vị trí logo hiệu dụng: 'auto' = theo kiểu đầu trang (center → ở giữa, còn lại → bên trái) */
+  const effLogoPos = s.logoPos === 'auto' ? (s.headerLayout === 'center' ? 'center' : 'left') : s.logoPos;
   let headerHtml = '';
-  if (logoHtml || infoHtml) {
-    if (s.headerLayout === 'center' || s.logoPos === 'center') {
-      headerHtml = '<div class="sh-header center">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div></div>';
-    } else if (s.logoPos === 'right') {
-      headerHtml = '<div class="sh-header side"><div class="sh-info">' + infoHtml + '</div>' + logoHtml + '</div>';
+  if (logoHtml || infoHtml || rightHtml) {
+    if (s.headerLayout === 'grid3') {
+      headerHtml = '<div class="sh-header grid3"><div class="sh-cell sh-left">' + logoHtml + '</div>' +
+        '<div class="sh-cell sh-mid"><div class="sh-info">' + infoHtml + '</div></div>' +
+        '<div class="sh-cell sh-right">' + rightHtml + '</div></div>';
+    } else if (s.headerLayout === 'center' || effLogoPos === 'center') {
+      headerHtml = '<div class="sh-header center">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div>' + rightHtml + '</div>';
+    } else if (effLogoPos === 'right') {
+      headerHtml = '<div class="sh-header side"><div class="sh-info">' + infoHtml + '</div>' + rightHtml + logoHtml + '</div>';
     } else {
-      headerHtml = '<div class="sh-header side">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div></div>';
+      headerHtml = '<div class="sh-header side">' + logoHtml + '<div class="sh-info">' + infoHtml + '</div>' + rightHtml + '</div>';
     }
     if (s.divider) headerHtml += '<hr class="sh-divider">';
   }
@@ -1955,6 +2075,14 @@ function renderPrintPreview() {
     rangeText: '(01/11/2026 đến 05/11/2026)',
     tatText: 'Đã phát hành 1/3 mẫu · Thời gian trả kết quả: trung bình 45 phút · nhanh nhất 45 phút · lâu nhất 45 phút',
   });
+  drawSheetBarcodes($('pcfg-preview')); /* mã vạch khối tài liệu (F21) */
+}
+
+/* Hiện/ẩn khối chỉnh sửa của vùng góc phải theo chế độ đang chọn (F21) */
+function syncRightZoneBlocks() {
+  const v = printSettings.rightZone;
+  $('pcfg-doc-block').classList.toggle('hidden', v !== 'doc');
+  $('pcfg-logo2-block').classList.toggle('hidden', v !== 'image');
 }
 
 function fillPrintCfgControls() {
@@ -1984,6 +2112,20 @@ function fillPrintCfgControls() {
   $('pcfg-groupby').value = s.groupBy;
   $('pcfg-zebra').checked = !!s.zebra;
   $('pcfg-headercolor').value = s.headerColor;
+  $('pcfg-right-zone').value = s.rightZone;
+  $('pcfg-docbox-style').value = s.docBoxStyle;
+  $('pcfg-doc-barcode').checked = !!s.docBarcode;
+  $('pcfg-doc-barcode-size').value = s.docBarcodeSize;
+  s.docRows.forEach((r, i) => {
+    $('pcfg-doc' + (i + 1) + '-on').checked = !!r.on;
+    $('pcfg-doc' + (i + 1) + '-label').value = r.label || '';
+    $('pcfg-doc' + (i + 1) + '-value').value = r.value || '';
+  });
+  $('pcfg-logo2-thumb').src = s.logo2 || '';
+  $('pcfg-logo2-thumb').classList.toggle('hidden', !s.logo2);
+  $('btn-pcfg-logo2-remove').classList.toggle('hidden', !s.logo2);
+  $('pcfg-logo2-size').value = s.logo2Size;
+  syncRightZoneBlocks();
   renderPresetOptions();
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
@@ -2033,8 +2175,8 @@ function openPrintCfg() {
   switchView('printcfg');
 }
 
-/* Nén ảnh logo về tối đa 360px rồi lưu dạng data URL (PNG; quá lớn thì JPEG) */
-function handleLogoFile(file) {
+/* Nén ảnh (logo / ảnh thứ hai) về tối đa 360px rồi lưu dạng data URL (PNG; quá lớn thì JPEG) */
+function handleImageFile(file, key, doneMsg) {
   if (!file) return;
   const url = URL.createObjectURL(file);
   const img = new Image();
@@ -2048,15 +2190,17 @@ function handleLogoFile(file) {
     URL.revokeObjectURL(url);
     let data = cv.toDataURL('image/png');
     if (data.length > 340000) data = cv.toDataURL('image/jpeg', 0.85);
-    printSettings.logo = data;
+    printSettings[key] = data;
     savePrintSettings();
     fillPrintCfgControls();
     renderPrintPreview();
-    toast('Đã đặt logo cho bản in');
+    toast(doneMsg);
   };
   img.onerror = () => { URL.revokeObjectURL(url); toast('Không đọc được ảnh đã chọn'); };
   img.src = url;
 }
+function handleLogoFile(file) { handleImageFile(file, 'logo', 'Đã đặt logo cho bản in'); }
+function handleLogo2File(file) { handleImageFile(file, 'logo2', 'Đã đặt ảnh thứ hai cho bản in'); }
 
 function bindPrintCfg() {
   const upd = () => { savePrintSettings(); renderPrintPreview(); updatePrintPageStyle(); };
@@ -2084,6 +2228,25 @@ function bindPrintCfg() {
   $('pcfg-logo-file').addEventListener('change', (e) => { handleLogoFile(e.target.files && e.target.files[0]); e.target.value = ''; });
   $('btn-pcfg-logo-remove').addEventListener('click', () => {
     printSettings.logo = '';
+    savePrintSettings(); fillPrintCfgControls(); renderPrintPreview();
+  });
+  /* Vùng góc phải (F21): chế độ vùng, khối tài liệu, mã vạch, ảnh thứ hai */
+  $('pcfg-right-zone').addEventListener('change', () => {
+    printSettings.rightZone = $('pcfg-right-zone').value;
+    syncRightZoneBlocks(); upd();
+  });
+  sel('pcfg-docbox-style', 'docBoxStyle'); chk('pcfg-doc-barcode', 'docBarcode'); sel('pcfg-doc-barcode-size', 'docBarcodeSize');
+  for (let di = 0; di < 5; di++) {
+    const dn = di + 1;
+    $('pcfg-doc' + dn + '-on').addEventListener('change', (e) => { printSettings.docRows[di].on = e.target.checked; upd(); });
+    $('pcfg-doc' + dn + '-label').addEventListener('input', (e) => { printSettings.docRows[di].label = e.target.value; upd(); });
+    $('pcfg-doc' + dn + '-value').addEventListener('input', (e) => { printSettings.docRows[di].value = e.target.value; upd(); });
+  }
+  sel('pcfg-logo2-size', 'logo2Size');
+  $('btn-pcfg-logo2').addEventListener('click', () => $('pcfg-logo2-file').click());
+  $('pcfg-logo2-file').addEventListener('change', (e) => { handleLogo2File(e.target.files && e.target.files[0]); e.target.value = ''; });
+  $('btn-pcfg-logo2-remove').addEventListener('click', () => {
+    printSettings.logo2 = '';
     savePrintSettings(); fillPrintCfgControls(); renderPrintPreview();
   });
   $('btn-pcfg-reset').addEventListener('click', () => {

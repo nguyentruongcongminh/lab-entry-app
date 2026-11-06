@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=39">
-<link rel="stylesheet" href="print.css?v=39">
+<link rel="stylesheet" href="styles.css?v=40">
+<link rel="stylesheet" href="print.css?v=40">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -23,7 +23,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v39</span>
+    <span class="app-version">LabEntry v40</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -288,6 +288,7 @@
       </div>
       <label class="pcfg-row"><span class="pcfg-label">Vị trí logo</span>
         <select id="pcfg-logo-pos">
+          <option value="auto">Theo kiểu đầu trang</option>
           <option value="left">Bên trái</option>
           <option value="center">Ở giữa (trên cùng)</option>
           <option value="right">Bên phải</option>
@@ -307,8 +308,51 @@
         <select id="pcfg-header-layout">
           <option value="side">Logo một bên, chữ bên cạnh</option>
           <option value="center">Tất cả căn giữa</option>
+          <option value="grid3">3 vùng: logo trái · chữ giữa · góc phải</option>
         </select>
       </label>
+      <label class="pcfg-row"><span class="pcfg-label">Góc phải</span>
+        <select id="pcfg-right-zone">
+          <option value="none">Không dùng</option>
+          <option value="doc">Khối thông tin tài liệu</option>
+          <option value="image">Ảnh thứ hai (logo phụ / con dấu)</option>
+        </select>
+      </label>
+      <div id="pcfg-doc-block" class="hidden">
+        <div class="pcfg-doc-row"><label class="check"><input type="checkbox" id="pcfg-doc1-on"></label><input type="text" id="pcfg-doc1-label" placeholder="Nhãn dòng 1"><input type="text" id="pcfg-doc1-value" placeholder="Nội dung dòng 1"></div>
+        <div class="pcfg-doc-row"><label class="check"><input type="checkbox" id="pcfg-doc2-on"></label><input type="text" id="pcfg-doc2-label" placeholder="Nhãn dòng 2"><input type="text" id="pcfg-doc2-value" placeholder="Nội dung dòng 2"></div>
+        <div class="pcfg-doc-row"><label class="check"><input type="checkbox" id="pcfg-doc3-on"></label><input type="text" id="pcfg-doc3-label" placeholder="Nhãn dòng 3"><input type="text" id="pcfg-doc3-value" placeholder="Nội dung dòng 3"></div>
+        <div class="pcfg-doc-row"><label class="check"><input type="checkbox" id="pcfg-doc4-on"></label><input type="text" id="pcfg-doc4-label" placeholder="Nhãn dòng 4 (tự do)"><input type="text" id="pcfg-doc4-value" placeholder="Nội dung dòng 4"></div>
+        <div class="pcfg-doc-row"><label class="check"><input type="checkbox" id="pcfg-doc5-on"></label><input type="text" id="pcfg-doc5-label" placeholder="Nhãn dòng 5 (tự do)"><input type="text" id="pcfg-doc5-value" placeholder="Nội dung dòng 5"></div>
+        <label class="pcfg-row"><span class="pcfg-label">Kiểu khối</span>
+          <select id="pcfg-docbox-style">
+            <option value="box">Đóng khung viền (kiểu biểu mẫu)</option>
+            <option value="plain">Chỉ chữ, không khung</option>
+          </select>
+        </label>
+        <label class="pcfg-row check"><input id="pcfg-doc-barcode" type="checkbox"> <span>In mã vạch Code128 của mã tài liệu dưới khối</span></label>
+        <label class="pcfg-row"><span class="pcfg-label">Cỡ mã vạch</span>
+          <select id="pcfg-doc-barcode-size">
+            <option value="s">Nhỏ</option>
+            <option value="m">Vừa</option>
+          </select>
+        </label>
+        <p class="pcfg-hint">Mã vạch lấy nội dung từ dòng đang bật có nhãn chứa chữ "Mã" (mặc định là dòng Mã tài liệu); không có thì lấy dòng đang bật đầu tiên có nội dung. Chữ tiếng Việt có dấu sẽ tự bỏ dấu trong mã vạch.</p>
+      </div>
+      <div id="pcfg-logo2-block" class="hidden">
+        <div class="pcfg-row">
+          <span class="pcfg-label">Ảnh thứ hai</span>
+          <img id="pcfg-logo2-thumb" class="pcfg-logo-thumb hidden" alt="Ảnh thứ hai">
+          <button type="button" id="btn-pcfg-logo2" class="primary-btn outline small">Chọn ảnh…</button>
+          <button type="button" id="btn-pcfg-logo2-remove" class="mini-btn danger hidden">Bỏ ảnh</button>
+          <input type="file" id="pcfg-logo2-file" accept="image/*" class="hidden">
+          <select id="pcfg-logo2-size">
+            <option value="s">Cỡ nhỏ</option>
+            <option value="m">Cỡ vừa</option>
+            <option value="l">Cỡ lớn</option>
+          </select>
+        </div>
+      </div>
       <label class="pcfg-row check"><input id="pcfg-divider" type="checkbox"> <span>Đường kẻ ngang dưới đầu trang</span></label>
       <label class="pcfg-row"><span class="pcfg-label">Tiêu đề bản in</span><input id="pcfg-title" type="text"></label>
       <label class="pcfg-row check"><input id="pcfg-subtitle" type="checkbox"> <span>Hiện khoảng ngày đang lọc dưới tiêu đề</span></label>
@@ -544,8 +588,8 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=39"></script>
-<script src="store.js?v=39"></script>
-<script src="app.js?v=39"></script>
+<script src="config.js?v=40"></script>
+<script src="store.js?v=40"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>

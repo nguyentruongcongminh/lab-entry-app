@@ -481,7 +481,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v39 và precache đúng URL ?v=39 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v40 và precache đúng URL ?v=40 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +499,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v39'"), 'sw.js phải gắn VERSION v39');
-    for (const a of ['styles.css?v=39', 'print.css?v=39', 'config.js?v=39', 'store.js?v=39', 'app.js?v=39', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v40'"), 'sw.js phải gắn VERSION v40');
+    for (const a of ['styles.css?v=40', 'print.css?v=40', 'config.js?v=40', 'store.js?v=40', 'app.js?v=40', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -873,6 +873,7 @@ async function nhapPinVao(pin) {
     document.querySelector('[data-view="export"]').click();
     setInput($('f-from'), '2026-11-05');
     setInput($('f-to'), '2026-11-05');
+    $('btn-apply-filter').click(); /* app chỉ áp lọc khi bấm nút (trước đây test đậu nhờ ngày chạy trùng ngày kỳ vọng) */
     const sub = $('print-area').querySelector('.sh-subtitle');
     assert.ok(sub, 'bản in phải có phụ đề khoảng ngày khi đã đặt lọc ngày');
     assert.strictEqual(sub.textContent, '(05/11/2026 đến 05/11/2026)');
@@ -1065,6 +1066,48 @@ async function nhapPinVao(pin) {
     assert.ok(todayRow('BK-0001'), 'bản ghi vừa phục hồi phải hiện ở danh sách Hôm nay');
     assert.strictEqual(window.importBackupText('{khong phai json'), false, 'file hỏng phải bị từ chối');
     assert.ok(todayRow('BK-0001'), 'phục hồi hỏng không làm mất dữ liệu vừa phục hồi');
+  });
+
+  test('đầu trang 3 vùng + khối tài liệu + mã vạch Code128 (v40 F21)', () => {
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    setSelect($('pcfg-header-layout'), 'grid3');
+    setSelect($('pcfg-right-zone'), 'doc');
+    assert.ok(!$('pcfg-doc-block').classList.contains('hidden'), 'chọn khối tài liệu thì khối chỉnh sửa phải hiện');
+    assert.ok($('pcfg-logo2-block').classList.contains('hidden'), 'khối ảnh thứ hai phải ẩn khi đang chọn khối tài liệu');
+    setInput($('pcfg-doc1-value'), 'BM.04/QTXN');
+    setInput($('pcfg-doc2-value'), '02');
+    $('pcfg-doc-barcode').click();
+    let head = $('pcfg-preview').querySelector('.sh-header');
+    assert.ok(head && head.classList.contains('grid3'), 'xem trước phải dùng bố cục grid3');
+    const box = $('pcfg-preview').querySelector('.sh-docbox');
+    assert.ok(box, 'phải có khối tài liệu ở góc phải');
+    assert.ok(box.textContent.includes('Mã tài liệu') && box.textContent.includes('BM.04/QTXN'), 'khối phải hiện mã tài liệu đã nhập');
+    assert.ok(box.textContent.includes('Lần ban hành') && box.textContent.includes('02'), 'khối phải hiện lần ban hành đã nhập');
+    const cv = box.querySelector('canvas.sh-barcode');
+    assert.ok(cv, 'phải có canvas mã vạch dưới khối');
+    assert.strictEqual(cv.getAttribute('data-text'), 'BM.04/QTXN', 'mã vạch phải mã hóa đúng mã tài liệu');
+    /* Bộ mã hóa Code128: 1 ký tự = start(11) + dữ liệu(11) + kiểm tra(11) + dừng(13) + 2 vùng lặng(20) = 66 module */
+    assert.strictEqual(window.code128Pattern('A').length, 66);
+    assert.ok(window.code128Pattern('BM.04/QTXN').length > 66);
+    assert.strictEqual(window.code128Pattern(''), '');
+    /* Kiểu căn giữa + vị trí logo "theo bố cục": header phải là center */
+    setSelect($('pcfg-header-layout'), 'center');
+    setSelect($('pcfg-logo-pos'), 'auto');
+    head = $('pcfg-preview').querySelector('.sh-header');
+    assert.ok(head.classList.contains('center'), 'kiểu căn giữa thì header phải mang lớp center');
+    /* Chuẩn hóa cấu hình hỏng */
+    const bad = window.normalizePrintSettings({ docRows: 'x', rightZone: 'zzz', headerLayout: 'grid3', logoPos: 'auto' });
+    assert.strictEqual(bad.docRows.length, 5, 'docRows hỏng phải khôi phục đủ 5 dòng mặc định');
+    assert.strictEqual(bad.rightZone, 'none');
+    assert.strictEqual(bad.headerLayout, 'grid3');
+    assert.strictEqual(bad.docRows[0].label, 'Mã tài liệu');
+    /* Dọn về mặc định cho các test sau */
+    setSelect($('pcfg-header-layout'), 'side');
+    setSelect($('pcfg-right-zone'), 'none');
+    setInput($('pcfg-doc1-value'), '');
+    setInput($('pcfg-doc2-value'), '');
+    if ($('pcfg-doc-barcode').checked) $('pcfg-doc-barcode').click();
   });
 
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
