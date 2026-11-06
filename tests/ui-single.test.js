@@ -7,20 +7,25 @@ const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
 let passed = 0;
+const failures = [];
+/* Runner nối tiếp (rà soát v41): mỗi test phải CHẠY XONG (kể cả phần bất đồng bộ)
+   mới tới test tiếp theo, và lỗi được ghi nhận thay vì nuốt mất. Trước đây test()
+   gọi fn() mà không chờ nên mọi khẳng định nằm sau điểm await đầu tiên của các
+   test async (đặc biệt là các luồng PIN) chưa từng thực sự chạy. */
+let chain = Promise.resolve();
 function test(name, fn) {
-  fn();
-  passed += 1;
-  console.log('PASS  ' + name);
+  chain = chain.then(async () => {
+    try {
+      await fn();
+      passed += 1;
+      console.log('PASS  ' + name);
+    } catch (e) {
+      failures.push(name);
+      console.error('FAIL  ' + name + ': ' + (e && e.message ? e.message : e));
+    }
+  });
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function nhapPinVao(pin) {
-  for (let i = 0; i < 60 && $('pin-modal').classList.contains('hidden'); i++) await sleep(20);
-  assert.ok(!$('pin-modal').classList.contains('hidden'), 'phải hiện hộp thoại nhập PIN');
-  setInput($('pin-input'), pin);
-  $('btn-pin-ok').click();
-  for (let i = 0; i < 60 && !$('pin-modal').classList.contains('hidden'); i++) await sleep(20);
-  assert.ok($('pin-modal').classList.contains('hidden'), 'nhập đúng PIN thì hộp thoại phải đóng');
-}
 
 (async () => {
   const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
@@ -93,6 +98,17 @@ async function nhapPinVao(pin) {
   const visible = (el) => !el.classList.contains('hidden');
   const setInput = (el, v) => { el.value = v; el.dispatchEvent(new window.Event('input', { bubbles: true })); };
   const setSelect = (el, v) => { el.value = v; el.dispatchEvent(new window.Event('change', { bubbles: true })); };
+  /* Điền PIN vào hộp thoại của app và chờ đóng (định nghĩa TRONG khối này để dùng
+     đúng $/setInput cục bộ — bản ở đầu file trước đây tham chiếu ngoài phạm vi
+     nên mọi lời gọi đều văng ReferenceError và phần test sau đó không chạy) */
+  const nhapPinVao = async (pin) => {
+    for (let i = 0; i < 60 && $('pin-modal').classList.contains('hidden'); i++) await sleep(20);
+    assert.ok(!$('pin-modal').classList.contains('hidden'), 'phải hiện hộp thoại nhập PIN');
+    setInput($('pin-input'), pin);
+    $('btn-pin-ok').click();
+    for (let i = 0; i < 60 && !$('pin-modal').classList.contains('hidden'); i++) await sleep(20);
+    assert.ok($('pin-modal').classList.contains('hidden'), 'nhập đúng PIN thì hộp thoại phải đóng');
+  };
 
   test('trang nạp xong: tab Hôm nay hiện, danh sách rỗng báo "Không có kết quả"', () => {
     assert.ok(visible($('view-today')));
@@ -1018,6 +1034,7 @@ async function nhapPinVao(pin) {
   test('sao lưu trọn gói (v30): file kèm danh sách KTV + KTV trực + mẫu bố cục; phục hồi dùng theo file; gộp chỉ thêm phần chưa có và không đổi KTV trực', async () => {
     document.querySelector('[data-view="today"]').click();
     setSelect($('operator-select'), 'Nguyễn Văn A');
+    await nhapPinVao('111111'); /* đổi trực phải qua PIN thì KTV trực mới thật sự là A (trước đây thiếu bước này mà không lộ vì test chưa từng chạy hết) */
     /* Chụp file sao lưu hiện tại (đã có 2 KTV + mẫu "Mẫu T28" từ các test trước) */
     document.querySelector('[data-view="export"]').click();
     let captured = null;
@@ -1053,7 +1070,7 @@ async function nhapPinVao(pin) {
     assert.strictEqual(window.importBackupText(captured), true);
     assert.strictEqual($('operator-select').value, '', 'phục hồi phải đặt KTV trực về "chưa chọn" — không nhận KTV trực từ file (v34)');
     $('btn-staff-manage').click();
-    assert.strictEqual($('staff-list').children.length, 2, 'phục hồi phải khôi phục đủ 2 KTV');
+    assert.strictEqual($('staff-list').children.length, 3, 'phục hồi phải khôi phục đủ KTV trong file (A, Bình và KTV Kiểm Tra gieo sẵn từ v41)');
     $('btn-staff-close').click();
     document.querySelector('[data-view="export"]').click();
     $('btn-printcfg').click();
@@ -1066,7 +1083,7 @@ async function nhapPinVao(pin) {
     assert.strictEqual(window.importBackupText(captured, 'merge'), true);
     assert.strictEqual($('operator-select').value, '', 'gộp dữ liệu không được đổi KTV trực của máy');
     $('btn-staff-manage').click();
-    assert.strictEqual($('staff-list').children.length, 2, 'gộp phải thêm lại KTV còn thiếu');
+    assert.strictEqual($('staff-list').children.length, 3, 'gộp phải thêm lại KTV còn thiếu (A, Bình và KTV Kiểm Tra gieo sẵn từ v41)');
     $('btn-staff-close').click();
     document.querySelector('[data-view="export"]').click();
     $('btn-printcfg').click();
@@ -1246,6 +1263,11 @@ async function nhapPinVao(pin) {
     w2.close();
   });
 
+  await chain;
+  if (failures.length) {
+    console.error('\nCÁC TEST LỖI (' + failures.length + '): ' + failures.join(' | '));
+    process.exit(1);
+  }
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');
   window.close();
   process.exit(0);
