@@ -49,8 +49,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg';
+  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export');
@@ -60,6 +60,7 @@ function switchView(name) {
   if (name === 'manage') renderManage();
   if (name === 'export') applyExport();
   if (name === 'types') renderTypes();
+  if (name === 'audit') renderAuditLog();
   window.scrollTo(0, 0);
 }
 
@@ -148,8 +149,9 @@ function handleListClick(e) {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
       if (rec && store.statusOf(rec) === 'pending-release') {
+        if (!requireOperator('phát hành kết quả')) return;
         const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
-        if (res.ok) { toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
+        if (res.ok) { audit('release', '', res.record); toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
         else toast(res.errors.join('. '));
       }
     }
@@ -157,6 +159,8 @@ function handleListClick(e) {
     if (btn.dataset.action === 'delete') {
       const rec = store.getByUid(uid);
       if (rec && confirm('Xóa kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')?')) {
+        if (!requireOperator('xóa kết quả')) return;
+        audit('delete', deleteDetailOf(rec), rec);
         store.remove(uid);
         selectedUids.delete(uid);
         toast('Đã xóa');
@@ -230,8 +234,10 @@ function releaseFromSummary() {
   if (!summaryUid) return;
   const rec = store.getByUid(summaryUid);
   if (!rec || store.statusOf(rec) !== 'pending-release') return;
+  if (!requireOperator('phát hành kết quả')) return;
   const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
   if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('release', '', res.record);
   toast('Đã phát hành kết quả ' + rec.testId);
   closeSummary();
   refreshCurrent();
@@ -244,8 +250,10 @@ function unreleaseFromSummary() {
   const rec = store.getByUid(summaryUid);
   if (!rec || store.statusOf(rec) !== 'released') return;
   if (!confirm('Hủy phát hành kết quả ' + rec.testId + '? Mẫu sẽ quay về trạng thái Chờ phát hành.')) return;
+  if (!requireOperator('hủy phát hành kết quả')) return;
   const res = store.update(rec.uid, { releaseAt: null, releaser: '' });
   if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('unrelease', '', res.record);
   toast('Đã hủy phát hành kết quả ' + rec.testId);
   closeSummary();
   refreshCurrent();
@@ -513,10 +521,12 @@ function exportBackupFile() {
     obj.printPresets = JSON.parse(JSON.stringify(printPresets)); /* thư viện mẫu bố cục (v30) */
     obj.staff = staffList.slice(); /* danh sách KTV (v30) */
     obj.operator = currentOperator; /* KTV trực đang chọn (v30) */
+    obj.auditLog = JSON.parse(JSON.stringify(auditLog)); /* nhật ký thao tác (F22) */
   } catch (e) { /* bỏ qua nếu lỗi sao chép */ }
   const count = store.getAll().length;
   downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
+  return obj;
 }
 
 /* Nạp dữ liệu từ nội dung file sao lưu (đồng bộ, tách riêng để test được).
@@ -532,12 +542,14 @@ function importBackupText(text, mode) {
   let fileLayout = null;
   let fileStaff = null;
   let filePresets = null;
+  let fileAudit = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
     if (raw && raw.printLayout && typeof raw.printLayout === 'object') fileLayout = raw.printLayout;
     if (raw && Array.isArray(raw.staff)) fileStaff = sanitizeStaffList(raw.staff);
     if (raw && Array.isArray(raw.printPresets)) filePresets = raw.printPresets.filter((p) => p && typeof p.name === 'string' && p.name.trim() && p.settings && typeof p.settings === 'object');
+    if (raw && Array.isArray(raw.auditLog)) fileAudit = sanitizeAuditLog(raw.auditLog);
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -573,9 +585,14 @@ function importBackupText(text, mode) {
       ? '\nFile có kèm danh sách KTV và mẫu bố cục — chỉ thêm những tên/mẫu máy này chưa có. KTV trực của máy được giữ nguyên.'
       : '\nFile có kèm danh sách KTV và các mẫu bố cục — máy này sẽ dùng theo file. Riêng KTV trực sẽ đặt lại thành \'chưa chọn\' — phục hồi xong hãy chọn lại người trực.')
     : '';
+  const auditNote = fileAudit
+    ? (merge
+      ? '\nFile có kèm nhật ký thao tác — các dòng nhật ký trong file sẽ được hợp nhất vào nhật ký của máy này.'
+      : '\nFile có kèm nhật ký thao tác — nhật ký trên máy này sẽ được thay bằng nhật ký trong file.')
+    : '';
   const ask = merge
-    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
-    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
   if (!confirm(ask)) {
     restoreTypes();
     return false;
@@ -594,6 +611,14 @@ function importBackupText(text, mode) {
       });
       if (addedP > 0) savePresets();
     }
+    if (fileAudit) {
+      const have = new Set(auditLog.map((e) => e.id));
+      fileAudit.forEach((e) => { if (!have.has(e.id)) auditLog.push(e); });
+      auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+      if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
+      saveAuditLog();
+    }
+    audit('merge', 'Gộp dữ liệu từ file sao lưu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng', null);
     if (fileTypes) persistTypes();
     refreshTypeSelects();
     refreshCurrent();
@@ -618,6 +643,11 @@ function importBackupText(text, mode) {
       printPresets = filePresets.map((p) => ({ name: p.name, settings: normalizePrintSettings(p.settings) }));
       savePresets();
     }
+    /* Nhật ký (F22): phục hồi thì nhật ký của máy = nhật ký trong file (file cũ
+       không có thì bắt đầu trống), rồi ghi dòng phục hồi vào chính nhật ký mới */
+    auditLog = fileAudit || [];
+    saveAuditLog();
+    audit('restore', 'Phục hồi toàn bộ từ file sao lưu: ' + res.count + ' bản ghi (file xuất lúc ' + when + ')', null);
     if (fileTypes) persistTypes();
     refreshTypeSelects();
     refreshCurrent();
@@ -1146,7 +1176,41 @@ function showFormError(msg) {
 }
 function hideFormError() { $('form-error').classList.add('hidden'); }
 
+/* Liệt kê thay đổi giữa bản ghi cũ và nội dung form sắp lưu (cho nhật ký F22):
+   ID, loại XN, từng trường kết quả, ghi chú và 3 dấu KTV — giá trị trống ghi "(trống)" */
+function diffRecordChanges(oldRec, payload) {
+  const parts = [];
+  const type = getTestType(payload.typeId);
+  const oldType = getTestType(oldRec.typeId);
+  if (oldRec.testId !== payload.testId) parts.push('ID: ' + oldRec.testId + ' → ' + payload.testId);
+  if (oldRec.typeId !== payload.typeId) {
+    parts.push('Loại XN: ' + (oldType ? oldType.name : oldRec.typeId) + ' → ' + (type ? type.name : payload.typeId));
+  }
+  const keys = new Set(Object.keys(oldRec.results || {}).concat(Object.keys(payload.results || {})));
+  keys.forEach((k) => {
+    const ov = (oldRec.results || {})[k] || '';
+    const nv = (payload.results || {})[k] || '';
+    if (ov !== nv) {
+      const f = (type && type.fields.find((x) => x.key === k)) || (oldType && oldType.fields.find((x) => x.key === k));
+      parts.push((f ? f.label : k) + ': ' + (ov || '(trống)') + ' → ' + (nv || '(trống)'));
+    }
+  });
+  if ((oldRec.note || '') !== (payload.note || '')) {
+    parts.push('Ghi chú: ' + (oldRec.note || '(trống)') + ' → ' + (payload.note || '(trống)'));
+  }
+  [['receiver', 'KTV nhận'], ['performer', 'KTV thực hiện'], ['releaser', 'KTV phát hành']].forEach(([k, label]) => {
+    const ov = oldRec[k] || '';
+    const nv = payload[k] || '';
+    if (ov !== nv) parts.push(label + ': ' + (ov || '(trống)') + ' → ' + (nv || '(trống)'));
+  });
+  return parts;
+}
+
 function saveForm() {
+  if (!currentOperator) {
+    showFormError('Chưa chọn KTV trực — hãy chọn người trực (thanh KTV trực ở tab Hôm nay) trước khi lưu.');
+    return;
+  }
   const releaseVal = $('input-release').value;
   const payload = {
     testId: $('input-testid').value,
@@ -1165,10 +1229,22 @@ function saveForm() {
   payload.performer = hasRes ? ($('input-performer').value || currentOperator) : '';
   payload.releaser = payload.releaseAt ? ($('input-releaser').value || currentOperator) : '';
   const wasAdd = !formState.uid;
+  const oldRec = wasAdd ? null : store.getByUid(formState.uid);
+  const oldReleaseAt = oldRec ? oldRec.releaseAt : null;
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
   if (!res.ok) {
     showFormError(res.errors.join('. '));
     return;
+  }
+  /* Nhật ký (F22): thêm mới = nhận mẫu; sửa = dòng thay đổi chi tiết (nếu có);
+     đổi trạng thái phát hành qua form ghi thành sự kiện riêng */
+  if (wasAdd) {
+    audit('receive', 'Thêm mẫu bằng form nhập', res.record);
+  } else if (oldRec) {
+    const parts = diffRecordChanges(oldRec, payload);
+    if (parts.length) audit('save', parts.join('; '), res.record);
+    if (!oldReleaseAt && payload.releaseAt) audit('release', 'Đặt giờ phát hành qua form nhập', res.record);
+    if (oldReleaseAt && !payload.releaseAt) audit('unrelease', 'Xóa giờ phát hành qua form nhập', res.record);
   }
   /* Nhận mẫu mới (thêm mới, không phải sửa) trong lúc đang ở tab Quản lý:
      quay về Quản lý thì mở khung Chưa kết quả để thấy ngay mẫu vừa nhận (v25) */
@@ -1270,6 +1346,13 @@ function acceptScanCode(rawCode) {
     return true;
   }
 
+  if (!currentOperator) {
+    setScanMsg('Chưa chọn KTV trực — hãy chọn người trực trước khi nhận mẫu', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+
   const typeId = $('scanner-type-select').value;
   const type = getTestType(typeId);
   if (store.findDuplicate({ testId: code, typeId })) {
@@ -1284,6 +1367,7 @@ function acceptScanCode(rawCode) {
     beepErr();
     return false;
   }
+  audit('receive', 'Quét nhận mẫu', res.record);
   scannerState.count += 1;
   /* Mẫu mới nhận là việc ở khung Chưa kết quả: nếu đang đứng ở tab Quản lý
      (dù đang xem khung Chờ phát hành) thì tự chuyển khung về Chưa kết quả (v25) */
@@ -1564,7 +1648,12 @@ function promptPinSet(name) { return pinPrompt('set', name); }
 /* Đổi KTV trực: phải nhập đúng PIN của người được chọn (chưa có PIN thì tạo luôn).
    Bỏ chọn (về "chưa chọn") thì không hỏi PIN. */
 async function requestOperatorChange(name) {
-  if (!name) { setOperator(''); return; }
+  if (!name) {
+    const prev = currentOperator;
+    setOperator('');
+    if (prev) audit('operator', 'Đổi người trực: ' + prev + ' → (chưa chọn)', null);
+    return;
+  }
   if (name === currentOperator) { renderOperatorControls(); return; }
   const st = findStaff(name);
   if (st && st.pinHash) {
@@ -1577,7 +1666,9 @@ async function requestOperatorChange(name) {
     if (!(await promptPinSet(name))) { renderOperatorControls(); return; }
     toast('Đã tạo PIN cho KTV ' + name);
   }
+  const prevOp = currentOperator;
   setOperator(name);
+  audit('operator', 'Đổi người trực: ' + (prevOp || '(chưa chọn)') + ' → ' + name, null);
 }
 
 async function changeStaffPin(name) {
@@ -1624,14 +1715,119 @@ async function addStaffFromDialog() {
   renderStaffList();
   renderOperatorControls();
   toast('Đã thêm KTV: ' + name);
+  audit('staff-add', 'Thêm KTV: ' + name, null); /* chỉ ghi sự kiện tạo — PIN không ghi log (F22) */
 }
 
 function deleteStaff(name) {
+  const wasOperator = currentOperator === name;
   staffList = staffList.filter((n) => n.name !== name);
   persistStaff();
-  if (currentOperator === name) setOperator('');
+  if (wasOperator) setOperator('');
   renderStaffList();
   renderOperatorControls();
+  audit('staff-del', 'Xóa KTV: ' + name + (wasOperator ? ' (đang là người trực — đã bỏ chọn trực)' : ''), null);
+}
+
+/* ================= Nhật ký kiểm toán + cổng KTV trực (F22, v41) =================
+   Từ v41: chưa chọn KTV trực thì KHÔNG nhận mẫu, KHÔNG lưu form kết quả,
+   KHÔNG phát hành/hủy phát hành, KHÔNG xóa kết quả (requireOperator).
+   Mọi thao tác quan trọng được ghi vào nhật ký (khóa labentry.audit.v1, giữ
+   tối đa AUDIT_CAP dòng gần nhất). Nhật ký đi kèm file sao lưu: phục hồi thì
+   thay bằng nhật ký trong file, gộp thì hợp nhất theo mã dòng.
+   MÃ PIN KHÔNG BAO GIỜ ĐƯỢC GHI LOG: nhập PIN đúng/sai, đặt/đổi PIN đều
+   không tạo dòng nào; thêm KTV chỉ ghi sự kiện tạo, không ghi PIN. */
+const AUDIT_KEY = 'labentry.audit.v1';
+const AUDIT_CAP = 2000;
+const AUDIT_LABELS = {
+  receive: 'Nhận mẫu', save: 'Nhập/sửa kết quả', release: 'Phát hành', unrelease: 'Hủy phát hành',
+  delete: 'Xóa mẫu', 'staff-add': 'Thêm KTV', 'staff-del': 'Xóa KTV', operator: 'Đổi người trực',
+  restore: 'Phục hồi dữ liệu', merge: 'Gộp dữ liệu',
+};
+let auditLog = [];
+
+function sanitizeAuditLog(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  list.forEach((e) => {
+    if (!e || typeof e !== 'object') return;
+    if (typeof e.id !== 'string' || !e.id) return;
+    if (typeof e.at !== 'string' || isNaN(Date.parse(e.at))) return;
+    if (typeof e.action !== 'string' || !e.action) return;
+    out.push({
+      id: e.id, at: e.at, action: e.action,
+      actor: typeof e.actor === 'string' ? e.actor : '',
+      testId: typeof e.testId === 'string' ? e.testId : '',
+      typeId: typeof e.typeId === 'string' ? e.typeId : '',
+      detail: typeof e.detail === 'string' ? e.detail : '',
+    });
+  });
+  return out.slice(-AUDIT_CAP);
+}
+
+function loadAuditLog() {
+  try { auditLog = sanitizeAuditLog(JSON.parse(localStorage.getItem(AUDIT_KEY) || '[]')); }
+  catch (e) { auditLog = []; }
+}
+
+function saveAuditLog() {
+  try { localStorage.setItem(AUDIT_KEY, JSON.stringify(auditLog)); } catch (e) { /* đầy bộ nhớ: bỏ qua */ }
+}
+
+function audit(action, detail, rec) {
+  auditLog.push({
+    id: 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36),
+    at: new Date().toISOString(),
+    actor: currentOperator || '',
+    action,
+    testId: rec ? (rec.testId || '') : '',
+    typeId: rec ? (rec.typeId || '') : '',
+    detail: detail || '',
+  });
+  if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
+  saveAuditLog();
+}
+
+/* Cổng thao tác: chưa có KTV trực thì chặn + báo rõ, trả về false */
+function requireOperator(what) {
+  if (currentOperator) return true;
+  toast('Chưa chọn KTV trực — không thể ' + what + '. Hãy chọn người trực trước.');
+  return false;
+}
+
+/* Tóm tắt nội dung một bản ghi sắp bị xóa (giá trị THẬT, không dùng quy ước
+   hiển thị "Âm tính" của resultSummary để nhật ký không sai lệch) */
+function deleteDetailOf(rec) {
+  const type = getTestType(rec.typeId);
+  const res = type
+    ? type.fields.map((f) => f.label + ': ' + (((rec.results || {})[f.key]) || '(trống)')).join('; ')
+    : '';
+  return 'Trạng thái khi xóa: ' + (STATUS_LABELS[store.statusOf(rec)] || '') + (res ? ' · Kết quả: ' + res : '');
+}
+
+function renderAuditLog() {
+  const fEl = $('audit-filter');
+  const qEl = $('audit-search');
+  if (!fEl || !qEl) return;
+  const f = fEl.value;
+  const q = qEl.value.trim().toLowerCase();
+  const rows = auditLog.filter((e) =>
+    (!f || e.action === f) &&
+    (!q || (e.testId || '').toLowerCase().includes(q) || (e.actor || '').toLowerCase().includes(q) || (e.detail || '').toLowerCase().includes(q))
+  ).slice().reverse();
+  const MAX = 300;
+  $('audit-count').textContent = 'Có ' + rows.length + ' dòng khớp' +
+    (rows.length > MAX ? ' — hiện ' + MAX + ' dòng gần nhất' : '') +
+    ' · Toàn bộ nhật ký: ' + auditLog.length + '/' + AUDIT_CAP + ' dòng';
+  $('audit-list').innerHTML = rows.slice(0, MAX).map((e) =>
+    '<div class="audit-row">' +
+    '<div class="audit-head"><span class="audit-time">' + esc(fmtFull(e.at)) + '</span>' +
+    '<span class="audit-action">' + esc(AUDIT_LABELS[e.action] || e.action) + '</span>' +
+    (e.testId ? '<span class="audit-id">' + esc(e.testId) + '</span>' : '') + '</div>' +
+    '<div class="audit-meta">Người trực: ' + (e.actor ? '<b>' + esc(e.actor) + '</b>' : '(chưa chọn)') +
+    (e.typeId ? ' · ' + esc((getTestType(e.typeId) || {}).name || e.typeId) : '') + '</div>' +
+    (e.detail ? '<div class="audit-detail">' + esc(e.detail) + '</div>' : '') +
+    '</div>').join('');
+  $('audit-empty').classList.toggle('hidden', rows.length > 0);
 }
 
 /* ================= Tùy chỉnh bản in PDF (v27, đợt 1) =================
@@ -2264,6 +2460,7 @@ function bindPrintCfg() {
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
+  loadAuditLog(); /* nhật ký kiểm toán (F22) */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
   loadPresets(); /* các mẫu bố cục đã lưu */
   renderOperatorControls();
@@ -2304,8 +2501,11 @@ function init() {
   $('btn-cancel-select').addEventListener('click', () => setSelectMode(false));
   $('btn-delete-selected').addEventListener('click', () => {
     if (!selectedUids.size) { toast('Chưa chọn kết quả nào'); return; }
+    if (!requireOperator('xóa kết quả')) return;
     if (!confirm('Xóa ' + selectedUids.size + ' kết quả đã chọn?')) return;
+    const snaps = [...selectedUids].map((uid) => store.getByUid(uid)).filter(Boolean);
     selectedUids.forEach((uid) => store.remove(uid));
+    snaps.forEach((rec) => audit('delete', 'Xóa hàng loạt · ' + deleteDetailOf(rec), rec));
     selectedUids.clear();
     setSelectMode(false);
     toast('Đã xóa');
@@ -2314,6 +2514,10 @@ function init() {
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
   $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
+  $('btn-audit').addEventListener('click', () => switchView('audit'));
+  $('btn-audit-back').addEventListener('click', () => switchView('manage'));
+  $('audit-filter').addEventListener('change', renderAuditLog);
+  $('audit-search').addEventListener('input', renderAuditLog);
   $('operator-select').addEventListener('change', () => requestOperatorChange($('operator-select').value));
   $('scanner-operator-select').addEventListener('change', () => requestOperatorChange($('scanner-operator-select').value));
   $('btn-staff-manage').addEventListener('click', openStaffDialog);

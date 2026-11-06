@@ -613,6 +613,20 @@ svg { width: 24px; height: 24px; display: block; }
 .pcfg-logo-thumb { max-width: 110px; max-height: 48px; object-fit: contain; border: 1px solid var(--line); border-radius: 6px; }
 .pcfg-col { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .pcfg-doc-row { display: flex; align-items: center; gap: 6px; margin: 0 0 8px 126px; }
+/* Nhật ký thao tác (F22) */
+.audit-open-btn { display: block; width: 100%; margin: 4px 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; color: var(--blue-dark); }
+.audit-tools { display: flex; gap: 8px; margin-bottom: 8px; }
+.audit-tools select { flex: 0 0 auto; }
+.audit-tools input { flex: 1 1 auto; min-width: 0; }
+.audit-count { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.audit-list { display: flex; flex-direction: column; gap: 8px; }
+.audit-row { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.audit-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.audit-time { font-size: 12.5px; color: var(--muted); }
+.audit-action { font-weight: 700; font-size: 13px; color: var(--blue-dark); }
+.audit-id { font-weight: 600; font-size: 13px; }
+.audit-meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.audit-detail { font-size: 13.5px; margin-top: 3px; overflow-wrap: anywhere; }
 .pcfg-doc-row input[type="text"] { flex: 1 1 0; min-width: 0; }
 @media (max-width: 640px) { .pcfg-doc-row { margin-left: 0; } }
 .pcfg-col .pc-label { flex: 1 1 auto; min-width: 0; }

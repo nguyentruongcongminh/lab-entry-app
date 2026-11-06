@@ -24,6 +24,23 @@ async function nhapPinVao(pin) {
 
 (async () => {
   const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
+  /* jsdom coi file:// là origin mờ nên localStorage gốc bị chặn (SecurityError) —
+     thay bằng bản nhớ tạm trong bộ nhớ để app chạy đúng như trên trình duyệt thật,
+     đồng thời gieo sẵn dữ liệu qua beforeParse */
+  const shimStorage = (w, seed) => {
+    const data = new Map(Object.entries(seed || {}));
+    Object.defineProperty(w, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k) => (data.has(k) ? data.get(k) : null),
+        setItem: (k, v) => { data.set(k, String(v)); },
+        removeItem: (k) => { data.delete(k); },
+        clear: () => data.clear(),
+        key: (i) => ([...data.keys()][i] ?? null),
+        get length() { return data.size; },
+      },
+    });
+  };
   /* Bỏ hậu tố ?v=N ở địa chỉ file khi nạp vào jsdom (bản thật trên web giữ nguyên để chống cache cũ) */
   const htmlText = fs.readFileSync(htmlPath, 'utf8').replace(/\?v=\d+/g, '');
   const dom = new JSDOM(htmlText, {
@@ -31,6 +48,14 @@ async function nhapPinVao(pin) {
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,
+    /* v41 (F22): cổng KTV trực áp dụng toàn cục — gieo sẵn một KTV đang trực
+       trước khi app chạy, để các test thao tác dữ liệu không bị chặn */
+    beforeParse(w) {
+      shimStorage(w, {
+        'labentry.staff.v1': JSON.stringify([{ name: 'KTV Kiểm Tra', salt: 'test', pinHash: 'testhash' }]),
+        'labentry.operator.v1': 'KTV Kiểm Tra',
+      });
+    },
   });
   const { window } = dom;
   const { document } = window;
@@ -40,6 +65,30 @@ async function nhapPinVao(pin) {
   assert.ok(document.getElementById('select-type').options.length > 0, 'app phải khởi tạo xong trước khi test');
   window.confirm = () => true;
   window.scrollTo = () => {};
+
+  /* Phiên riêng cho test F22: gieo sẵn KTV + người trực qua beforeParse và chờ
+     app khởi tạo xong ở cấp IIFE, để thân test chạy hoàn toàn đồng bộ (không qua
+     hộp thoại PIN bất đồng bộ) */
+  const dom2 = new JSDOM(htmlText, {
+    url: 'file://' + htmlPath,
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(w) {
+      shimStorage(w, {
+        'labentry.staff.v1': JSON.stringify([{ name: 'KTV Nhật Ký', salt: 's', pinHash: 'h' }]),
+        'labentry.operator.v1': 'KTV Nhật Ký',
+      });
+    },
+  });
+  const w2 = dom2.window;
+  const d2 = w2.document;
+  for (let i = 0; i < 60 && d2.getElementById('select-type').options.length === 0; i++) await sleep(50);
+  w2.confirm = () => true;
+  w2.scrollTo = () => {};
+  const $2 = (id) => d2.getElementById(id);
+  const setInput2 = (el, v) => { el.value = v; el.dispatchEvent(new w2.Event('input', { bubbles: true })); };
+  const visible2 = (el) => !el.classList.contains('hidden');
   const $ = (id) => document.getElementById(id);
   const visible = (el) => !el.classList.contains('hidden');
   const setInput = (el, v) => { el.value = v; el.dispatchEvent(new window.Event('input', { bubbles: true })); };
@@ -481,7 +530,7 @@ async function nhapPinVao(pin) {
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v40 và precache đúng URL ?v=40 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v41 và precache đúng URL ?v=41 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -499,8 +548,8 @@ async function nhapPinVao(pin) {
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v40'"), 'sw.js phải gắn VERSION v40');
-    for (const a of ['styles.css?v=40', 'print.css?v=40', 'config.js?v=40', 'store.js?v=40', 'app.js?v=40', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v41'"), 'sw.js phải gắn VERSION v41');
+    for (const a of ['styles.css?v=41', 'print.css?v=41', 'config.js?v=41', 'store.js?v=41', 'app.js?v=41', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -731,7 +780,7 @@ async function nhapPinVao(pin) {
     setInput($('input-staff-pin2'), '222222');
     $('btn-staff-add').click();
     await sleep(80);
-    assert.strictEqual($('staff-list').children.length, 2);
+    assert.strictEqual($('staff-list').children.length, 3); /* 2 người của test này + KTV Kiểm Tra dựng sẵn từ v41 */
     $('btn-staff-close').click();
     /* A trực: quét nhận một mẫu */
     setSelect($('operator-select'), 'Nguyễn Văn A');
@@ -998,7 +1047,7 @@ async function nhapPinVao(pin) {
     mutate();
     document.querySelector('[data-view="today"]').click();
     $('btn-staff-manage').click();
-    assert.strictEqual($('staff-list').children.length, 1, 'sau khi xóa chỉ còn 1 KTV');
+    assert.strictEqual($('staff-list').children.length, 2, 'sau khi xóa Bình chỉ còn A và KTV Kiểm Tra (v41)');
     $('btn-staff-close').click();
     /* PHỤC HỒI: danh sách KTV + KTV trực + mẫu quay lại đúng theo file */
     assert.strictEqual(window.importBackupText(captured), true);
@@ -1108,6 +1157,93 @@ async function nhapPinVao(pin) {
     setInput($('pcfg-doc1-value'), '');
     setInput($('pcfg-doc2-value'), '');
     if ($('pcfg-doc-barcode').checked) $('pcfg-doc-barcode').click();
+  });
+
+
+  test('cổng KTV trực + nhật ký kiểm toán + log mang theo sao lưu (v41 F22)', () => {
+    const auditNow = () => JSON.parse(w2.localStorage.getItem('labentry.audit.v1') || '[]');
+    const recsNow = () => JSON.parse(w2.localStorage.getItem('labentry.records.v1') || '[]');
+    const rowOf = (id) => [...$2('list-today').children].find((x) => x.textContent.includes(id));
+    assert.strictEqual($2('operator-select').value, 'KTV Nhật Ký', 'phiên riêng phải có sẵn người trực');
+    /* Nhận mẫu bằng form + sửa kết quả + phát hành khi đang trực: đều vào log */
+    $2('fab-add').click();
+    setInput2($2('input-testid'), 'AUDIT-001');
+    setInput2($2('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $2('btn-save').click();
+    assert.ok(rowOf('AUDIT-001'), 'đang trực thì thêm mẫu phải được');
+    rowOf('AUDIT-001').querySelector('[data-action="edit"]').click();
+    setInput2($2('fields-container').querySelector('[data-field="ketQua"]'), 'Dương tính');
+    $2('btn-save').click();
+    rowOf('AUDIT-001').querySelector('[data-action="release"]').click();
+    let entries = auditNow().filter((e) => e.testId === 'AUDIT-001');
+    assert.deepStrictEqual(entries.map((e) => e.action), ['receive', 'save', 'release'], 'log phải có đủ nhận mẫu -> sửa kết quả -> phát hành');
+    assert.ok(entries.every((e) => e.actor === 'KTV Nhật Ký'), 'mọi dòng log phải ghi người trực lúc thao tác');
+    assert.ok(entries[1].detail.includes('Kết quả: Âm tính → Dương tính'), 'dòng sửa kết quả phải ghi chi tiết cũ → mới, nhận: ' + entries[1].detail);
+    /* Quét nhận mẫu khi đang trực */
+    w2.eval("scannerState = { source: 'camera', single: false, count: 0, lastCode: '', lastAt: 0 }");
+    $2('scanner-type-select').value = 'cao-tim-nam';
+    assert.strictEqual(w2.acceptScanCode('AUDIT-SCAN'), true, 'đang trực thì quét nhận mẫu phải được');
+    const scanEntry = auditNow().find((e) => e.testId === 'AUDIT-SCAN');
+    assert.ok(scanEntry && scanEntry.action === 'receive' && scanEntry.actor === 'KTV Nhật Ký', 'quét nhận mẫu phải vào log');
+    /* Xóa mẫu khi đang trực: vào log kèm nội dung đã xóa */
+    $2('fab-add').click();
+    setInput2($2('input-testid'), 'AUDIT-DEL');
+    setInput2($2('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $2('btn-save').click();
+    rowOf('AUDIT-DEL').querySelector('[data-action="delete"]').click();
+    assert.ok(!recsNow().some((r) => r.testId === 'AUDIT-DEL'), 'đang trực thì xóa phải được');
+    const delEntry = auditNow().find((e) => e.testId === 'AUDIT-DEL' && e.action === 'delete');
+    assert.ok(delEntry && delEntry.detail.includes('Kết quả: Âm tính'), 'dòng xóa phải kèm nội dung kết quả đã xóa');
+    /* Mẫu thứ hai để dành kiểm tra cổng lúc không có người trực */
+    $2('fab-add').click();
+    setInput2($2('input-testid'), 'AUDIT-002');
+    setInput2($2('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $2('btn-save').click();
+    assert.ok(rowOf('AUDIT-002'));
+    /* Trang xem nhật ký */
+    d2.querySelector('[data-view="manage"]').click();
+    $2('btn-audit').click();
+    assert.ok(visible2($2('view-audit')), 'nút Nhật ký phải mở được trang nhật ký');
+    assert.ok($2('audit-list').textContent.includes('AUDIT-001') && $2('audit-list').textContent.includes('Phát hành'));
+    $2('btn-audit-back').click();
+    /* Sao lưu: file xuất phải kèm auditLog */
+    const obj = w2.exportBackupFile();
+    assert.ok(Array.isArray(obj.auditLog) && obj.auditLog.some((e) => e.testId === 'AUDIT-001'), 'file sao lưu xuất ra phải mang theo nhật ký');
+    /* Phục hồi: log bị thay bằng log trong file + thêm dòng restore; KTV trực đặt lại chưa chọn */
+    const fake1 = { id: 'fake-1', at: new Date().toISOString(), action: 'receive', actor: 'Người Cũ', testId: 'FAKE-001', typeId: '', detail: 'dòng giả trong file' };
+    assert.strictEqual(w2.importBackupText(JSON.stringify(Object.assign({}, obj, { auditLog: [fake1] })), 'replace'), true);
+    entries = auditNow();
+    assert.ok(entries.some((e) => e.id === 'fake-1'), 'phục hồi phải lấy nhật ký trong file');
+    assert.ok(!entries.some((e) => e.testId === 'AUDIT-001'), 'phục hồi phải thay hẳn nhật ký cũ');
+    assert.ok(entries.some((e) => e.action === 'restore'), 'phục hồi phải tự ghi dòng restore');
+    assert.strictEqual($2('operator-select').value, '', 'phục hồi xong KTV trực phải về chưa chọn');
+    /* Gộp: hợp nhất theo id, gộp lại không trùng */
+    const fake2 = { id: 'fake-2', at: new Date().toISOString(), action: 'delete', actor: 'Người Cũ', testId: 'FAKE-002', typeId: '', detail: 'dòng giả 2' };
+    const mergeJson = JSON.stringify({ app: 'LabEntry', kind: 'labentry-backup', version: 1, exportedAt: new Date().toISOString(), records: [], auditLog: [fake2] });
+    assert.strictEqual(w2.importBackupText(mergeJson, 'merge'), true);
+    assert.strictEqual(w2.importBackupText(mergeJson, 'merge'), true);
+    entries = auditNow();
+    assert.strictEqual(entries.filter((e) => e.id === 'fake-2').length, 1, 'gộp hai lần cùng một file không được trùng dòng log');
+    assert.ok(entries.some((e) => e.id === 'fake-1') && entries.some((e) => e.action === 'merge'), 'gộp phải giữ log cũ và ghi dòng merge');
+    /* CỔNG: đang không có người trực — lưu form, phát hành, xóa, quét đều bị chặn và không ghi log */
+    const logLenBefore = auditNow().length;
+    d2.querySelector('[data-view="today"]').click();
+    const row1 = rowOf('AUDIT-001');
+    assert.ok(row1, 'mẫu AUDIT-001 phải còn sau phục hồi');
+    row1.querySelector('[data-action="edit"]').click();
+    $2('btn-save').click();
+    assert.ok(visible2($2('view-form')), 'chưa có người trực: lưu form phải bị chặn, không rời form');
+    assert.ok($2('form-error').textContent.includes('Chưa chọn KTV trực'), 'phải báo rõ lý do chưa chọn KTV trực');
+    d2.querySelector('[data-view="today"]').click();
+    const row2 = rowOf('AUDIT-002');
+    row2.querySelector('[data-action="release"]').click();
+    assert.strictEqual(recsNow().find((r) => r.testId === 'AUDIT-002').releaseAt, null, 'chưa có người trực: phát hành phải bị chặn');
+    row2.querySelector('[data-action="delete"]').click();
+    assert.ok(recsNow().some((r) => r.testId === 'AUDIT-002'), 'chưa có người trực: xóa phải bị chặn');
+    assert.strictEqual(w2.acceptScanCode('AUDIT-003'), false, 'chưa có người trực: quét nhận mẫu phải bị chặn');
+    assert.ok(!recsNow().some((r) => r.testId === 'AUDIT-003'), 'mẫu bị chặn không được tạo');
+    assert.strictEqual(auditNow().length, logLenBefore, 'thao tác bị chặn không được ghi log');
+    w2.close();
   });
 
   console.log('\nTỔNG: ' + passed + ' test giao diện đạt, 0 lỗi.');

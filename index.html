@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=40">
-<link rel="stylesheet" href="print.css?v=40">
+<link rel="stylesheet" href="styles.css?v=41">
+<link rel="stylesheet" href="print.css?v=41">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -23,7 +23,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v40</span>
+    <span class="app-version">LabEntry v41</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -86,6 +86,8 @@
     <button type="button" id="btn-panel-noresult" class="switch-btn active">Chưa kết quả <span id="count-noresult" class="switch-count">0</span></button>
     <button type="button" id="btn-panel-pending" class="switch-btn">Chờ phát hành <span id="count-pending" class="switch-count">0</span></button>
   </div>
+
+  <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
 
   <div id="group-noresult">
     <h2 class="group-title">Chưa kết quả</h2>
@@ -452,6 +454,38 @@
   </div>
 </section>
 
+<!-- ============ TRANG: NHẬT KÝ THAO TÁC (F22) ============ -->
+<section id="view-audit" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-audit-back" class="icon-btn" title="Quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Nhật ký thao tác</span>
+    <span class="toolbar-spacer"></span>
+  </header>
+
+  <div class="audit-tools">
+    <select id="audit-filter" aria-label="Lọc theo loại thao tác">
+      <option value="">Tất cả thao tác</option>
+      <option value="receive">Nhận mẫu</option>
+      <option value="save">Nhập/sửa kết quả</option>
+      <option value="release">Phát hành</option>
+      <option value="unrelease">Hủy phát hành</option>
+      <option value="delete">Xóa mẫu</option>
+      <option value="operator">Đổi người trực</option>
+      <option value="staff-add">Thêm KTV</option>
+      <option value="staff-del">Xóa KTV</option>
+      <option value="restore">Phục hồi dữ liệu</option>
+      <option value="merge">Gộp dữ liệu</option>
+    </select>
+    <input id="audit-search" type="search" placeholder="Tìm theo ID mẫu, người trực, nội dung...">
+  </div>
+  <div id="audit-count" class="audit-count"></div>
+  <div id="audit-list" class="audit-list"></div>
+  <div id="audit-empty" class="empty-msg hidden">Chưa có dòng nhật ký nào</div>
+  <p class="pcfg-hint">Nhật ký giữ tối đa 2.000 dòng gần nhất và đi kèm file sao lưu (phục hồi = thay bằng nhật ký trong file, gộp = hợp nhất). Thao tác nhập mã PIN không được ghi vào nhật ký.</p>
+</section>
+
 <!-- ============ THANH ĐIỀU HƯỚNG DƯỚI ============ -->
 <!-- Nút + dùng chung cho tab Hôm nay và tab Quản lý (ẩn ở tab Lọc & form) -->
 <button id="fab-add" class="fab" title="Thêm kết quả" aria-label="Thêm kết quả">
@@ -588,8 +622,8 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=40"></script>
-<script src="store.js?v=40"></script>
-<script src="app.js?v=40"></script>
+<script src="config.js?v=41"></script>
+<script src="store.js?v=41"></script>
+<script src="app.js?v=41"></script>
 </body>
 </html>
