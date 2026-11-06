@@ -28,7 +28,7 @@ function test(name, fn) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
+  const htmlPath = 'lab-entry-single.html';
   /* jsdom coi file:// là origin mờ nên localStorage gốc bị chặn (SecurityError) —
      thay bằng bản nhớ tạm trong bộ nhớ để app chạy đúng như trên trình duyệt thật,
      đồng thời gieo sẵn dữ liệu qua beforeParse */
@@ -94,6 +94,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const $2 = (id) => d2.getElementById(id);
   const setInput2 = (el, v) => { el.value = v; el.dispatchEvent(new w2.Event('input', { bubbles: true })); };
   const visible2 = (el) => !el.classList.contains('hidden');
+
+  /* Phiên riêng cho test F24 (v43): KTV + người trực gieo sẵn như dom2, trạng thái
+     sạch hoàn toàn để kiểm chứng nhắc sao lưu / khẩn / bàn giao / tự khóa / đọc to / quét tìm */
+  const dom3 = new JSDOM(htmlText, {
+    url: 'file://' + htmlPath,
+    runScripts: 'dangerously',
+    resources: 'usable',
+    pretendToBeVisual: true,
+    beforeParse(w) {
+      shimStorage(w, {
+        'labentry.staff.v1': JSON.stringify([{ name: 'KTV V43', salt: 's', pinHash: 'h' }]),
+        'labentry.operator.v1': 'KTV V43',
+      });
+    },
+  });
+  const w3 = dom3.window;
+  const d3 = w3.document;
+  for (let i = 0; i < 60 && d3.getElementById('select-type').options.length === 0; i++) await sleep(50);
+  w3.confirm = () => true;
+  w3.scrollTo = () => {};
+  const $3 = (id) => d3.getElementById(id);
+  const setInput3 = (el, v) => { el.value = v; el.dispatchEvent(new w3.Event('input', { bubbles: true })); };
+  const visible3 = (el) => !el.classList.contains('hidden');
   const $ = (id) => document.getElementById(id);
   const visible = (el) => !el.classList.contains('hidden');
   const setInput = (el, v) => { el.value = v; el.dispatchEvent(new window.Event('input', { bubbles: true })); };
@@ -546,7 +569,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v42 và precache đúng URL ?v=42 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v43 và precache đúng URL ?v=43 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -564,8 +587,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v42'"), 'sw.js phải gắn VERSION v42');
-    for (const a of ['styles.css?v=42', 'print.css?v=42', 'config.js?v=42', 'store.js?v=42', 'app.js?v=42', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v43'"), 'sw.js phải gắn VERSION v43');
+    for (const a of ['styles.css?v=43', 'print.css?v=43', 'config.js?v=43', 'store.js?v=43', 'app.js?v=43', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1287,6 +1310,134 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(!recsNow().some((r) => r.testId === 'AUDIT-003'), 'mẫu bị chặn không được tạo');
     assert.strictEqual(auditNow().length, logLenBefore, 'thao tác bị chặn không được ghi log');
     w2.close();
+  });
+
+  test('gói ca trực F24: nhắc sao lưu, mẫu khẩn, bàn giao ca, tự khóa, đọc to, quét tìm (v43)', () => {
+    const recs3 = () => JSON.parse(w3.localStorage.getItem('labentry.records.v1') || '[]');
+    const rowOf3 = (id) => [...$3('list-today').children].find((x) => x.textContent.includes(id));
+    assert.strictEqual($3('operator-select').value, 'KTV V43', 'phiên F24 phải có sẵn người trực');
+
+    /* --- 1) Nhắc sao lưu: chưa có dữ liệu thì không nhắc; có dữ liệu + chưa từng sao lưu thì nhắc --- */
+    w3.eval('renderBackupNag()');
+    assert.ok(!visible3($3('backup-banner')), 'chưa có bản ghi nào thì không hiện thanh nhắc sao lưu');
+    $3('fab-add').click();
+    setInput3($3('input-testid'), 'V43-BK1');
+    $3('btn-save').click();
+    w3.eval('renderBackupNag()');
+    assert.ok(visible3($3('backup-banner')), 'có dữ liệu mà chưa từng sao lưu thì phải nhắc');
+    assert.ok($3('backup-banner-text').textContent.includes('Chưa từng sao lưu'));
+    assert.ok($3('backup-last').textContent.includes('chưa từng xuất file sao lưu'), 'thẻ sao lưu phải báo chưa từng sao lưu');
+    /* Xuất sao lưu -> tắt nhắc + ghi lần sao lưu gần nhất */
+    w3.eval('exportBackupFile()');
+    assert.ok(!visible3($3('backup-banner')), 'vừa sao lưu xong thì thanh nhắc phải tắt');
+    assert.ok($3('backup-last').textContent.includes('Sao lưu gần nhất'), 'thẻ sao lưu phải hiện lần sao lưu gần nhất');
+    const meta1 = JSON.parse(w3.localStorage.getItem('labentry.meta.v1'));
+    assert.ok(meta1 && typeof meta1.lastBackupAt === 'string', 'meta phải lưu lastBackupAt sau khi xuất sao lưu');
+    /* Giả lập đã 4 ngày chưa sao lưu -> nhắc lại; bấm "Để mai nhắc lại" -> ẩn trong hôm nay */
+    w3.eval("appMeta.lastBackupAt = new Date(Date.now() - 4 * 86400000).toISOString(); saveMeta(); renderBackupNag();");
+    assert.ok(visible3($3('backup-banner')), 'quá 3 ngày chưa sao lưu thì phải nhắc lại');
+    assert.ok($3('backup-banner-text').textContent.includes('4 ngày'));
+    $3('btn-backup-later').click();
+    assert.ok(!visible3($3('backup-banner')), 'bấm "Để mai nhắc lại" thì ẩn trong hôm nay');
+    w3.eval("appMeta.backupNagUntil = ''; appMeta.lastBackupAt = new Date().toISOString(); saveMeta(); lastNagRendered = null; renderBackupNag();");
+    assert.ok(!visible3($3('backup-banner')), 'mới sao lưu hôm nay thì không nhắc');
+
+    /* --- 4) Mẫu khẩn: lưu cờ qua form, nhãn KHẨN + xếp đầu danh sách Hôm nay --- */
+    $3('fab-add').click();
+    setInput3($3('input-testid'), 'V43-THUONG');
+    $3('btn-save').click();
+    $3('fab-add').click();
+    setInput3($3('input-testid'), 'V43-KHAN');
+    $3('input-urgent').click();
+    setInput3($3('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
+    $3('btn-save').click();
+    assert.strictEqual(recs3().find((r) => r.testId === 'V43-KHAN').urgent, true, 'ô tích khẩn trong form phải lưu cờ urgent');
+    assert.strictEqual(recs3().find((r) => r.testId === 'V43-THUONG').urgent, false);
+    const idsToday = [...$3('list-today').children].map((x) => x.textContent);
+    assert.ok(idsToday[0].includes('V43-KHAN'), 'mẫu khẩn phải xếp đầu danh sách Hôm nay dù nhận sau');
+    assert.ok(idsToday[0].includes('KHẨN'), 'dòng mẫu khẩn phải có nhãn KHẨN');
+    assert.ok(rowOf3('V43-KHAN').className.includes('urgent'), 'dòng mẫu khẩn phải có lớp urgent (viền/nền đỏ)');
+    /* Trang Xem hiện nhãn KHẨN */
+    rowOf3('V43-KHAN').querySelector('[data-action="view"]').click();
+    assert.ok(visible3($3('summary-modal')));
+    assert.ok(!$3('sum-urgent').classList.contains('hidden'), 'trang Xem phải hiện nhãn KHẨN cho mẫu khẩn');
+    $3('btn-summary-close').click();
+    /* Bỏ khẩn qua form -> nhật ký ghi nhận thay đổi cờ */
+    rowOf3('V43-KHAN').querySelector('[data-action="edit"]').click();
+    assert.strictEqual($3('input-urgent').checked, true, 'mở form sửa phải tích sẵn ô khẩn theo dữ liệu');
+    $3('input-urgent').click();
+    $3('btn-save').click();
+    assert.strictEqual(recs3().find((r) => r.testId === 'V43-KHAN').urgent, false, 'bỏ tích trong form phải tắt cờ khẩn');
+    const audit3 = () => JSON.parse(w3.localStorage.getItem('labentry.audit.v1') || '[]');
+    assert.ok(audit3().some((e) => e.testId === 'V43-KHAN' && e.action === 'save' && e.detail.includes('Mẫu khẩn: Có → Không')), 'đổi cờ khẩn phải vào nhật ký');
+    /* Bật lại khẩn để các bước sau (bàn giao) kiểm chứng thứ tự */
+    w3.eval("store.update(store.getAll().find((r) => r.testId === 'V43-KHAN').uid, { urgent: true })");
+    w3.eval('renderToday()');
+
+    /* --- 3) Bàn giao ca: gồm cả mẫu tồn từ hôm qua, khẩn đầu nhóm, nội dung chữ đầy đủ --- */
+    w3.eval("store.add({ testId: 'V43-TON', typeId: 'cao-tim-nam', results: {} }, new Date(Date.now() - 26 * 3600000))");
+    d3.querySelector('[data-view="manage"]').click();
+    $3('btn-handover').click();
+    assert.ok(visible3($3('view-handover')), 'nút Bàn giao ca phải mở trang bàn giao');
+    assert.ok($3('handover-counts').textContent.includes('Tổng bàn giao: 4'), 'bàn giao phải đếm đủ 4 mẫu chưa xong, nhận: ' + $3('handover-counts').textContent);
+    const nrIds = [...$3('handover-list-noresult').children].map((x) => x.textContent);
+    assert.strictEqual(nrIds.length, 3, 'nhóm Chưa kết quả phải có 3 mẫu (BK1, THUONG, TON)');
+    assert.ok(nrIds[0].includes('V43-KHAN') === false && nrIds.every((t) => !t.includes('V43-KHAN')), 'mẫu đã có kết quả không nằm ở nhóm Chưa kết quả');
+    const pendIds = [...$3('handover-list-pending').children].map((x) => x.textContent);
+    assert.strictEqual(pendIds.length, 1, 'nhóm Chờ phát hành phải có 1 mẫu');
+    assert.ok(pendIds[0].includes('V43-KHAN') && pendIds[0].includes('KHẨN'), 'mẫu khẩn phải ở nhóm Chờ phát hành kèm nhãn KHẨN');
+    const htext = $3('handover-text').value;
+    ['V43-BK1', 'V43-THUONG', 'V43-TON', 'V43-KHAN', 'BÀN GIAO CA', 'CHƯA KẾT QUẢ (3)', 'CHỜ PHÁT HÀNH (1)', '🔴 KHẨN'].forEach((s) =>
+      assert.ok(htext.includes(s), 'nội dung bàn giao dạng chữ phải chứa: ' + s));
+    $3('btn-handover-print').click(); /* không được văng lỗi dù jsdom không in thật */
+    $3('btn-handover-back').click();
+    assert.ok(visible3($3('view-manage')), 'quay lại từ bàn giao phải về tab Quản lý');
+
+    /* --- 5) Tự khóa KTV trực: quá hạn không thao tác thì khóa + ghi log; đang mở hộp thoại thì không khóa --- */
+    d3.querySelector('[data-view="today"]').click();
+    w3.eval('appMeta.autoLockMin = 1; saveMeta(); lastActivityAt = Date.now() - 2 * 60000; timerTick();');
+    assert.strictEqual($3('operator-select').value, '', 'quá 1 phút không thao tác (ngưỡng đặt 1 phút) thì KTV trực phải bị tự khóa');
+    assert.ok(audit3().some((e) => e.action === 'operator' && e.detail.includes('Tự khóa người trực')), 'tự khóa phải ghi nhật ký operator');
+    w3.eval("setOperator('KTV V43'); openSummary(store.getAll().find((r) => r.testId === 'V43-KHAN').uid); lastActivityAt = Date.now() - 2 * 60000; timerTick();");
+    assert.strictEqual($3('operator-select').value, 'KTV V43', 'đang mở hộp thoại Xem thì không được tự khóa giữa chừng');
+    w3.eval('closeSummary(); appMeta.autoLockMin = 10; saveMeta(); lastActivityAt = Date.now();');
+
+    /* --- 6) Đọc to mã mẫu khi tới giờ --- */
+    const spoken = [];
+    Object.defineProperty(w3, 'speechSynthesis', {
+      configurable: true,
+      value: { cancel() {}, speak(u) { spoken.push(u.text); } },
+    });
+    w3.SpeechSynthesisUtterance = function (t) { this.text = t; };
+    $3('chk-speak-due').click();
+    assert.strictEqual(JSON.parse(w3.localStorage.getItem('labentry.meta.v1')).speakDue, true, 'bật công tắc đọc to phải lưu vào meta');
+    const docUid = w3.eval("store.add({ testId: 'V43-DOC', typeId: 'mau-an', results: {} }).record.uid");
+    w3.eval("store.update('" + docUid + "', { timerEndsAt: new Date(Date.now() - 30000).toISOString() })");
+    w3.eval('timerTick()');
+    assert.ok(spoken.some((t) => t.includes('V43-DOC')), 'mẫu tới giờ phải được đọc to mã, đã đọc: ' + JSON.stringify(spoken));
+    const spokenCount = spoken.length;
+    w3.eval('timerTick()');
+    assert.strictEqual(spoken.length, spokenCount, 'cùng một đợt hẹn giờ chỉ đọc một lần');
+
+    /* --- 7) Quét tìm mẫu: thấy thì mở đúng mẫu, không thấy thì báo lỗi và giữ quét mở --- */
+    $3('btn-scan-find').click();
+    assert.ok(visible3($3('scanner-modal')), 'nút quét ở Quản lý phải mở màn hình quét');
+    assert.ok($3('scanner-title').textContent.includes('Quét tìm mẫu'));
+    assert.strictEqual(w3.acceptScanCode('V43-THUONG'), true, 'quét đúng ID đang có phải nhận');
+    assert.ok(!visible3($3('scanner-modal')), 'tìm thấy mẫu thì màn hình quét phải đóng');
+    assert.ok(visible3($3('view-form')), 'mẫu chưa có kết quả: quét tìm phải mở form nhập');
+    assert.strictEqual($3('input-testid').value, 'V43-THUONG', 'form mở ra phải đúng mẫu vừa quét');
+    d3.querySelector('[data-view="manage"]').click();
+    $3('btn-scan-find').click();
+    assert.strictEqual(w3.acceptScanCode('V43-KHAN'), true);
+    assert.ok(visible3($3('summary-modal')), 'mẫu đã có kết quả: quét tìm phải mở trang Xem');
+    $3('btn-summary-close').click();
+    $3('btn-scan-find').click();
+    assert.strictEqual(w3.acceptScanCode('KHONG-CO-123'), false, 'quét ID không có phải bị từ chối');
+    assert.ok(visible3($3('scanner-modal')), 'không tìm thấy thì màn hình quét phải còn mở để quét lại');
+    assert.ok($3('scanner-msg').textContent.includes('Không tìm thấy mẫu'), 'phải báo rõ không tìm thấy');
+    $3('btn-scanner-close').click();
+    w3.close();
   });
 
   await chain;

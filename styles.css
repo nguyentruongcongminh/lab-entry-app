@@ -685,3 +685,45 @@ svg { width: 24px; height: 24px; display: block; }
   border: 1.5px solid var(--line); border-radius: 8px; padding: 12px; font-size: 17px; text-align: center; letter-spacing: 2px;
 }
 .staff-pin-state { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* ---------- Gói cải tiến ca trực (F24, v43) ---------- */
+/* Thanh nhắc sao lưu: vàng hổ phách, nằm yên trên đầu trang (không che nội dung như banner đỏ cố định) */
+.backup-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: #fff8e1; border-bottom: 2px solid #ffb300; color: #5d4037;
+  padding: 10px 14px; font-size: 14px; line-height: 1.4;
+}
+.backup-banner-btns { display: flex; gap: 8px; }
+.backup-last { font-size: 13.5px; color: var(--muted); margin-bottom: 8px; }
+
+/* Mẫu khẩn (STAT) */
+.urgent-tag {
+  display: inline-block; background: #c62828; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .4px;
+}
+.record-item.urgent { background: #fff5f5; box-shadow: inset 4px 0 0 #c62828; }
+.check-row { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.check-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: #c62828; }
+
+/* Thanh KTV trực: ô tự khóa + công tắc đọc to */
+.operator-bar select.mini-select { flex: 0 1 auto; }
+.autolock-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+.speak-label { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.speak-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--blue); }
+
+/* Trang bàn giao ca */
+.handover-counts { padding: 4px 16px 10px; font-size: 15.5px; font-weight: 700; }
+.handover-text {
+  width: calc(100% - 32px); margin: 0 16px; box-sizing: border-box;
+  border: 1.5px solid var(--line); border-radius: 10px; padding: 12px;
+  font-family: inherit; font-size: 14px; line-height: 1.5; background: var(--card); color: inherit;
+}
+
+/* Tờ bàn giao ca khi in (dựng tạm vào #print-area) */
+.ho-sheet { font-family: Arial, sans-serif; color: #000; padding: 10px; }
+.ho-sheet h1 { font-size: 19px; text-align: center; margin: 0 0 6px; }
+.ho-sheet p { font-size: 13px; text-align: center; margin: 0 0 12px; }
+.ho-sheet table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ho-sheet th, .ho-sheet td { border: 1px solid #444; padding: 5px 7px; text-align: left; }
+.ho-sheet thead { display: table-header-group; }
+.ho-sheet tbody tr { break-inside: avoid; }

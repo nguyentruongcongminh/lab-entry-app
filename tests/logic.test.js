@@ -290,4 +290,22 @@ test('dấu KTV (v27): add/update lưu 3 tên; file sao lưu CŨ không có dấ
   assert.strictEqual(parsedOld.records[0].releaser, '');
 });
 
+test('mẫu khẩn STAT (F24): add lưu cờ urgent; update không truyền thì giữ cờ, truyền thì đổi; sao lưu mang theo cờ, file cũ thiếu cờ -> false', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r1 = s.add({ testId: 'STAT1', typeId: 'sp', results: {}, urgent: true });
+  assert.strictEqual(r1.record.urgent, true);
+  const r2 = s.add({ testId: 'STAT2', typeId: 'sp', results: {} });
+  assert.strictEqual(r2.record.urgent, false, 'không truyền urgent -> mặc định false');
+  const u1 = s.update(r1.record.uid, { note: 'sửa ghi chú' });
+  assert.strictEqual(u1.record.urgent, true, 'update không truyền urgent thì giữ nguyên cờ');
+  const u2 = s.update(r1.record.uid, { urgent: false });
+  assert.strictEqual(u2.record.urgent, false, 'update truyền urgent=false thì bỏ khẩn');
+  const u3 = s.update(r2.record.uid, { urgent: true });
+  assert.strictEqual(u3.record.urgent, true, 'update truyền urgent=true thì bật khẩn');
+  const parsed = s.parseBackup(s.exportBackup());
+  assert.strictEqual(parsed.records.find((x) => x.testId === 'STAT2').urgent, true, 'cờ khẩn đi theo file sao lưu');
+  const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x9', testId: 'OLD9', typeId: 'sp', results: {}, note: '', releaseAt: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
+  assert.strictEqual(s.parseBackup(oldFile).records[0].urgent, false, 'file cũ thiếu cờ -> urgent=false, không lỗi');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

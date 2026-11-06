@@ -15,6 +15,7 @@
  *     receiver: string,         // KTV nhận mẫu (v27) — tên chụp tại lúc tạo bản ghi, '' = không ghi
  *     performer: string,        // KTV thực hiện (v27) — tên người trực lúc lưu kết quả gần nhất
  *     releaser: string,         // KTV phát hành (v27) — tên người trực lúc phát hành
+ *     urgent: boolean,          // mẫu khẩn STAT (F24, v43) — ưu tiên xử lý/báo động trước
  *     createdAt: string,        // ISO datetime nhập
  *     updatedAt: string,        // ISO datetime sửa cuối
  *   }
@@ -103,6 +104,7 @@ const LabStore = (() => {
         receiver: typeof input.receiver === 'string' ? input.receiver : '',
         performer: typeof input.performer === 'string' ? input.performer : '',
         releaser: typeof input.releaser === 'string' ? input.releaser : '',
+        urgent: input.urgent === true, /* mẫu khẩn STAT (F24): ưu tiên xử lý */
         timerEndsAt: input.timerEndsAt || null,
         createdAt: t.toISOString(),
         updatedAt: t.toISOString(),
@@ -127,6 +129,7 @@ const LabStore = (() => {
         receiver: input.receiver !== undefined ? input.receiver : (records[idx].receiver || ''),
         performer: input.performer !== undefined ? input.performer : (records[idx].performer || ''),
         releaser: input.releaser !== undefined ? input.releaser : (records[idx].releaser || ''),
+        urgent: input.urgent !== undefined ? !!input.urgent : !!records[idx].urgent,
         timerEndsAt: input.timerEndsAt !== undefined ? input.timerEndsAt : (records[idx].timerEndsAt || null),
         updatedAt: t.toISOString(),
       });
@@ -196,6 +199,7 @@ const LabStore = (() => {
           receiver: typeof raw.receiver === 'string' ? raw.receiver : '',
           performer: typeof raw.performer === 'string' ? raw.performer : '',
           releaser: typeof raw.releaser === 'string' ? raw.releaser : '',
+          urgent: raw.urgent === true,
           releaseAt: okDate(raw.releaseAt),
           timerEndsAt: okDate(raw.timerEndsAt),
           createdAt,

@@ -49,8 +49,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit';
+  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export');
@@ -61,6 +61,7 @@ function switchView(name) {
   if (name === 'export') applyExport();
   if (name === 'types') renderTypes();
   if (name === 'audit') renderAuditLog();
+  if (name === 'handover') renderHandover();
   window.scrollTo(0, 0);
 }
 
@@ -127,8 +128,8 @@ function recordItemHTML(rec, opts) {
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
     '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
-  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + '">' + checkbox +
-    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + '</div>' +
+  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + '">' + checkbox +
+    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
     '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' + actions + '</div></li>';
@@ -199,6 +200,7 @@ function openSummary(uid) {
   const tag = $('sum-status');
   tag.textContent = STATUS_LABEL[status];
   tag.className = 'status-tag ' + status;
+  $('sum-urgent').classList.toggle('hidden', !rec.urgent); /* nhãn KHẨN ở trang Xem (F24) */
   $('sum-fields').innerHTML = (type ? type.fields : []).map((f) =>
     '<div class="summary-row"><span class="s-label">' + esc(f.label) + '</span>' +
     '<span class="s-value">' + esc(fieldDisplayValue(rec, f)) + '</span></div>').join('');
@@ -284,10 +286,12 @@ function beepDue() {
  *   mở thẳng form của mẫu. Khi app bị thu nhỏ, nhịp kiểm tra do trình duyệt
  *   quyết định nên thông báo có thể chậm — không web app nào đảm bảo tuyệt đối. */
 const notifiedDue = new Set();
+const spokenDue = new Set(); /* (uid|timerEndsAt) đã đọc to rồi (F24) */
 let prevDueIds = new Set();
 let lastBurstAt = 0;
 let wakeLock = null;
 let lastWakeCheckAt = 0;
+let lastNagCheckAt = 0;
 
 function dueTimerRecords() {
   const now = Date.now();
@@ -298,7 +302,9 @@ function dueTimerRecords() {
 
 function dueBannerRecords(due) {
   const formOpen = !$('view-form').classList.contains('hidden');
-  return due.filter((r) => !(formOpen && formState && formState.uid === r.uid));
+  /* Mẫu khẩn (F24) đứng đầu danh sách báo động: banner đọc/bấm mở mẫu khẩn trước */
+  return due.filter((r) => !(formOpen && formState && formState.uid === r.uid))
+    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.timerEndsAt < b.timerEndsAt ? -1 : 1));
 }
 
 function updateAlarmBanner(due) {
@@ -414,8 +420,11 @@ function timerTick() {
     beepDue();
     lastBurstAt = now;
   }
+  speakDue(newly.filter((r) => shown.includes(r))); /* đọc to mã mẫu vừa tới giờ (F24, khi bật) */
   if (newly.length) refreshCurrent();
   if (now - lastWakeCheckAt >= 5000) { lastWakeCheckAt = now; manageWakeLock(); }
+  checkAutoLock(now); /* tự khóa người trực khi không thao tác (F24) */
+  if (now - lastNagCheckAt >= 30000) { lastNagCheckAt = now; renderBackupNag(); }
 }
 
 function refreshCurrent() {
@@ -432,8 +441,8 @@ function renderToday() {
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
   if (q) recs = store.filter(recs, { query: q });
-  /* Xếp theo giờ nhập tăng dần: nhập trước ở trên, mới nhất nằm cuối cùng */
-  recs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  /* Mẫu khẩn (F24) lên đầu; còn lại xếp theo giờ nhập tăng dần: nhập trước ở trên, mới nhất nằm cuối cùng */
+  recs.sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-today'), $('empty-today'), recs, { selectable: selectMode });
   updateSelectBar();
 }
@@ -480,12 +489,12 @@ function setManagePanel(panel) {
 function renderManage() {
   const all = store.getAll();
   renderStats(all);
-  /* Chờ phát hành: mới nhất lên đầu */
+  /* Chờ phát hành: mẫu khẩn (F24) lên đầu, còn lại mới nhất lên đầu */
   const pending = all.filter((r) => store.statusOf(r) === 'pending-release')
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  /* Chưa kết quả (chờ nhập KQ): xếp theo giờ nhận mẫu — nhận trước lên đầu, nhận sau xuống cuối */
+    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? 1 : -1));
+  /* Chưa kết quả (chờ nhập KQ): mẫu khẩn lên đầu, còn lại xếp theo giờ nhận mẫu — nhận trước lên đầu, nhận sau xuống cuối */
   const noresult = all.filter((r) => store.statusOf(r) === 'no-result')
-    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
   /* Áp dụng khung đang chọn + cập nhật số đếm trên 2 nút chuyển */
@@ -620,6 +629,10 @@ function exportBackupFile() {
   } catch (e) { /* bỏ qua nếu lỗi sao chép */ }
   const count = store.getAll().length;
   downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
+  /* Ghi nhớ lần sao lưu gần nhất để tắt thanh nhắc + hiện ở thẻ sao lưu (F24) */
+  appMeta.lastBackupAt = new Date().toISOString();
+  saveMeta();
+  renderBackupNag();
   toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
   return obj;
 }
@@ -1197,6 +1210,7 @@ function openForm(uid) {
   $('input-testid').value = rec ? rec.testId : '';
   $('select-type').value = formState.typeId;
   $('input-note').value = rec ? rec.note : '';
+  $('input-urgent').checked = !!(rec && rec.urgent);
   $('input-release').value = rec ? toLocalInput(rec.releaseAt) : '';
   $('created-display').textContent = fmtFull(formState.createdAt);
   /* Khối KTV (v27): mẫu mới -> KTV nhận điền sẵn người đang trực; mẫu cũ -> dấu đã lưu */
@@ -1293,6 +1307,9 @@ function diffRecordChanges(oldRec, payload) {
   if ((oldRec.note || '') !== (payload.note || '')) {
     parts.push('Ghi chú: ' + (oldRec.note || '(trống)') + ' → ' + (payload.note || '(trống)'));
   }
+  if (!!oldRec.urgent !== !!payload.urgent) {
+    parts.push('Mẫu khẩn: ' + (oldRec.urgent ? 'Có' : 'Không') + ' → ' + (payload.urgent ? 'Có' : 'Không'));
+  }
   [['receiver', 'KTV nhận'], ['performer', 'KTV thực hiện'], ['releaser', 'KTV phát hành']].forEach(([k, label]) => {
     const ov = oldRec[k] || '';
     const nv = payload[k] || '';
@@ -1312,6 +1329,7 @@ function saveForm() {
     typeId: formState.typeId,
     results: formState.results,
     note: $('input-note').value,
+    urgent: $('input-urgent').checked,
     releaseAt: releaseVal ? new Date(releaseVal).toISOString() : null,
   };
   /* Đã có kết quả thì đồng hồ bấm giờ của mẫu tự xóa */
@@ -1405,25 +1423,49 @@ function updateScanCount() {
 }
 
 function openScanner(source) {
-  const single = source === 'form' && !!formState.uid;
-  scannerState = { source, single, count: 0, lastCode: '', lastAt: 0 };
+  /* Chế độ 'find' (F24): quét 1 mã để TÌM mẫu đã có — mở từ tab Quản lý */
+  const find = source === 'find';
+  const single = find || (source === 'form' && !!formState.uid);
+  scannerState = { source, single, find, count: 0, lastCode: '', lastAt: 0 };
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || getTestTypes()[0].id);
   $('scanner-list').innerHTML = '';
   $('scanner-input').value = '';
   $('scan-frame').classList.remove('hidden');
-  $('scanner-title').textContent = single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu';
-  $('scanner-subtitle').textContent = single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận';
+  $('scanner-title').textContent = find ? 'Quét tìm mẫu' : (single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu');
+  $('scanner-subtitle').textContent = find ? 'Quét 1 mã — app tìm và mở ngay mẫu đó' : (single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận');
+  /* Tìm mẫu thì loại XN + KTV nhận không liên quan — ẩn hai hàng chọn cho gọn */
+  document.querySelectorAll('.scanner-type-row').forEach((el) => el.classList.toggle('hidden', find));
   $('scanner-session').classList.toggle('hidden', single);
   /* Chế độ quét liên tục: chỉ quét bằng camera, không hiện ô nhập tay + nút Nhận mẫu.
-     Ô nhập tay chỉ còn ở chế độ 1 mã (mở từ form sửa) làm đường dự phòng. */
+     Ô nhập tay chỉ còn ở chế độ 1 mã (mở từ form sửa / quét tìm) làm đường dự phòng. */
   $('scanner-manual').classList.toggle('hidden', !single);
   updateScanCount();
   $('scanner-modal').classList.remove('hidden');
   unlockAudio();
-  setScanMsg(single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...');
+  setScanMsg(find ? 'Đưa mã vào khung hình để tìm mẫu...' : (single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...'));
   startCamera();
+}
+
+/* Quét tìm mẫu (F24): khớp ĐÚNG mã (không phân biệt khoảng trắng thừa ở hai đầu).
+   Thấy nhiều mẫu cùng ID (khác loại XN) thì mở mẫu mới nhất và báo số lượng. */
+function findAndOpenRecord(code) {
+  const matches = store.getAll().filter((r) => r.testId.trim() === code);
+  if (!matches.length) {
+    setScanMsg('Không tìm thấy mẫu ' + code + ' — quét lại hoặc kiểm tra mã', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+  matches.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const rec = matches[0];
+  beepOk();
+  noteActivity();
+  closeScanner();
+  if (matches.length > 1) toast('Có ' + matches.length + ' mẫu cùng ID ' + code + ' — mở mẫu mới nhất');
+  if (store.hasResult(rec)) openSummary(rec.uid); else openForm(rec.uid);
+  return true;
 }
 
 /* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận.
@@ -1432,6 +1474,8 @@ function openScanner(source) {
 function acceptScanCode(rawCode) {
   const code = String(rawCode || '').trim();
   if (!code || !scannerState) return false;
+
+  if (scannerState.find) return findAndOpenRecord(code);
 
   if (scannerState.single) {
     $('input-testid').value = code;
@@ -1463,6 +1507,7 @@ function acceptScanCode(rawCode) {
     return false;
   }
   audit('receive', 'Quét nhận mẫu', res.record);
+  noteActivity(); /* quét bằng camera không sinh sự kiện người dùng — vẫn tính là đang thao tác (cho tự khóa F24) */
   scannerState.count += 1;
   /* Mẫu mới nhận là việc ở khung Chưa kết quả: nếu đang đứng ở tab Quản lý
      (dù đang xem khung Chờ phát hành) thì tự chuyển khung về Chưa kết quả (v25) */
@@ -1482,7 +1527,9 @@ function acceptScanCode(rawCode) {
 async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('scan-frame').classList.add('hidden');
-    if (scannerState && scannerState.single) {
+    if (scannerState && scannerState.find) {
+      setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera — nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu" để tìm.', 'err');
+    } else if (scannerState && scannerState.single) {
       setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera — nhập ID mẫu vào ô dưới rồi bấm "Nhận mẫu".', 'err');
     } else {
       setScanMsg('Thiết bị/trình duyệt này không hỗ trợ quét bằng camera. Hãy mở app bằng Chrome trên điện thoại để bắn mã liên tục.', 'err');
@@ -1947,6 +1994,209 @@ const PRINT_COLUMNS = [
 const PRINT_DEFAULT_VISIBLE = ['stt', 'testId', 'type', 'results', 'note', 'created', 'released'];
 let printSettings = null;
 
+/* ================= Gói cải tiến ca trực (F24, v43) =================
+ * Sáu tính năng theo yêu cầu của Minh (2026-11-06):
+ * 1) Nhắc sao lưu: nhớ lần xuất file sao lưu gần nhất (khóa labentry.meta.v1);
+ *    chưa từng sao lưu hoặc đã quá 3 ngày mà máy đang có dữ liệu thì hiện
+ *    thanh nhắc vàng trên đầu app — "Sao lưu ngay" xuất luôn file, "Để mai
+ *    nhắc lại" ẩn tới hết hôm nay. Thẻ sao lưu ở tab Xuất hiện lần sao lưu gần nhất.
+ * 3) Bàn giao ca: trang riêng gom TOÀN BỘ mẫu chưa xong (chưa kết quả + chờ
+ *    phát hành, kể cả tồn từ ngày trước), khẩn lên đầu, kèm ô nội dung dạng
+ *    chữ để sao chép gửi ca sau và nút in danh sách bàn giao.
+ * 4) Mẫu khẩn (STAT): cờ `urgent` trên bản ghi — nhãn KHẨN + nền/viền đỏ ở
+ *    danh sách, xếp đầu mọi danh sách chờ, đứng đầu banner báo động, dấu 🔴
+ *    ở cột ID trên bản in; đổi cờ được ghi vào nhật ký như một thay đổi của form.
+ * 5) Tự khóa KTV trực: sau N phút không thao tác (chọn ở thanh KTV trực:
+ *    Tắt/5/10/15/30, mặc định 10) app tự bỏ chọn người trực và ghi nhật ký
+ *    'operator'. Đang mở hộp thoại (quét/xem/PIN/KTV) thì không khóa giữa chừng;
+ *    quét camera thành công cũng tính là đang thao tác.
+ * 6) Đọc to mã mẫu khi tới giờ: công tắc ở thanh KTV trực (mặc định tắt);
+ *    mẫu vừa tới giờ được đọc bằng giọng nói của thiết bị (vi-VN), mỗi đợt
+ *    hẹn giờ chỉ đọc một lần. Thiết bị không có giọng tiếng Việt thì đọc
+ *    bằng giọng mặc định — vẫn nghe được mã mẫu.
+ * 7) Quét tìm mẫu: nút quét ở tab Quản lý mở màn hình quét ở chế độ tìm —
+ *    khớp đúng mã thì đóng quét và mở ngay mẫu (có kết quả thì mở trang Xem,
+ *    chưa có thì mở form nhập); không thấy thì báo ngay tại màn hình quét.
+ * (Mục 2 trong danh sách đề xuất ban đầu — hoãn báo động — Minh không chọn.) */
+const META_KEY = 'labentry.meta.v1';
+let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '' };
+
+function loadMeta() {
+  try {
+    const m = JSON.parse(localStorage.getItem(META_KEY) || 'null');
+    if (m && typeof m === 'object') {
+      if (typeof m.lastBackupAt === 'string' && !isNaN(Date.parse(m.lastBackupAt))) appMeta.lastBackupAt = m.lastBackupAt;
+      if ([0, 5, 10, 15, 30].indexOf(m.autoLockMin) >= 0) appMeta.autoLockMin = m.autoLockMin;
+      appMeta.speakDue = m.speakDue === true;
+      if (typeof m.backupNagUntil === 'string') appMeta.backupNagUntil = m.backupNagUntil;
+    }
+  } catch (e) { /* cấu hình hỏng -> dùng mặc định */ }
+}
+
+function saveMeta() {
+  try { localStorage.setItem(META_KEY, JSON.stringify(appMeta)); } catch (e) { /* bỏ qua */ }
+}
+
+/* ---- 1) Nhắc sao lưu ---- */
+function backupNagMessage() {
+  if (!store.getAll().length) return '';
+  if (appMeta.backupNagUntil && appMeta.backupNagUntil >= todayKey()) return '';
+  if (!appMeta.lastBackupAt) return 'Chưa từng sao lưu dữ liệu trên máy này';
+  const days = Math.floor((Date.now() - new Date(appMeta.lastBackupAt).getTime()) / 86400000);
+  return days >= 3 ? 'Đã ' + days + ' ngày chưa sao lưu dữ liệu' : '';
+}
+
+let lastNagRendered = null;
+function renderBackupNag() {
+  const msg = backupNagMessage();
+  renderBackupLast();
+  if (msg === lastNagRendered) return;
+  lastNagRendered = msg;
+  const b = $('backup-banner');
+  if (!b) return;
+  if (!msg) { b.classList.add('hidden'); return; }
+  $('backup-banner-text').textContent = '⚠ ' + msg + ' — dữ liệu chỉ lưu trên máy này, mất là không khôi phục được.';
+  b.classList.remove('hidden');
+}
+
+function renderBackupLast() {
+  const el = $('backup-last');
+  if (!el) return;
+  el.textContent = appMeta.lastBackupAt
+    ? 'Sao lưu gần nhất trên máy này: ' + fmtFull(appMeta.lastBackupAt)
+    : 'Máy này chưa từng xuất file sao lưu.';
+}
+
+/* ---- 5) Tự khóa KTV trực ---- */
+let lastActivityAt = Date.now();
+function noteActivity() { lastActivityAt = Date.now(); }
+
+function anyModalOpen() {
+  return !!document.querySelector('.modal:not(.hidden)');
+}
+
+function checkAutoLock(now) {
+  if (!currentOperator || !appMeta.autoLockMin) return;
+  if (scannerState || anyModalOpen()) return; /* đang quét/xem/nhập PIN thì không khóa giữa chừng */
+  if (now - lastActivityAt < appMeta.autoLockMin * 60000) return;
+  const name = currentOperator;
+  audit('operator', 'Tự khóa người trực sau ' + appMeta.autoLockMin + ' phút không thao tác (' + name + ')', null);
+  setOperator('');
+  toast('Đã tự khóa KTV trực do không thao tác — hãy chọn lại người trực để tiếp tục');
+}
+
+/* ---- 6) Đọc to mã mẫu khi tới giờ ---- */
+function speakDue(recs) {
+  try {
+    if (!appMeta.speakDue || !recs.length) return;
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance !== 'function') return;
+    const fresh = recs.filter((r) => !spokenDue.has(r.uid + '|' + r.timerEndsAt));
+    if (!fresh.length) return;
+    fresh.forEach((r) => spokenDue.add(r.uid + '|' + r.timerEndsAt));
+    const text = fresh.length === 1
+      ? 'Mẫu ' + fresh[0].testId + ' tới giờ nhập kết quả'
+      : 'Có ' + fresh.length + ' mẫu tới giờ nhập kết quả: ' + fresh.map((r) => r.testId).join(', ');
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'vi-VN';
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* thiết bị không đọc được: bỏ qua */ }
+}
+
+/* ---- 3) Bàn giao ca ---- */
+function handoverRecords() {
+  const all = store.getAll();
+  const byUrgency = (a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1);
+  return {
+    noresult: all.filter((r) => store.statusOf(r) === 'no-result').sort(byUrgency),
+    pending: all.filter((r) => store.statusOf(r) === 'pending-release').sort(byUrgency),
+  };
+}
+
+function handoverLine(r) {
+  const type = getTestType(r.typeId);
+  return (r.urgent ? '🔴 KHẨN · ' : '') + r.testId + ' — ' + (type ? type.name : r.typeId) +
+    ' — nhận ' + fmtList(r.createdAt) + ' — đã chờ ' + fmtWait(r.createdAt) +
+    (r.receiver ? ' — KTV nhận: ' + r.receiver : '');
+}
+
+function buildHandoverText() {
+  const h = handoverRecords();
+  const lines = [
+    'BÀN GIAO CA — LabEntry',
+    'Lập lúc: ' + fmtFull(new Date().toISOString()),
+    'KTV trực: ' + (currentOperator || '(chưa chọn)'),
+    'Tổng số mẫu chưa xong: ' + (h.noresult.length + h.pending.length),
+    '',
+    'CHƯA KẾT QUẢ (' + h.noresult.length + '):',
+  ];
+  h.noresult.forEach((r, i) => lines.push((i + 1) + '. ' + handoverLine(r)));
+  if (!h.noresult.length) lines.push('(không có)');
+  lines.push('', 'CHỜ PHÁT HÀNH (' + h.pending.length + '):');
+  h.pending.forEach((r, i) => lines.push((i + 1) + '. ' + handoverLine(r)));
+  if (!h.pending.length) lines.push('(không có)');
+  return lines.join('\n');
+}
+
+function renderHandover() {
+  const h = handoverRecords();
+  $('handover-counts').textContent = 'Chưa kết quả: ' + h.noresult.length + ' · Chờ phát hành: ' + h.pending.length + ' · Tổng bàn giao: ' + (h.noresult.length + h.pending.length);
+  const rowHtml = (r) => {
+    const status = store.statusOf(r);
+    return '<li class="record-item' + (r.urgent ? ' urgent' : '') + '"><div class="record-main">' +
+      '<div class="record-id">' + esc(r.testId) + (r.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + '</div>' +
+      '<div class="record-type">' + esc((getTestType(r.typeId) || {}).name || r.typeId) + '</div></div>' +
+      '<div class="record-side"><span class="record-time">' + esc(fmtList(r.createdAt)) + '</span>' +
+      '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' +
+      '<span class="record-time">Đã chờ ' + esc(fmtWait(r.createdAt)) + '</span></div></li>';
+  };
+  $('handover-list-noresult').innerHTML = h.noresult.map(rowHtml).join('');
+  $('handover-list-pending').innerHTML = h.pending.map(rowHtml).join('');
+  $('handover-empty-noresult').classList.toggle('hidden', h.noresult.length > 0);
+  $('handover-empty-pending').classList.toggle('hidden', h.pending.length > 0);
+  $('handover-text').value = buildHandoverText();
+}
+
+async function copyHandover() {
+  const text = $('handover-text').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Đã sao chép danh sách bàn giao');
+    return;
+  } catch (e) { /* clipboard không sẵn (ngữ cảnh không an toàn): dùng đường dự phòng */ }
+  $('handover-text').select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* bỏ qua */ }
+  toast(ok ? 'Đã sao chép danh sách bàn giao' : 'Hãy bôi đen nội dung và sao chép thủ công');
+}
+
+let handoverPrinting = false;
+function printHandover() {
+  const h = handoverRecords();
+  const rows = h.noresult.concat(h.pending).map((r, i) =>
+    '<tr><td>' + (i + 1) + '</td><td>' + esc(r.testId) + (r.urgent ? ' (KHẨN)' : '') + '</td><td>' +
+    esc((getTestType(r.typeId) || {}).name || r.typeId) + '</td><td>' + STATUS_LABEL[store.statusOf(r)] + '</td><td>' +
+    esc(fmtList(r.createdAt)) + '</td><td>' + esc(fmtWait(r.createdAt)) + '</td></tr>').join('');
+  const pa = $('print-area');
+  const prev = pa.innerHTML;
+  pa.innerHTML = '<div class="ho-sheet"><h1>DANH SÁCH BÀN GIAO CA</h1>' +
+    '<p>Lập lúc: ' + esc(fmtFull(new Date().toISOString())) + ' · KTV trực: ' + esc(currentOperator || '(chưa chọn)') +
+    ' · Tổng số mẫu chưa xong: ' + (h.noresult.length + h.pending.length) + '</p>' +
+    '<table><thead><tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Trạng thái</th><th>Nhận lúc</th><th>Đã chờ</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+  /* beforeprint toàn cục sẽ dựng lại tờ kết quả vào #print-area — phải chặn
+     trong lần in này để không ghi đè tờ bàn giao */
+  handoverPrinting = true;
+  const restore = () => {
+    pa.innerHTML = prev;
+    handoverPrinting = false;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  setTimeout(() => { handoverPrinting = false; }, 3000); /* dự phòng nếu afterprint không bắn */
+  if (typeof window.print === 'function') window.print();
+}
+
 function defaultPrintSettings() {
   return {
     logo: '', logoPos: 'auto', logoSize: 'm',
@@ -2034,7 +2284,7 @@ function printCellValue(colId, rec, idx) {
   const type = getTestType(rec.typeId);
   switch (colId) {
     case 'stt': return String(idx + 1);
-    case 'testId': return esc(rec.testId);
+    case 'testId': return esc((rec.urgent ? '🔴 ' : '') + rec.testId); /* mẫu khẩn có dấu đỏ trên bản in (F24) */
     case 'type': return esc(type ? type.name : rec.typeId);
     case 'results': return resultSummary(rec);
     case 'note': return esc(rec.note || '');
@@ -2556,6 +2806,7 @@ function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadAuditLog(); /* nhật ký kiểm toán (F22) */
+  loadMeta(); /* cấu hình ca trực: lần sao lưu gần nhất, tự khóa, đọc to (F24) */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
   loadPresets(); /* các mẫu bố cục đã lưu */
   renderOperatorControls();
@@ -2618,6 +2869,34 @@ function init() {
   });
   $('btn-audit').addEventListener('click', () => switchView('audit'));
   $('btn-audit-back').addEventListener('click', () => switchView('manage'));
+  /* F24: bàn giao ca + quét tìm mẫu + nhắc sao lưu + tự khóa + đọc to */
+  $('btn-handover').addEventListener('click', () => switchView('handover'));
+  $('btn-handover-back').addEventListener('click', () => switchView('manage'));
+  $('btn-handover-copy').addEventListener('click', copyHandover);
+  $('btn-handover-print').addEventListener('click', printHandover);
+  $('btn-scan-find').addEventListener('click', () => openScanner('find'));
+  $('btn-backup-now').addEventListener('click', exportBackupFile);
+  $('btn-backup-later').addEventListener('click', () => {
+    appMeta.backupNagUntil = todayKey(); /* ẩn tới hết hôm nay, mai nhắc lại */
+    saveMeta();
+    renderBackupNag();
+  });
+  $('autolock-select').value = String(appMeta.autoLockMin);
+  $('autolock-select').addEventListener('change', () => {
+    appMeta.autoLockMin = Number($('autolock-select').value) || 0;
+    saveMeta();
+    noteActivity(); /* tính lại mốc không thao tác từ lúc đổi cài đặt */
+    toast(appMeta.autoLockMin ? 'Tự khóa KTV trực sau ' + appMeta.autoLockMin + ' phút không thao tác' : 'Đã tắt tự khóa KTV trực');
+  });
+  $('chk-speak-due').checked = appMeta.speakDue;
+  $('chk-speak-due').addEventListener('change', () => {
+    appMeta.speakDue = $('chk-speak-due').checked;
+    saveMeta();
+    toast(appMeta.speakDue ? 'Đã bật đọc to mã mẫu khi tới giờ' : 'Đã tắt đọc to mã mẫu khi tới giờ');
+  });
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) =>
+    document.addEventListener(ev, noteActivity, { passive: true }));
+  renderBackupNag();
   $('audit-filter').addEventListener('change', renderAuditLog);
   $('audit-search').addEventListener('input', renderAuditLog);
   $('operator-select').addEventListener('change', () => requestOperatorChange($('operator-select').value));
@@ -2696,7 +2975,7 @@ function init() {
     e.target.value = '';
     await handleBackupFile(file);
   });
-  window.addEventListener('beforeprint', applyExport);
+  window.addEventListener('beforeprint', () => { if (!handoverPrinting) applyExport(); });
 
   $('btn-back').addEventListener('click', () => switchView(mainView));
   $('btn-cancel').addEventListener('click', () => switchView(mainView));
