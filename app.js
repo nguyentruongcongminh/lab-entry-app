@@ -110,8 +110,10 @@ function recordItemHTML(rec, opts) {
     } else if (remainMs > 0) {
       timerBtn = '<button class="timer-btn running" data-action="timer" data-uid="' + rec.uid + '" title="Đang đếm — bấm để hủy bấm giờ" aria-label="Đang bấm giờ">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg><span data-countdown data-ends="' + endsMs + '" data-uid="' + rec.uid + '">' + fmtCountdown(remainMs) + '</span></button>' +
-        /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ */
-        '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>';
+        /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ.
+           Chỉ hiện trên điện thoại/máy tính bảng (v45): trên PC cửa sổ app luôn mở trên
+           màn hình làm việc, bộ đếm trong app chạy bình thường nên không cần nhắc qua Lịch. */
+        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>' : '');
     } else {
       timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
@@ -409,6 +411,15 @@ function toggleTimer(uid) {
  * thêm vào Lịch (Samsung Calendar / Google Calendar / Lịch Apple đều đọc
  * được .ics). UID chứa uid bản ghi + mốc hẹn giờ nên thêm lại cùng một nhắc
  * thì lịch cập nhật cùng một sự kiện thay vì nhân đôi. */
+/* Nhắc qua Lịch chỉ có ý nghĩa trên điện thoại/máy tính bảng — nơi app bị thu
+ * nhỏ/đóng và bộ đếm trong app bị hệ điều hành đóng băng (F23/F25). Trên PC
+ * (Windows/macOS/Linux để bàn) cửa sổ app luôn hiện trên màn hình làm việc,
+ * báo động trong app chạy bình thường nên nút này không hiện (v45, theo lưu ý
+ * của Minh 2026-11-06). Nhận diện qua user agent di động. */
+function calRemindAvailable() {
+  try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); } catch (e) { return false; }
+}
+
 function icsUtc(iso) {
   const d = new Date(iso);
   const p = (n) => String(n).padStart(2, '0');
@@ -458,8 +469,15 @@ function downloadCalendarReminder(uid) {
     return;
   }
   const safeId = rec.testId.replace(/[^\w-]+/g, '_');
-  downloadTextFile('labentry-nhac-' + safeId + '.ics', buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
-  toast('Đã tải file nhắc lịch cho ' + rec.testId + ' — mở file và thêm vào Lịch, chuông sẽ báo lúc ' + fmtList(rec.timerEndsAt));
+  const fileName = 'labentry-nhac-' + safeId + '.ics';
+  downloadTextFile(fileName, buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
+  /* Hướng dẫn cài lịch hiện bằng HỘP THOẠI CỐ ĐỊNH, không dùng toast nữa
+     (v45, theo phản hồi của Minh): toast tắt sau vài giây, người dùng chưa
+     kịp đọc để làm theo. Hộp thoại ở nguyên cho tới khi người dùng bấm Đóng. */
+  $('cal-guide-id').textContent = rec.testId;
+  $('cal-guide-time').textContent = fmtList(rec.timerEndsAt);
+  $('cal-guide-file').textContent = fileName;
+  $('cal-guide-modal').classList.remove('hidden');
 }
 
 /* Chạy mỗi giây: cập nhật số đếm ngược đang hiển thị + phát hiện mẫu tới giờ
@@ -2936,6 +2954,7 @@ function init() {
 
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
+  $('btn-cal-guide-close').addEventListener('click', () => $('cal-guide-modal').classList.add('hidden'));
   $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
   $('alarm-banner').addEventListener('click', () => {
     const shown = dueBannerRecords(dueTimerRecords());

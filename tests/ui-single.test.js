@@ -110,6 +110,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     },
   });
   const w3 = dom3.window;
+  /* jsdom 30 không còn cho đặt userAgent qua tùy chọn khởi tạo — ghi đè trực tiếp
+     để phiên này đóng vai điện thoại Android (từ v45 nút nhắc Lịch chỉ hiện trên di động) */
+  try {
+    Object.defineProperty(w3.navigator, 'userAgent', {
+      configurable: true,
+      get: () => 'Mozilla/5.0 (Linux; Android 14; SM-S948B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36 EdgA/131.0.0.0',
+    });
+  } catch (e) { /* không ghi đè được thì test F25 sẽ bắt lỗi ở assert cổng thiết bị */ }
   const d3 = w3.document;
   for (let i = 0; i < 60 && d3.getElementById('select-type').options.length === 0; i++) await sleep(50);
   w3.confirm = () => true;
@@ -159,7 +167,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('input-testid'), '2611041225');
     setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Soi thấy sợi nấm');
     $('btn-save').click();
-    /* F25 (v44): thêm mẫu MỚI xong tự chuyển sang tab Quản lý — về tab Hôm nay mới kiểm danh sách */
+    /* F25 (v45): thêm mẫu MỚI xong tự chuyển sang tab Quản lý — về tab Hôm nay mới kiểm danh sách */
     assert.ok(visible($('view-manage')), 'thêm mẫu mới xong phải tự chuyển sang tab Quản lý (F25)');
     document.querySelector('[data-view="today"]').click();
     const items = $('list-today').children;
@@ -575,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v44 và precache đúng URL ?v=44 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v45 và precache đúng URL ?v=45 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -593,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v44'"), 'sw.js phải gắn VERSION v44');
-    for (const a of ['styles.css?v=44', 'print.css?v=44', 'config.js?v=44', 'store.js?v=44', 'app.js?v=44', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v45'"), 'sw.js phải gắn VERSION v45');
+    for (const a of ['styles.css?v=45', 'print.css?v=45', 'config.js?v=45', 'store.js?v=45', 'app.js?v=45', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1445,10 +1453,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible3($3('scanner-modal')), 'không tìm thấy thì màn hình quét phải còn mở để quét lại');
     assert.ok($3('scanner-msg').textContent.includes('Không tìm thấy mẫu'), 'phải báo rõ không tìm thấy');
     $3('btn-scanner-close').click();
-    /* dom3 được đóng ở cuối test F25 (v44) ngay bên dưới */
+    /* dom3 được đóng ở cuối test F25 (v45) ngay bên dưới */
   });
 
-  test('nhắc qua Lịch + nhận mẫu mới tự chuyển tab Quản lý (v44 F25)', () => {
+  test('nhắc qua Lịch + nhận mẫu mới tự chuyển tab Quản lý (v45 F25)', () => {
     /* Trạng thái thừa hưởng từ test F24: người trực KTV V43 đang chọn */
     d3.querySelector('[data-view="today"]').click();
     /* Thêm mẫu Máu ẩn qua form từ tab Hôm nay -> lưu xong rơi vào Quản lý, khung Chưa kết quả */
@@ -1475,6 +1483,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(ics.includes('SUMMARY:') && ics.includes('V44-LICH'), '.ics phải ghi rõ ID mẫu');
     assert.ok(ics.includes('UID:' + rec.uid + '-'), 'UID phải bắt đầu bằng uid của bản ghi');
     calBtn.click(); /* bấm tải file: môi trường test nuốt phần tải, chỉ cần không văng lỗi */
+    /* v45: sau khi tải, hướng dẫn cài lịch hiện bằng hộp thoại CỐ ĐỊNH (không phải toast tự tắt) */
+    assert.ok(visible3($3('cal-guide-modal')), 'bấm nút Lịch xong phải hiện hộp thoại hướng dẫn và giữ nguyên');
+    assert.strictEqual($3('cal-guide-id').textContent, 'V44-LICH', 'hộp thoại phải ghi đúng ID mẫu');
+    assert.ok($3('cal-guide-file').textContent.includes('labentry-nhac-V44-LICH.ics'), 'hộp thoại phải ghi tên file cần mở');
+    $3('btn-cal-guide-close').click();
+    assert.ok(!visible3($3('cal-guide-modal')), 'chỉ đóng khi người dùng bấm nút Đóng');
+    /* v45: cổng thiết bị — di động thì có nhắc Lịch, PC (UA để bàn của phiên chính) thì không */
+    assert.strictEqual(w3.eval('calRemindAvailable()'), true, 'UA Android phải được tính là di động');
+    assert.strictEqual(window.eval('calRemindAvailable()'), false, 'UA để bàn (PC) thì tính năng nhắc Lịch phải tắt');
     /* Hủy bấm giờ -> nút Lịch biến mất */
     rowOfM().querySelector('[data-action="timer"]').click();
     assert.ok(!rowOfM().querySelector('[data-action="calremind"]'), 'hủy bấm giờ thì nút nhắc Lịch phải mất');

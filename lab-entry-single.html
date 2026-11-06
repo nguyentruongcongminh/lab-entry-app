@@ -745,6 +745,11 @@ svg { width: 24px; height: 24px; display: block; }
 /* ---------- Nhắc qua Lịch (F25, v44) ---------- */
 .timer-btn.cal-btn { background: #fff8e1; color: #5d4037; border-color: #ffb300; }
 
+/* ---------- Hộp thoại hướng dẫn cài nhắc lịch (v45) ---------- */
+.cal-guide-line { font-size: 15.5px; margin: 6px 0 4px; }
+.cal-guide-steps { margin: 8px 0 8px 22px; line-height: 1.55; font-size: 15px; }
+.cal-guide-steps li { margin-bottom: 8px; }
+
 </style>
 <style>
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
@@ -779,7 +784,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v44</span>
+    <span class="app-version">LabEntry v45</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1420,6 +1425,22 @@ svg { width: 24px; height: 24px; display: block; }
   </div>
 </div>
 
+<div id="cal-guide-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3 class="staff-title">🔔 Đã tải file nhắc lịch</h3>
+    <p class="cal-guide-line">Mẫu <b id="cal-guide-id"></b> — chuông sẽ báo lúc <b id="cal-guide-time"></b>.</p>
+    <ol class="cal-guide-steps">
+      <li>Mở file vừa tải: <b id="cal-guide-file"></b> — bấm vào thông báo tải xuống của trình duyệt, hoặc mở thư mục <b>Tải xuống (Downloads)</b> trong điện thoại.</li>
+      <li>Điện thoại hỏi mở bằng ứng dụng nào → chọn <b>Lịch</b> (Lịch Samsung, Google Lịch...).</li>
+      <li>Bấm <b>Lưu / Thêm</b> để hoàn tất. Từ đây app Lịch tự kêu đúng giờ, kể cả khi LabEntry đã đóng hay thu nhỏ.</li>
+    </ol>
+    <p class="staff-note">Hộp thoại này không tự tắt — cứ để nguyên, đọc và làm theo từng bước, xong mới bấm Đóng.</p>
+    <div class="summary-actions">
+      <button type="button" id="btn-cal-guide-close" class="primary-btn">Đã hiểu, đóng</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
 <!-- ============ VÙNG IN PDF ============ -->
@@ -1975,8 +1996,10 @@ function recordItemHTML(rec, opts) {
     } else if (remainMs > 0) {
       timerBtn = '<button class="timer-btn running" data-action="timer" data-uid="' + rec.uid + '" title="Đang đếm — bấm để hủy bấm giờ" aria-label="Đang bấm giờ">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg><span data-countdown data-ends="' + endsMs + '" data-uid="' + rec.uid + '">' + fmtCountdown(remainMs) + '</span></button>' +
-        /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ */
-        '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>';
+        /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ.
+           Chỉ hiện trên điện thoại/máy tính bảng (v45): trên PC cửa sổ app luôn mở trên
+           màn hình làm việc, bộ đếm trong app chạy bình thường nên không cần nhắc qua Lịch. */
+        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>' : '');
     } else {
       timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
@@ -2274,6 +2297,15 @@ function toggleTimer(uid) {
  * thêm vào Lịch (Samsung Calendar / Google Calendar / Lịch Apple đều đọc
  * được .ics). UID chứa uid bản ghi + mốc hẹn giờ nên thêm lại cùng một nhắc
  * thì lịch cập nhật cùng một sự kiện thay vì nhân đôi. */
+/* Nhắc qua Lịch chỉ có ý nghĩa trên điện thoại/máy tính bảng — nơi app bị thu
+ * nhỏ/đóng và bộ đếm trong app bị hệ điều hành đóng băng (F23/F25). Trên PC
+ * (Windows/macOS/Linux để bàn) cửa sổ app luôn hiện trên màn hình làm việc,
+ * báo động trong app chạy bình thường nên nút này không hiện (v45, theo lưu ý
+ * của Minh 2026-11-06). Nhận diện qua user agent di động. */
+function calRemindAvailable() {
+  try { return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || ''); } catch (e) { return false; }
+}
+
 function icsUtc(iso) {
   const d = new Date(iso);
   const p = (n) => String(n).padStart(2, '0');
@@ -2323,8 +2355,15 @@ function downloadCalendarReminder(uid) {
     return;
   }
   const safeId = rec.testId.replace(/[^\w-]+/g, '_');
-  downloadTextFile('labentry-nhac-' + safeId + '.ics', buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
-  toast('Đã tải file nhắc lịch cho ' + rec.testId + ' — mở file và thêm vào Lịch, chuông sẽ báo lúc ' + fmtList(rec.timerEndsAt));
+  const fileName = 'labentry-nhac-' + safeId + '.ics';
+  downloadTextFile(fileName, buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
+  /* Hướng dẫn cài lịch hiện bằng HỘP THOẠI CỐ ĐỊNH, không dùng toast nữa
+     (v45, theo phản hồi của Minh): toast tắt sau vài giây, người dùng chưa
+     kịp đọc để làm theo. Hộp thoại ở nguyên cho tới khi người dùng bấm Đóng. */
+  $('cal-guide-id').textContent = rec.testId;
+  $('cal-guide-time').textContent = fmtList(rec.timerEndsAt);
+  $('cal-guide-file').textContent = fileName;
+  $('cal-guide-modal').classList.remove('hidden');
 }
 
 /* Chạy mỗi giây: cập nhật số đếm ngược đang hiển thị + phát hiện mẫu tới giờ
@@ -4801,6 +4840,7 @@ function init() {
 
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
   $('btn-summary-close').addEventListener('click', closeSummary);
+  $('btn-cal-guide-close').addEventListener('click', () => $('cal-guide-modal').classList.add('hidden'));
   $('btn-summary-unrelease').addEventListener('click', unreleaseFromSummary);
   $('alarm-banner').addEventListener('click', () => {
     const shown = dueBannerRecords(dueTimerRecords());

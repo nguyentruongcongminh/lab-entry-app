@@ -730,3 +730,8 @@ svg { width: 24px; height: 24px; display: block; }
 
 /* ---------- Nhắc qua Lịch (F25, v44) ---------- */
 .timer-btn.cal-btn { background: #fff8e1; color: #5d4037; border-color: #ffb300; }
+
+/* ---------- Hộp thoại hướng dẫn cài nhắc lịch (v45) ---------- */
+.cal-guide-line { font-size: 15.5px; margin: 6px 0 4px; }
+.cal-guide-steps { margin: 8px 0 8px 22px; line-height: 1.55; font-size: 15px; }
+.cal-guide-steps li { margin-bottom: 8px; }
