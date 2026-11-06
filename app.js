@@ -109,7 +109,9 @@ function recordItemHTML(rec, opts) {
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Bấm giờ</button>';
     } else if (remainMs > 0) {
       timerBtn = '<button class="timer-btn running" data-action="timer" data-uid="' + rec.uid + '" title="Đang đếm — bấm để hủy bấm giờ" aria-label="Đang bấm giờ">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg><span data-countdown data-ends="' + endsMs + '" data-uid="' + rec.uid + '">' + fmtCountdown(remainMs) + '</span></button>';
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg><span data-countdown data-ends="' + endsMs + '" data-uid="' + rec.uid + '">' + fmtCountdown(remainMs) + '</span></button>' +
+        /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ */
+        '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>';
     } else {
       timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
@@ -146,6 +148,7 @@ function handleListClick(e) {
     const uid = btn.dataset.uid;
     if (btn.dataset.action === 'view') openSummary(uid);
     if (btn.dataset.action === 'timer') toggleTimer(uid);
+    if (btn.dataset.action === 'calremind') downloadCalendarReminder(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
@@ -393,6 +396,70 @@ function toggleTimer(uid) {
   } else {
     toast(res.errors.join('. '));
   }
+}
+
+/* ================= Nhắc qua Lịch điện thoại (F25, v44) =================
+ * Bối cảnh: báo động trong app không chạy được khi app bị thu nhỏ/đóng (giới
+ * hạn nền web đã xác nhận trên máy thật của Minh, 2026-11-06). Đường chắc
+ * chắn còn lại trong nền web: một sự kiện Lịch có chuông báo — app Lịch của
+ * điện thoại dùng báo thức hệ thống nên kêu đúng giờ bất kể LabEntry ra sao.
+ * Nút "🔔 Lịch" (tùy chọn, hiện cạnh nút đếm ngược khi mẫu đang được bấm giờ)
+ * tải một file .ics chuẩn iCalendar: sự kiện bắt đầu đúng timerEndsAt, dài
+ * 5 phút, kèm VALARM DISPLAY tại thời điểm bắt đầu. Người dùng mở file và
+ * thêm vào Lịch (Samsung Calendar / Google Calendar / Lịch Apple đều đọc
+ * được .ics). UID chứa uid bản ghi + mốc hẹn giờ nên thêm lại cùng một nhắc
+ * thì lịch cập nhật cùng một sự kiện thay vì nhân đôi. */
+function icsUtc(iso) {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getUTCFullYear() + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + 'T' +
+    p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) + 'Z';
+}
+
+function icsEscape(s) {
+  return String(s == null ? '' : s)
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+function buildCalendarIcs(rec) {
+  const type = getTestType(rec.typeId);
+  const start = rec.timerEndsAt;
+  const end = new Date(new Date(start).getTime() + 5 * 60000).toISOString();
+  const title = 'LabEntry — tới giờ nhập kết quả: ' + rec.testId;
+  const desc = 'Mẫu ' + rec.testId + ' (' + (type ? type.name : rec.typeId) + ') đã tới giờ nhập kết quả. Nhận mẫu lúc ' + fmtList(rec.createdAt) + '.';
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//LabEntry//Timer Reminder//VI',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    'UID:' + rec.uid + '-' + new Date(start).getTime() + '@labentry',
+    'DTSTAMP:' + icsUtc(new Date().toISOString()),
+    'DTSTART:' + icsUtc(start),
+    'DTEND:' + icsUtc(end),
+    'SUMMARY:' + icsEscape(title),
+    'DESCRIPTION:' + icsEscape(desc),
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'TRIGGER:-PT0M',
+    'DESCRIPTION:' + icsEscape(title),
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+}
+
+function downloadCalendarReminder(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec || !rec.timerEndsAt) return;
+  if (new Date(rec.timerEndsAt).getTime() <= Date.now()) {
+    toast('Mẫu đã tới giờ rồi — không cần nhắc lịch nữa');
+    return;
+  }
+  const safeId = rec.testId.replace(/[^\w-]+/g, '_');
+  downloadTextFile('labentry-nhac-' + safeId + '.ics', buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
+  toast('Đã tải file nhắc lịch cho ' + rec.testId + ' — mở file và thêm vào Lịch, chuông sẽ báo lúc ' + fmtList(rec.timerEndsAt));
 }
 
 /* Chạy mỗi giây: cập nhật số đếm ngược đang hiển thị + phát hiện mẫu tới giờ
@@ -1359,12 +1426,20 @@ function saveForm() {
     if (!oldReleaseAt && payload.releaseAt) audit('release', 'Đặt giờ phát hành qua form nhập', res.record);
     if (oldReleaseAt && !payload.releaseAt) audit('unrelease', 'Xóa giờ phát hành qua form nhập', res.record);
   }
-  /* Nhận mẫu mới (thêm mới, không phải sửa) trong lúc đang ở tab Quản lý:
-     quay về Quản lý thì mở khung Chưa kết quả để thấy ngay mẫu vừa nhận (v25) */
-  if (wasAdd && mainView === 'manage') managePanel = 'noresult';
   toast('Đã lưu kết quả');
-  /* Quay về đúng tab đang dùng trước khi mở form (vd Quản lý) — không nhảy về tab đầu */
-  switchView(mainView);
+  if (wasAdd) {
+    /* Nhận mẫu MỚI (F25, theo yêu cầu của Minh 2026-11-06): dù form được mở từ
+       tab Hôm nay hay tab Quản lý, lưu xong là chuyển sang tab Quản lý, khung
+       Chưa kết quả — nơi xử lý hàng chờ tiếp theo (mở rộng quy tắc v25, trước
+       đây chỉ áp dụng khi đang ở sẵn tab Quản lý). renderToday() chạy trước để
+       danh sách Hôm nay vẫn tươi khi người dùng quay lại tab đó. */
+    managePanel = 'noresult';
+    renderToday();
+    switchView('manage');
+  } else {
+    /* Sửa mẫu cũ: quay về đúng tab đang dùng trước khi mở form — không nhảy tab */
+    switchView(mainView);
+  }
 }
 
 /* ================= Quét mã =================
@@ -1607,17 +1682,19 @@ function initWedgeListener() {
 
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
-  const fromFormNew = !!scannerState && scannerState.source === 'form' && !scannerState.single;
   $('scanner-modal').classList.add('hidden');
   if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
   if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
   scannerState = null;
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
-    /* Tiếp nhận từ nút + (form thêm mới): bắn nhận xong tự chuyển sang tab Quản lý
-       để xử lý tiếp hàng chờ — không giữ ở tab Kết quả hôm nay (yêu cầu của Minh).
-       Vừa nhận mẫu mới nên Quản lý mở ở khung Chưa kết quả (v25). */
-    if (fromFormNew) { managePanel = 'noresult'; switchView('manage'); } else refreshCurrent();
+    /* Nhận mẫu mới xong (F25, theo yêu cầu của Minh 2026-11-06): chuyển sang
+       tab Quản lý, khung Chưa kết quả để xử lý tiếp hàng chờ — bất kể phiên
+       quét được mở từ tab Hôm nay hay từ nút + (trước đây quét từ tab Hôm nay
+       thì ở lại tab Hôm nay). */
+    managePanel = 'noresult';
+    renderToday();
+    switchView('manage');
   }
 }
 

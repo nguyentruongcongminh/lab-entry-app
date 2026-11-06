@@ -116,6 +116,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   w3.scrollTo = () => {};
   const $3 = (id) => d3.getElementById(id);
   const setInput3 = (el, v) => { el.value = v; el.dispatchEvent(new w3.Event('input', { bubbles: true })); };
+  const setSelect3 = (el, v) => { el.value = v; el.dispatchEvent(new w3.Event('change', { bubbles: true })); };
   const visible3 = (el) => !el.classList.contains('hidden');
   const $ = (id) => document.getElementById(id);
   const visible = (el) => !el.classList.contains('hidden');
@@ -158,7 +159,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('input-testid'), '2611041225');
     setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Soi thấy sợi nấm');
     $('btn-save').click();
-    assert.ok(visible($('view-today')));
+    /* F25 (v44): thêm mẫu MỚI xong tự chuyển sang tab Quản lý — về tab Hôm nay mới kiểm danh sách */
+    assert.ok(visible($('view-manage')), 'thêm mẫu mới xong phải tự chuyển sang tab Quản lý (F25)');
+    document.querySelector('[data-view="today"]').click();
     const items = $('list-today').children;
     assert.strictEqual(items.length, 1);
     assert.ok(items[0].textContent.includes('2611041225'));
@@ -395,11 +398,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('input-testid'), '2611042600');
     setInput($('fields-container').querySelector('[data-field="kySinhTrung"]'), 'Không thấy');
     $('btn-save').click();
-    const liB = [...$('list-today').children].find((x) => x.textContent.includes('2611042600'));
+    /* F25: thêm mới xong đang ở tab Quản lý — phát hành từ nút trên dòng của nhóm Chờ phát hành */
+    const liB = [...$('list-pending').children].find((x) => x.textContent.includes('2611042600'));
     const relBtn = liB.querySelector('[data-action="release"]');
     assert.ok(relBtn, 'bản ghi mới chờ phát hành có nút phát hành');
     relBtn.click();
     assert.strictEqual(confirmCalls, 0, 'phát hành từ nút trên dòng cũng không hỏi lại');
+    assert.ok(![...$('list-pending').children].some((x) => x.textContent.includes('2611042600')), 'phát hành xong phải rời nhóm Chờ phát hành');
+    document.querySelector('[data-view="today"]').click();
     const liB2 = [...$('list-today').children].find((x) => x.textContent.includes('2611042600'));
     assert.ok(liB2.textContent.includes('Đã phát hành'));
   });
@@ -569,7 +575,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v43 và precache đúng URL ?v=43 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v44 và precache đúng URL ?v=44 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -587,8 +593,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v43'"), 'sw.js phải gắn VERSION v43');
-    for (const a of ['styles.css?v=43', 'print.css?v=43', 'config.js?v=43', 'store.js?v=43', 'app.js?v=43', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v44'"), 'sw.js phải gắn VERSION v44');
+    for (const a of ['styles.css?v=44', 'print.css?v=44', 'config.js?v=44', 'store.js?v=44', 'app.js?v=44', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -842,7 +848,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('fields-container').querySelector('[data-field="ketQua"]'), 'Âm tính');
     assert.strictEqual($('input-performer').value, 'Lê Thị Bình', 'vừa sửa kết quả thì ô người thực hiện tự chuyển sang người trực');
     $('btn-save').click();
-    const row2 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
+    /* F25: sau khi nhận mẫu, app ở tab Quản lý; sửa xong vẫn ở Quản lý — mẫu đã có kết quả nằm ở nhóm Chờ phát hành */
+    const row2 = [...$('list-pending').children].find((x) => x.textContent.includes('V27-0001'));
     row2.querySelector('[data-action="view"]').click();
     assert.ok(visible($('summary-modal')));
     assert.ok(visible($('sum-staff')), 'trang Xem phải hiện khối KTV khi đã có dấu');
@@ -851,6 +858,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     /* B phát hành ngay trong Xem -> tự thoát (v26) + đóng dấu người phát hành = B */
     $('btn-summary-release').click();
     assert.ok(!visible($('summary-modal')), 'phát hành xong Xem tự thoát');
+    document.querySelector('[data-view="today"]').click(); /* về Hôm nay để danh sách được dựng lại rồi mới mở Xem kiểm dấu */
     const row3 = [...$('list-today').children].find((x) => x.textContent.includes('V27-0001'));
     row3.querySelector('[data-action="view"]').click();
     assert.strictEqual($('sum-releaser').textContent, 'Lê Thị Bình', 'phát hành phải đóng dấu KTV phát hành = người trực lúc phát hành');
@@ -1437,6 +1445,49 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible3($3('scanner-modal')), 'không tìm thấy thì màn hình quét phải còn mở để quét lại');
     assert.ok($3('scanner-msg').textContent.includes('Không tìm thấy mẫu'), 'phải báo rõ không tìm thấy');
     $3('btn-scanner-close').click();
+    /* dom3 được đóng ở cuối test F25 (v44) ngay bên dưới */
+  });
+
+  test('nhắc qua Lịch + nhận mẫu mới tự chuyển tab Quản lý (v44 F25)', () => {
+    /* Trạng thái thừa hưởng từ test F24: người trực KTV V43 đang chọn */
+    d3.querySelector('[data-view="today"]').click();
+    /* Thêm mẫu Máu ẩn qua form từ tab Hôm nay -> lưu xong rơi vào Quản lý, khung Chưa kết quả */
+    $3('fab-add').click();
+    setSelect3($3('select-type'), 'mau-an');
+    setInput3($3('input-testid'), 'V44-LICH');
+    $3('btn-save').click();
+    assert.ok(visible3($3('view-manage')), 'thêm mẫu mới từ tab Hôm nay: lưu xong phải ở tab Quản lý');
+    assert.ok(visible3($3('group-noresult')), 'phải mở khung Chưa kết quả');
+    const rowOfM = () => [...$3('list-noresult').children].find((x) => x.textContent.includes('V44-LICH'));
+    assert.ok(rowOfM(), 'mẫu mới phải nằm trong nhóm Chưa kết quả');
+    /* Chưa bấm giờ -> không có nút nhắc Lịch; bấm giờ -> nút xuất hiện */
+    assert.ok(!rowOfM().querySelector('[data-action="calremind"]'), 'chưa bấm giờ thì không có nút nhắc Lịch');
+    rowOfM().querySelector('[data-action="timer"]').click();
+    const calBtn = rowOfM().querySelector('[data-action="calremind"]');
+    assert.ok(calBtn, 'đang đếm ngược thì phải có nút 🔔 Lịch');
+    /* Nội dung .ics: DTSTART đúng mốc hẹn giờ theo UTC, có VALARM tại giờ, UID theo uid bản ghi */
+    const rec = JSON.parse(w3.localStorage.getItem('labentry.records.v1')).find((r) => r.testId === 'V44-LICH');
+    assert.ok(rec.timerEndsAt, 'mẫu phải đang có hẹn giờ');
+    const ics = w3.eval("buildCalendarIcs(store.getAll().find((r) => r.testId === 'V44-LICH'))");
+    const expectStart = w3.eval("icsUtc('" + rec.timerEndsAt + "')");
+    assert.ok(ics.includes('DTSTART:' + expectStart), 'DTSTART phải đúng timerEndsAt theo UTC, nhận: ' + expectStart);
+    assert.ok(ics.includes('BEGIN:VALARM') && ics.includes('TRIGGER:-PT0M'), '.ics phải có chuông báo đúng thời điểm tới giờ');
+    assert.ok(ics.includes('SUMMARY:') && ics.includes('V44-LICH'), '.ics phải ghi rõ ID mẫu');
+    assert.ok(ics.includes('UID:' + rec.uid + '-'), 'UID phải bắt đầu bằng uid của bản ghi');
+    calBtn.click(); /* bấm tải file: môi trường test nuốt phần tải, chỉ cần không văng lỗi */
+    /* Hủy bấm giờ -> nút Lịch biến mất */
+    rowOfM().querySelector('[data-action="timer"]').click();
+    assert.ok(!rowOfM().querySelector('[data-action="calremind"]'), 'hủy bấm giờ thì nút nhắc Lịch phải mất');
+    /* Quét nhận mẫu từ tab Hôm nay -> đóng phiên là ở Quản lý (trước F25: ở lại tab Hôm nay) */
+    d3.querySelector('[data-view="today"]').click();
+    $3('btn-scan-today').click();
+    assert.ok(visible3($3('scanner-modal')));
+    $3('scanner-type-select').value = 'cao-tim-nam';
+    assert.strictEqual(w3.acceptScanCode('V44-QUET'), true);
+    $3('btn-scanner-close').click();
+    assert.ok(visible3($3('view-manage')), 'quét nhận mẫu từ tab Hôm nay: đóng phiên phải ở tab Quản lý');
+    assert.ok(visible3($3('group-noresult')), 'khung Chưa kết quả phải đang mở');
+    assert.ok([...$3('list-noresult').children].some((x) => x.textContent.includes('V44-QUET')), 'mẫu quét phải nằm trong nhóm Chưa kết quả');
     w3.close();
   });
 
