@@ -21,7 +21,7 @@ import java.util.Set;
  * hiện thông báo hệ thống ưu tiên cao — âm thanh + rung — chạm vào thì mở LabEntry.
  */
 public class LabAlarmReceiver extends BroadcastReceiver {
-    static final String CHANNEL_ID = "labentry_due";
+    static final String CHANNEL_ID = "labentry_due_alarm";
 
     static void ensureChannel(Context ctx) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -30,8 +30,19 @@ public class LabAlarmReceiver extends BroadcastReceiver {
             NotificationChannel ch = new NotificationChannel(
                     CHANNEL_ID, "Mẫu tới giờ nhập kết quả", NotificationManager.IMPORTANCE_HIGH);
             ch.setDescription("Báo đúng giờ hẹn nhập kết quả của các xét nghiệm hẹn giờ");
+            /* Âm thanh dùng NHẠC BÁO THỨC của máy qua luồng âm thanh BÁO THỨC
+               (USAGE_ALARM) — độc lập với âm lượng thông báo thường, để máy đang
+               tắt tiếng thông báo vẫn kêu như đồng hồ báo thức. Kênh mới
+               (labentry_due_alarm) vì kênh Android không sửa được sau khi đã tạo. */
+            android.net.Uri alarmSound = android.media.RingtoneManager.getDefaultUri(
+                    android.media.RingtoneManager.TYPE_ALARM);
+            android.media.AudioAttributes alarmAttrs = new android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
+            ch.setSound(alarmSound, alarmAttrs);
             ch.enableVibration(true);
-            ch.setVibrationPattern(new long[]{0, 400, 200, 400, 200, 400});
+            ch.setVibrationPattern(new long[]{0, 500, 200, 500, 200, 500});
             ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(ch);
         }
@@ -77,9 +88,13 @@ public class LabAlarmReceiver extends BroadcastReceiver {
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setContentIntent(content)
+                .setFullScreenIntent(content, true)
                 .setAutoCancel(true)
-                .setVibrate(new long[]{0, 400, 200, 400, 200, 400})
+                .setVibrate(new long[]{0, 500, 200, 500, 200, 500})
                 .build();
+        /* Kêu lặp lại liên tục cho tới khi người dùng chạm vào thông báo —
+           đúng tính chất một báo thức tới giờ, không chỉ bíp một lần. */
+        notification.flags |= Notification.FLAG_INSISTENT;
         try {
             NotificationManagerCompat.from(context).notify(id.hashCode(), notification);
         } catch (SecurityException ignored) {

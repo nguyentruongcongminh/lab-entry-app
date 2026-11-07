@@ -62,10 +62,9 @@ public class LabAlarmBridge {
     }
 
     static boolean exactAllowed(Context c) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
-            return am != null && am.canScheduleExactAlarms();
-        }
+        /* Báo thức nay đặt bằng setAlarmClock — cơ chế báo thức người dùng,
+           Android không yêu cầu quyền báo thức chính xác — nên luôn coi như đủ quyền;
+           phía web sẽ không hiện hộp thoại xin quyền nữa. */
         return true;
     }
 
@@ -73,13 +72,18 @@ public class LabAlarmBridge {
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
         if (am == null) return;
         PendingIntent pi = dueIntent(c, id);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-            /* Chưa có quyền báo thức chính xác: đặt tạm kiểu không chính xác tuyệt đối,
-               lần đồng bộ sau (khi đã cấp quyền) sẽ được đặt lại dạng chính xác. */
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi);
-        } else {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMs, pi);
-        }
+        /* Đặt theo cơ chế ĐỒNG HỒ BÁO THỨC (setAlarmClock) — cùng cơ chế app Đồng hồ
+           của máy: kêu đúng giờ kể cả khi app bị thu nhỏ/đóng và máy đang ngủ (Doze),
+           KHÔNG cần quyền báo thức chính xác riêng, và được hệ điều hành đối xử như
+           một báo thức thật. (Bản trial1/2 dùng setExactAndAllowWhileIdle +
+           thông báo thường nên chuông đi qua luồng âm thanh thông báo — máy có
+           thể tắt tiếng riêng luồng đó, và khi thiếu quyền exact thì giờ bị dời
+           tới lúc mở lại app. Đã gặp trên máy thật của Minh 2026-11-07.) */
+        Intent show = new Intent(c, MainActivity.class);
+        show.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent showIntent = PendingIntent.getActivity(c, id.hashCode(), show,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        am.setAlarmClock(new AlarmManager.AlarmClockInfo(atMs, showIntent), pi);
     }
 
     static void cancelOne(Context c, String id) {
