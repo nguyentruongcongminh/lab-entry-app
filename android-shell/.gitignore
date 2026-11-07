@@ -1,0 +1,11 @@
+node_modules/
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+# PNG sinh tự động bởi tools/gen_icons.py trong CI
+android/app/src/main/res/mipmap-*/ic_launcher*.png
+android/app/src/main/res/drawable*/splash.png
+# Khóa ký không bao giờ vào repo
+signing/
+*.keystore
