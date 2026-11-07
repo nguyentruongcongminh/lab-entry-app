@@ -438,7 +438,11 @@ svg { width: 24px; height: 24px; display: block; }
 #btn-tf-add-field { width: 100%; }
 
 /* ---------- Nhập bằng giọng nói ---------- */
-.mic-wrap { display: flex; gap: 8px; align-items: center; }
+/* flex:1 + min-width:0 là BẮT BUỘC: .mic-wrap là con flex của .form-row — thiếu
+   hai thuộc tính này, kích thước tối thiểu tự động của ô nhập sẽ ép nhãn (.form-label
+   34%) co lại còn bề rộng một từ, làm hàng giãn cao (lỗi gặp trong vỏ APK, nơi nút
+   micro hiện vì WebView hỗ trợ giọng nói — bản v48, phản ánh của Minh 2026-11-07). */
+.mic-wrap { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
 .mic-wrap input { flex: 1; min-width: 0; }
 .mic-btn {
   flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%;

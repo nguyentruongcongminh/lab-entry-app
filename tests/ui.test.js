@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v47 và precache đúng URL ?v=47 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v48 và precache đúng URL ?v=48 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,11 +601,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v47'"), 'sw.js phải gắn VERSION v47');
-    for (const a of ['styles.css?v=47', 'print.css?v=47', 'config.js?v=47', 'store.js?v=47', 'app.js?v=47', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v48'"), 'sw.js phải gắn VERSION v48');
+    for (const a of ['styles.css?v=48', 'print.css?v=48', 'config.js?v=48', 'store.js?v=48', 'app.js?v=48', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
+    /* v48: .mic-wrap phải có flex:1 + min-width:0 — thiếu thì nhãn trường kết quả bị
+       ép còn bề rộng một từ trong form nhập (lỗi bố cục vỏ APK, jsdom không tự thấy) */
+    const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+    const micRule = css.match(/\.mic-wrap\s*\{[^}]*\}/);
+    assert.ok(micRule && micRule[0].includes('flex: 1') && micRule[0].includes('min-width: 0'),
+      'styles.css: .mic-wrap phải khai flex: 1 và min-width: 0 (v48)');
   });
 
   test('nút nhập kết quả nhanh: loại có mẫu thì hiện hàng nút gọn, bấm là điền cả bộ kết quả nhưng KHÔNG tự lưu; loại chưa có mẫu thì không hiện hàng nút (v25)', () => {
