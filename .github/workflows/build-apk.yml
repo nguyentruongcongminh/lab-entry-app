@@ -1,0 +1,58 @@
+name: Build LabEntry APK (trial)
+
+# Build vỏ Android của LabEntry trên máy ảo GitHub rồi đính APK (chưa ký) vào một Release.
+# Việc ký số bằng keystore riêng được làm riêng ở máy của chủ repo — keystore không bao giờ vào repo/CI.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-shell/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Generate launcher + splash PNGs
+        run: |
+          pip install --quiet pillow
+          python3 android-shell/tools/gen_icons.py
+
+      - name: Install npm dependencies (Capacitor library projects)
+        run: npm ci
+        working-directory: android-shell
+
+      - name: Build unsigned release APK
+        working-directory: android-shell/android
+        run: gradle assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx2g"
+
+      - name: Publish unsigned APK to a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-trial-${{ github.run_number }}
+          name: LabEntry APK trial ${{ github.run_number }}
+          body: |
+            APK chưa ký (unsigned) từ commit ${{ github.sha }}.
+            Bản phát hành nội bộ sẽ được ký bằng keystore riêng trước khi cài.
+          files: android-shell/android/app/build/outputs/apk/release/app-release-unsigned.apk
