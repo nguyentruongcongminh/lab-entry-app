@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v46 và precache đúng URL ?v=46 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v47 và precache đúng URL ?v=47 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v46'"), 'sw.js phải gắn VERSION v46');
-    for (const a of ['styles.css?v=46', 'print.css?v=46', 'config.js?v=46', 'store.js?v=46', 'app.js?v=46', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v47'"), 'sw.js phải gắn VERSION v47');
+    for (const a of ['styles.css?v=47', 'print.css?v=47', 'config.js?v=47', 'store.js?v=47', 'app.js?v=47', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1508,7 +1508,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w3.close();
   });
 
-  test('báo thức native trong vỏ APK: đồng bộ đúng danh sách đang đếm giờ (v46 F26)', async () => {
+  test('báo thức native trong vỏ app: đồng bộ đúng danh sách đang đếm giờ — Android (v46 F26) + iOS (v47)', async () => {
     /* Phiên riêng dom4: gieo KTV + người trực; cầu nối LabAlarmNative là stub ghi lại lời gọi */
     const dom4 = new JSDOM(htmlText, {
       url: 'file://' + htmlPath,
@@ -1563,6 +1563,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(confirmCount, 1, 'thiếu quyền báo chính xác: phải hỏi người dùng 1 lần');
     w4.eval('syncNativeAlarms()');
     assert.strictEqual(confirmCount, 1, 'đã hỏi rồi thì không hỏi lại trong cùng phiên');
+    /* v47 — đường iOS: gỡ cầu nối Android, gắn webkit.messageHandlers.labAlarm (stub ghi lời gọi).
+       Danh sách gửi sang iOS phải giống hệt danh sách của Android, qua postMessage một chiều. */
+    const androidCallsBefore = calls.length;
+    w4.eval('window.LabAlarmNative = undefined');
+    const iosCalls = [];
+    w4.webkit = { messageHandlers: { labAlarm: { postMessage(json) { iosCalls.push(json); } } } };
+    const uid3 = w4.eval("store.add({ testId: 'V47-IOS', typeId: 'mau-an', results: {}, receiver: 'KTV V46' }).record.uid");
+    w4.eval('toggleTimer("' + uid3 + '")');
+    assert.strictEqual(calls.length, androidCallsBefore, 'đường iOS không được gọi cầu nối Android');
+    assert.ok(iosCalls.length >= 1, 'bấm giờ trong vỏ iOS phải postMessage sang native');
+    let iosPayload = JSON.parse(iosCalls[iosCalls.length - 1]);
+    const mine = iosPayload.filter((p) => p.id === uid3);
+    assert.strictEqual(mine.length, 1, 'danh sách iOS phải chứa mẫu vừa bấm giờ');
+    assert.ok(mine[0].at > Date.now() && mine[0].label.includes('V47-IOS') && mine[0].label.includes('Máu ẩn'),
+      'phần tử iOS phải có mốc giờ tương lai + nhãn ID — tên xét nghiệm');
+    /* Hủy bấm giờ -> phần tử biến mất khỏi danh sách iOS */
+    w4.eval('toggleTimer("' + uid3 + '")');
+    iosPayload = JSON.parse(iosCalls[iosCalls.length - 1]);
+    assert.ok(!iosPayload.some((p) => p.id === uid3), 'hủy bấm giờ thì iOS phải hủy thông báo tương ứng');
     w4.close();
   });
 

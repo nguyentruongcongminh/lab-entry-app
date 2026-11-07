@@ -414,12 +414,18 @@ function toggleTimer(uid) {
  * đầu gặp, app hỏi mở đúng trang Cài đặt để bật. Trên trình duyệt thường
  * không có cầu nối này — hàm thoát ngay, hành vi y hệt v45. Mọi thay đổi làm
  * lệch danh sách (bấm giờ, hủy giờ, lưu form, xóa mẫu, khởi động, quay lại
- * app) đều gọi lại hàm này. */
+ * app) đều gọi lại hàm này. Trong vỏ iOS (v47), cùng danh sách được gửi qua
+ * window.webkit.messageHandlers.labAlarm sang LabAlarmCenter (Swift), nơi
+ * UNUserNotificationCenter phụ trách bắn thông báo đúng giờ. */
 let nativeAlarmWarned = false;
 function syncNativeAlarms() {
   try {
     const bridge = window.LabAlarmNative;
-    if (!bridge) return;
+    /* Bổ sung v47 — đường iOS: vỏ iOS gắn WKScriptMessageHandler "labAlarm"
+       (window.webkit.messageHandlers.labAlarm); gửi cùng danh sách, một chiều. */
+    const iosHandler = (!bridge && window.webkit && window.webkit.messageHandlers)
+      ? window.webkit.messageHandlers.labAlarm : null;
+    if (!bridge && !iosHandler) return;
     const now = Date.now();
     const want = store.getAll()
       .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
@@ -427,6 +433,10 @@ function syncNativeAlarms() {
         const t = getTestType(r.typeId);
         return { id: r.uid, at: new Date(r.timerEndsAt).getTime(), label: r.testId + ' — ' + (t ? t.name : r.typeId) };
       });
+    if (iosHandler) {
+      iosHandler.postMessage(JSON.stringify(want));
+      return;
+    }
     const res = bridge.syncAll(JSON.stringify(want));
     if (res === 'NO_EXACT' && !nativeAlarmWarned) {
       nativeAlarmWarned = true;

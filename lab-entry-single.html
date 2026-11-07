@@ -784,7 +784,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v46</span>
+    <span class="app-version">LabEntry v47</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -2300,12 +2300,18 @@ function toggleTimer(uid) {
  * đầu gặp, app hỏi mở đúng trang Cài đặt để bật. Trên trình duyệt thường
  * không có cầu nối này — hàm thoát ngay, hành vi y hệt v45. Mọi thay đổi làm
  * lệch danh sách (bấm giờ, hủy giờ, lưu form, xóa mẫu, khởi động, quay lại
- * app) đều gọi lại hàm này. */
+ * app) đều gọi lại hàm này. Trong vỏ iOS (v47), cùng danh sách được gửi qua
+ * window.webkit.messageHandlers.labAlarm sang LabAlarmCenter (Swift), nơi
+ * UNUserNotificationCenter phụ trách bắn thông báo đúng giờ. */
 let nativeAlarmWarned = false;
 function syncNativeAlarms() {
   try {
     const bridge = window.LabAlarmNative;
-    if (!bridge) return;
+    /* Bổ sung v47 — đường iOS: vỏ iOS gắn WKScriptMessageHandler "labAlarm"
+       (window.webkit.messageHandlers.labAlarm); gửi cùng danh sách, một chiều. */
+    const iosHandler = (!bridge && window.webkit && window.webkit.messageHandlers)
+      ? window.webkit.messageHandlers.labAlarm : null;
+    if (!bridge && !iosHandler) return;
     const now = Date.now();
     const want = store.getAll()
       .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
@@ -2313,6 +2319,10 @@ function syncNativeAlarms() {
         const t = getTestType(r.typeId);
         return { id: r.uid, at: new Date(r.timerEndsAt).getTime(), label: r.testId + ' — ' + (t ? t.name : r.typeId) };
       });
+    if (iosHandler) {
+      iosHandler.postMessage(JSON.stringify(want));
+      return;
+    }
     const res = bridge.syncAll(JSON.stringify(want));
     if (res === 'NO_EXACT' && !nativeAlarmWarned) {
       nativeAlarmWarned = true;
