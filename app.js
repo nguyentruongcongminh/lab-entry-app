@@ -171,6 +171,7 @@ function handleListClick(e) {
         selectedUids.delete(uid);
         toast('Đã xóa');
         refreshCurrent();
+        syncNativeAlarms();
       }
     }
     return;
@@ -381,6 +382,7 @@ function toggleTimer(uid) {
     store.update(uid, { timerEndsAt: null });
     toast('Đã hủy bấm giờ cho ' + rec.testId);
     refreshCurrent();
+    syncNativeAlarms();
     return;
   }
   if (rec.timerEndsAt && endsMs <= Date.now()) {
@@ -395,9 +397,46 @@ function toggleTimer(uid) {
     manageWakeLock();
     toast('Đã bấm giờ ' + type.waitMinutes + ' phút cho ' + rec.testId + ' (' + type.name + ')');
     refreshCurrent();
+    syncNativeAlarms();
   } else {
     toast(res.errors.join('. '));
   }
+}
+
+/* ================= Báo thức native trong vỏ APK (F26, v46) =================
+ * Khi LabEntry chạy trong vỏ Android (repo này, thư mục android-shell/), vỏ
+ * gắn thêm window.LabAlarmNative vào WebView: cầu nối tới AlarmManager của hệ
+ * điều hành. syncNativeAlarms() tính lại toàn bộ mẫu đang đếm giờ (chưa có
+ * kết quả + timerEndsAt ở tương lai) và gửi sang native để ĐẶT/HỦY báo thức
+ * hệ thống khớp đúng danh sách — nhờ vậy tới giờ điện thoại kêu cả khi app
+ * đã đóng, điều mà nền web không làm được (F23/F25). Native trả "NO_EXACT"
+ * khi Android chưa cấp quyền báo thức chính xác (Android 14+ cấp tay): lần
+ * đầu gặp, app hỏi mở đúng trang Cài đặt để bật. Trên trình duyệt thường
+ * không có cầu nối này — hàm thoát ngay, hành vi y hệt v45. Mọi thay đổi làm
+ * lệch danh sách (bấm giờ, hủy giờ, lưu form, xóa mẫu, khởi động, quay lại
+ * app) đều gọi lại hàm này. */
+let nativeAlarmWarned = false;
+function syncNativeAlarms() {
+  try {
+    const bridge = window.LabAlarmNative;
+    if (!bridge) return;
+    const now = Date.now();
+    const want = store.getAll()
+      .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
+      .map((r) => {
+        const t = getTestType(r.typeId);
+        return { id: r.uid, at: new Date(r.timerEndsAt).getTime(), label: r.testId + ' — ' + (t ? t.name : r.typeId) };
+      });
+    const res = bridge.syncAll(JSON.stringify(want));
+    if (res === 'NO_EXACT' && !nativeAlarmWarned) {
+      nativeAlarmWarned = true;
+      if (window.confirm('Android chưa cấp quyền báo thức chính xác cho LabEntry — báo giờ có thể trễ vài phút. Mở Cài đặt để bật ngay bây giờ?')) {
+        bridge.openExactAlarmSettings();
+      } else {
+        toast('Chưa có quyền báo thức chính xác — báo giờ có thể trễ vài phút.');
+      }
+    }
+  } catch (e) { /* cầu nối native lỗi: bỏ qua lặng lẽ, báo động trong app vẫn chạy */ }
 }
 
 /* ================= Nhắc qua Lịch điện thoại (F25, v44) =================
@@ -1458,6 +1497,7 @@ function saveForm() {
     /* Sửa mẫu cũ: quay về đúng tab đang dùng trước khi mở form — không nhảy tab */
     switchView(mainView);
   }
+  syncNativeAlarms(); /* F26: khớp báo thức native sau khi lưu (nhập kết quả = hủy báo) */
 }
 
 /* ================= Quét mã =================
@@ -2950,6 +2990,7 @@ function init() {
     selectedUids.clear();
     setSelectMode(false);
     toast('Đã xóa');
+    syncNativeAlarms();
   });
 
   ['list-today', 'list-pending', 'list-noresult', 'list-export'].forEach((id) => $(id).addEventListener('click', handleListClick));
@@ -3106,6 +3147,14 @@ function init() {
       $('summary-modal').classList.contains('hidden') && !selectMode;
     if (idle && (mainView === 'today' || mainView === 'manage')) refreshCurrent();
   }, 60000);
+
+  /* F26 (v46): đồng bộ báo thức native lúc khởi động + thử lại vài nhịp đầu
+     (cầu nối của vỏ APK có thể gắn xong sau khi trang bắt đầu tải) + mỗi khi
+     quay lại app. Trên trình duyệt thường các lần gọi này tự thoát ngay. */
+  syncNativeAlarms();
+  setTimeout(syncNativeAlarms, 1500);
+  setTimeout(syncNativeAlarms, 4000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNativeAlarms(); });
 }
 
 /* ---------- PWA: đăng ký Service Worker ----------

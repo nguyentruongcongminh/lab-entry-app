@@ -28,7 +28,7 @@ function test(name, fn) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const htmlPath = 'lab-entry-single.html';
+  const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
   /* jsdom coi file:// là origin mờ nên localStorage gốc bị chặn (SecurityError) —
      thay bằng bản nhớ tạm trong bộ nhớ để app chạy đúng như trên trình duyệt thật,
      đồng thời gieo sẵn dữ liệu qua beforeParse */
@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v45 và precache đúng URL ?v=45 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v46 và precache đúng URL ?v=46 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v45'"), 'sw.js phải gắn VERSION v45');
-    for (const a of ['styles.css?v=45', 'print.css?v=45', 'config.js?v=45', 'store.js?v=45', 'app.js?v=45', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v46'"), 'sw.js phải gắn VERSION v46');
+    for (const a of ['styles.css?v=46', 'print.css?v=46', 'config.js?v=46', 'store.js?v=46', 'app.js?v=46', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1506,6 +1506,64 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible3($3('group-noresult')), 'khung Chưa kết quả phải đang mở');
     assert.ok([...$3('list-noresult').children].some((x) => x.textContent.includes('V44-QUET')), 'mẫu quét phải nằm trong nhóm Chưa kết quả');
     w3.close();
+  });
+
+  test('báo thức native trong vỏ APK: đồng bộ đúng danh sách đang đếm giờ (v46 F26)', async () => {
+    /* Phiên riêng dom4: gieo KTV + người trực; cầu nối LabAlarmNative là stub ghi lại lời gọi */
+    const dom4 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV V46', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV V46',
+        });
+      },
+    });
+    const w4 = dom4.window;
+    const d4 = w4.document;
+    const $4 = (id) => d4.getElementById(id);
+    await new Promise((res) => w4.addEventListener('load', res));
+    /* Chưa có cầu nối (như trên trình duyệt): gọi đồng bộ không được văng lỗi */
+    w4.eval('syncNativeAlarms()');
+    const calls = [];
+    let confirmCount = 0;
+    w4.confirm = () => { confirmCount++; return false; };
+    w4.LabAlarmNative = {
+      syncAll(json) { calls.push(json); return w4.__alarmMode || 'OK'; },
+      openExactAlarmSettings() { calls.push('OPEN_SETTINGS'); },
+    };
+    const uid = w4.eval("store.add({ testId: 'V46-APK', typeId: 'mau-an', results: {}, receiver: 'KTV V46' }).record.uid");
+    w4.eval('toggleTimer("' + uid + '")');
+    assert.ok(calls.length >= 1, 'bấm giờ phải gọi sang cầu nối native');
+    let payload = JSON.parse(calls[calls.length - 1]);
+    assert.strictEqual(payload.length, 1, 'phải có đúng 1 mẫu đang đếm giờ');
+    assert.strictEqual(payload[0].id, uid, 'báo thức phải gắn đúng uid bản ghi');
+    assert.ok(payload[0].at > Date.now() && payload[0].at <= Date.now() + 21 * 60000, 'mốc báo phải là timerEndsAt trong tương lai');
+    assert.ok(payload[0].label.includes('V46-APK') && payload[0].label.includes('Máu ẩn'), 'nhãn báo thức phải có ID mẫu + tên xét nghiệm');
+    /* Hủy bấm giờ -> danh sách gửi sang native rỗng */
+    w4.eval('toggleTimer("' + uid + '")');
+    payload = JSON.parse(calls[calls.length - 1]);
+    assert.strictEqual(payload.length, 0, 'hủy bấm giờ thì native không còn báo thức nào');
+    /* Bấm giờ lại rồi nhập kết quả qua form -> mẫu có kết quả không còn trong danh sách báo */
+    w4.eval('toggleTimer("' + uid + '")');
+    payload = JSON.parse(calls[calls.length - 1]);
+    assert.strictEqual(payload.length, 1);
+    w4.eval('openForm("' + uid + '")');
+    w4.eval('formState.results = { ketQua: "Âm tính" }');
+    $4('btn-save').click();
+    payload = JSON.parse(calls[calls.length - 1]);
+    assert.strictEqual(payload.length, 0, 'nhập kết quả xong thì báo thức native phải được hủy');
+    /* NO_EXACT: hỏi mở Cài đặt đúng 1 lần trong phiên */
+    const uid2 = w4.eval("store.add({ testId: 'V46-EXACT', typeId: 'mau-an', results: {}, receiver: 'KTV V46' }).record.uid");
+    w4.__alarmMode = 'NO_EXACT';
+    w4.eval('toggleTimer("' + uid2 + '")');
+    assert.strictEqual(confirmCount, 1, 'thiếu quyền báo chính xác: phải hỏi người dùng 1 lần');
+    w4.eval('syncNativeAlarms()');
+    assert.strictEqual(confirmCount, 1, 'đã hỏi rồi thì không hỏi lại trong cùng phiên');
+    w4.close();
   });
 
   await chain;
