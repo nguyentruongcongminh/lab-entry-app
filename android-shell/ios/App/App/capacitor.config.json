@@ -1,0 +1,15 @@
+{
+	"appId": "vn.labentry.app",
+	"appName": "LabEntry",
+	"webDir": "www",
+	"server": {
+		"url": "https://nguyentruongcongminh.github.io/lab-entry-app/",
+		"cleartext": false,
+		"androidScheme": "https"
+	},
+	"android": {
+		"backgroundColor": "#ffffff",
+		"adjustMarginsForEdgeToEdge": "auto"
+	},
+	"packageClassList": []
+}
