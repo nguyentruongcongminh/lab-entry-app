@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v49 và precache đúng URL ?v=49 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v50 và precache đúng URL ?v=50 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v49'"), 'sw.js phải gắn VERSION v49');
-    for (const a of ['styles.css?v=49', 'print.css?v=49', 'config.js?v=49', 'store.js?v=49', 'app.js?v=49', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v50'"), 'sw.js phải gắn VERSION v50');
+    for (const a of ['styles.css?v=50', 'print.css?v=50', 'config.js?v=50', 'store.js?v=50', 'app.js?v=50', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1364,7 +1364,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w3.eval("appMeta.backupNagUntil = ''; appMeta.lastBackupAt = new Date().toISOString(); saveMeta(); lastNagRendered = null; renderBackupNag();");
     assert.ok(!visible3($3('backup-banner')), 'mới sao lưu hôm nay thì không nhắc');
 
-    /* --- 4) Mẫu khẩn: lưu cờ qua form, nhãn KHẨN + xếp đầu danh sách Hôm nay --- */
+    /* --- 4) Mẫu khẩn: lưu cờ qua form, nhãn KHẨN; thứ tự theo tiếp nhận (v50: khẩn không nhảy đầu) --- */
     $3('fab-add').click();
     setInput3($3('input-testid'), 'V43-THUONG');
     $3('btn-save').click();
@@ -1376,8 +1376,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(recs3().find((r) => r.testId === 'V43-KHAN').urgent, true, 'ô tích khẩn trong form phải lưu cờ urgent');
     assert.strictEqual(recs3().find((r) => r.testId === 'V43-THUONG').urgent, false);
     const idsToday = [...$3('list-today').children].map((x) => x.textContent);
-    assert.ok(idsToday[0].includes('V43-KHAN'), 'mẫu khẩn phải xếp đầu danh sách Hôm nay dù nhận sau');
-    assert.ok(idsToday[0].includes('KHẨN'), 'dòng mẫu khẩn phải có nhãn KHẨN');
+    const iThuong = idsToday.findIndex((t) => t.includes('V43-THUONG'));
+    const iKhan = idsToday.findIndex((t) => t.includes('V43-KHAN'));
+    assert.ok(iThuong >= 0 && iKhan > iThuong, 'v50: danh sách Hôm nay theo thứ tự tiếp nhận — mẫu khẩn nhận sau phải xếp sau mẫu thường nhận trước, không nhảy lên đầu');
+    assert.ok(idsToday[iKhan].includes('KHẨN'), 'dòng mẫu khẩn phải có nhãn KHẨN');
     assert.ok(rowOf3('V43-KHAN').className.includes('urgent'), 'dòng mẫu khẩn phải có lớp urgent (viền/nền đỏ)');
     /* Trang Xem hiện nhãn KHẨN */
     rowOf3('V43-KHAN').querySelector('[data-action="view"]').click();
@@ -1392,7 +1394,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(recs3().find((r) => r.testId === 'V43-KHAN').urgent, false, 'bỏ tích trong form phải tắt cờ khẩn');
     const audit3 = () => JSON.parse(w3.localStorage.getItem('labentry.audit.v1') || '[]');
     assert.ok(audit3().some((e) => e.testId === 'V43-KHAN' && e.action === 'save' && e.detail.includes('Mẫu khẩn: Có → Không')), 'đổi cờ khẩn phải vào nhật ký');
-    /* Bật lại khẩn để các bước sau (bàn giao) kiểm chứng thứ tự */
+    /* Bật lại khẩn để các bước sau (bàn giao) kiểm chứng nhãn + nhóm */
     w3.eval("store.update(store.getAll().find((r) => r.testId === 'V43-KHAN').uid, { urgent: true })");
     w3.eval('renderToday()');
 

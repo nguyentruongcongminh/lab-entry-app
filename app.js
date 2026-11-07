@@ -309,9 +309,10 @@ function dueTimerRecords() {
 
 function dueBannerRecords(due) {
   const formOpen = !$('view-form').classList.contains('hidden');
-  /* Mẫu khẩn (F24) đứng đầu danh sách báo động: banner đọc/bấm mở mẫu khẩn trước */
+  /* Thứ tự tiếp nhận (v50, theo yêu cầu của Minh): mẫu nhận trước hiện trước
+     trong banner — mẫu khẩn KHÔNG còn nhảy lên đầu, chỉ giữ nhãn KHẨN trong nội dung */
   return due.filter((r) => !(formOpen && formState && formState.uid === r.uid))
-    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.timerEndsAt < b.timerEndsAt ? -1 : 1));
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 }
 
 function updateAlarmBanner(due) {
@@ -576,8 +577,9 @@ function renderToday() {
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
   if (q) recs = store.filter(recs, { query: q });
-  /* Mẫu khẩn (F24) lên đầu; còn lại xếp theo giờ nhập tăng dần: nhập trước ở trên, mới nhất nằm cuối cùng */
-  recs.sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1));
+  /* Thứ tự tiếp nhận (v50): giờ nhập tăng dần — nhập trước ở trên, mới nhất nằm
+     cuối cùng; mẫu khẩn giữ nhãn/nền đỏ nhưng không nhảy lên đầu (trước v50 khẩn lên đầu theo F24) */
+  recs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-today'), $('empty-today'), recs, { selectable: selectMode });
   updateSelectBar();
 }
@@ -624,12 +626,12 @@ function setManagePanel(panel) {
 function renderManage() {
   const all = store.getAll();
   renderStats(all);
-  /* Chờ phát hành: mẫu khẩn (F24) lên đầu, còn lại mới nhất lên đầu */
+  /* Cả hai khung Quản lý theo thứ tự tiếp nhận (v50): giờ nhận tăng dần — nhận
+     trước lên đầu, nhận sau xuống cuối; mẫu khẩn không còn nhảy lên đầu (F24 cũ) */
   const pending = all.filter((r) => store.statusOf(r) === 'pending-release')
-    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? 1 : -1));
-  /* Chưa kết quả (chờ nhập KQ): mẫu khẩn lên đầu, còn lại xếp theo giờ nhận mẫu — nhận trước lên đầu, nhận sau xuống cuối */
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const noresult = all.filter((r) => store.statusOf(r) === 'no-result')
-    .sort((a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1));
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
   /* Áp dụng khung đang chọn + cập nhật số đếm trên 2 nút chuyển */
@@ -673,7 +675,7 @@ function fmtDur(minutes) {
 
 function applyExport() {
   const c = currentExportCriteria();
-  const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
   fillList($('list-export'), $('empty-export'), recs, { readonly: true });
   $('export-count').textContent = 'Có ' + recs.length + ' kết quả';
   const tat = LabStore.tatStats(recs);
@@ -2494,10 +2496,11 @@ function speakDue(recs) {
 /* ---- 3) Bàn giao ca ---- */
 function handoverRecords() {
   const all = store.getAll();
-  const byUrgency = (a, b) => (Number(!!b.urgent) - Number(!!a.urgent)) || (a.createdAt < b.createdAt ? -1 : 1);
+  /* Thứ tự tiếp nhận (v50): nhận trước lên đầu cả hai nhóm; khẩn không nhảy đầu */
+  const byIntake = (a, b) => (a.createdAt < b.createdAt ? -1 : 1);
   return {
-    noresult: all.filter((r) => store.statusOf(r) === 'no-result').sort(byUrgency),
-    pending: all.filter((r) => store.statusOf(r) === 'pending-release').sort(byUrgency),
+    noresult: all.filter((r) => store.statusOf(r) === 'no-result').sort(byIntake),
+    pending: all.filter((r) => store.statusOf(r) === 'pending-release').sort(byIntake),
   };
 }
 
