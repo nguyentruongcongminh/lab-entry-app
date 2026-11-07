@@ -2391,11 +2391,12 @@ let printSettings = null;
  *    thanh nhắc vàng trên đầu app — "Sao lưu ngay" xuất luôn file, "Để mai
  *    nhắc lại" ẩn tới hết hôm nay. Thẻ sao lưu ở tab Xuất hiện lần sao lưu gần nhất.
  * 3) Bàn giao ca: trang riêng gom TOÀN BỘ mẫu chưa xong (chưa kết quả + chờ
- *    phát hành, kể cả tồn từ ngày trước), khẩn lên đầu, kèm ô nội dung dạng
- *    chữ để sao chép gửi ca sau và nút in danh sách bàn giao.
+ *    phát hành, kể cả tồn từ ngày trước), kèm ô nội dung dạng chữ để sao chép
+ *    gửi ca sau và nút in danh sách bàn giao.
  * 4) Mẫu khẩn (STAT): cờ `urgent` trên bản ghi — nhãn KHẨN + nền/viền đỏ ở
- *    danh sách, xếp đầu mọi danh sách chờ, đứng đầu banner báo động, dấu 🔴
- *    ở cột ID trên bản in; đổi cờ được ghi vào nhật ký như một thay đổi của form.
+ *    danh sách, dấu 🔴 ở cột ID trên bản in; đổi cờ được ghi vào nhật ký như
+ *    một thay đổi của form. (Từ v50: khẩn KHÔNG còn xếp đầu danh sách/banner —
+ *    mọi danh sách theo thứ tự tiếp nhận, cờ chỉ còn tác dụng hiển thị.)
  * 5) Tự khóa KTV trực: sau N phút không thao tác (chọn ở thanh KTV trực:
  *    Tắt/5/10/15/30, mặc định 10) app tự bỏ chọn người trực và ghi nhật ký
  *    'operator'. Đang mở hộp thoại (quét/xem/PIN/KTV) thì không khóa giữa chừng;

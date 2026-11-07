@@ -825,7 +825,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v50</span>
+    <span class="app-version">LabEntry v51</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1047,7 +1047,7 @@ svg { width: 24px; height: 24px; display: block; }
     </div>
 
     <div class="form-row">
-      <label class="check-row" for="input-urgent"><input type="checkbox" id="input-urgent"> <span>🔴 Mẫu khẩn (STAT) — ưu tiên xử lý trước, báo động trước</span></label>
+      <label class="check-row" for="input-urgent"><input type="checkbox" id="input-urgent"> <span>🔴 Mẫu khẩn (STAT) — chỉ gắn nhãn đỏ, không đổi thứ tự xử lý</span></label>
     </div>
 
     <div class="form-row">
@@ -1285,7 +1285,7 @@ svg { width: 24px; height: 24px; display: block; }
     <span class="toolbar-spacer"></span>
   </header>
 
-  <p class="types-note">Toàn bộ mẫu chưa xong việc trên máy này — gồm cả mẫu tồn từ các ngày trước. Mẫu khẩn (STAT) xếp lên đầu. Dùng danh sách này để rà soát cuối ca và bàn giao cho ca sau, tránh sót mẫu qua ca.</p>
+  <p class="types-note">Toàn bộ mẫu chưa xong việc trên máy này — gồm cả mẫu tồn từ các ngày trước. Mẫu khẩn (STAT) chỉ gắn nhãn đỏ để dễ thấy; danh sách xếp theo thứ tự tiếp nhận. Dùng danh sách này để rà soát cuối ca và bàn giao cho ca sau, tránh sót mẫu qua ca.</p>
   <div id="handover-counts" class="handover-counts"></div>
 
   <h2 class="group-title">Chưa kết quả</h2>
@@ -4353,11 +4353,12 @@ let printSettings = null;
  *    thanh nhắc vàng trên đầu app — "Sao lưu ngay" xuất luôn file, "Để mai
  *    nhắc lại" ẩn tới hết hôm nay. Thẻ sao lưu ở tab Xuất hiện lần sao lưu gần nhất.
  * 3) Bàn giao ca: trang riêng gom TOÀN BỘ mẫu chưa xong (chưa kết quả + chờ
- *    phát hành, kể cả tồn từ ngày trước), khẩn lên đầu, kèm ô nội dung dạng
- *    chữ để sao chép gửi ca sau và nút in danh sách bàn giao.
+ *    phát hành, kể cả tồn từ ngày trước), kèm ô nội dung dạng chữ để sao chép
+ *    gửi ca sau và nút in danh sách bàn giao.
  * 4) Mẫu khẩn (STAT): cờ `urgent` trên bản ghi — nhãn KHẨN + nền/viền đỏ ở
- *    danh sách, xếp đầu mọi danh sách chờ, đứng đầu banner báo động, dấu 🔴
- *    ở cột ID trên bản in; đổi cờ được ghi vào nhật ký như một thay đổi của form.
+ *    danh sách, dấu 🔴 ở cột ID trên bản in; đổi cờ được ghi vào nhật ký như
+ *    một thay đổi của form. (Từ v50: khẩn KHÔNG còn xếp đầu danh sách/banner —
+ *    mọi danh sách theo thứ tự tiếp nhận, cờ chỉ còn tác dụng hiển thị.)
  * 5) Tự khóa KTV trực: sau N phút không thao tác (chọn ở thanh KTV trực:
  *    Tắt/5/10/15/30, mặc định 10) app tự bỏ chọn người trực và ghi nhật ký
  *    'operator'. Đang mở hộp thoại (quét/xem/PIN/KTV) thì không khóa giữa chừng;
