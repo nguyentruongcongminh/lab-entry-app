@@ -50,6 +50,7 @@
 ## Cập nhật gần đây / Recent updates
 
 - **Android (APK) v1.0.0-trial3** — **Có bản Android chính thức** (xem mục Tải ứng dụng ở đầu trang): báo thức tới giờ do hệ điều hành phụ trách — kêu + rung ngay cả khi app đã đóng hẳn, quét mã vạch bằng camera trong app. · *Official Android app: OS-level due-time alarms (ring + vibrate even when fully closed) and in-app camera scanning.*
+- **v49** — **Nhập kết quả theo lô**: nhập một lúc nhiều mẫu chưa có kết quả của cùng một loại, theo đúng thứ tự tiếp nhận (nhận trước nhập trước). Trên máy tính hiện dạng bảng lưới (chạm ô để chọn mức, nút "Âm tính cả cột"); trên điện thoại hiện dạng thẻ từng mẫu với nút "Lưu & mẫu tiếp theo". Mở từ tab Quản lý → "🧮 Nhập kết quả theo lô". · *Batch result entry for pending samples of one test type, in exact intake order: full grid on desktop, one-sample card flow with next-sample navigation on phones.*
 - **v48** — Sửa lỗi bố cục form nhập kết quả: tên chỉ mục ở các ô nhập chữ bị ép hẹp khi có nút nhập giọng nói. · *Fixed squeezed field labels in the result-entry form when the voice-input button is present.*
 - **v47** — Thêm đường đồng bộ báo thức cho bản iOS (đang thử nghiệm). · *Added the alarm-sync path for the iOS build (in testing).*
 - **v46** — Móc đồng bộ báo thức native: khi chạy trong app Android, danh sách mẫu đang đếm giờ được gửi sang hệ điều hành đặt báo thức. · *Native alarm sync hook used by the Android app.*

@@ -754,6 +754,43 @@ svg { width: 24px; height: 24px; display: block; }
 .cal-guide-steps { margin: 8px 0 8px 22px; line-height: 1.55; font-size: 15px; }
 .cal-guide-steps li { margin-bottom: 8px; }
 
+/* ===== F27 (v49): Nhập kết quả theo lô ===== */
+.batch-count { background: #e8f3fc; color: #0b5fa5; border: 1.5px solid #bcd8f2; border-radius: 999px; padding: 5px 13px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.batch-typebar { display: flex; align-items: center; gap: 12px; padding: 12px 16px 0; }
+.batch-typebar label { font-weight: 600; color: #33566e; }
+.batch-typebar select { flex: 1; max-width: 420px; padding: 10px 12px; border: 1.5px solid #b9cbd9; border-radius: 10px; font-size: 16px; background: #fff; }
+.btable-scroll { overflow-x: auto; margin: 12px 16px 0; border: 1px solid #d7e3ec; border-radius: 12px; background: #fff; }
+.btable { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+.btable th { background: #eaf2f9; color: #33566e; text-align: left; padding: 9px 8px; border-bottom: 2px solid #d7e3ec; vertical-align: top; }
+.btable td { padding: 8px; border-bottom: 1px solid #eef3f7; vertical-align: middle; }
+.btable tbody tr:last-child td { border-bottom: none; }
+.bcol-clear { display: block; margin-top: 4px; border: none; background: none; color: #1e88e5; font-size: 12px; font-weight: 600; padding: 0; cursor: pointer; text-decoration: underline; }
+.bcol-id { min-width: 90px; }
+.bid { font-weight: 800; font-size: 15.5px; white-space: nowrap; }
+.bmeta { font-size: 12.5px; color: #7d97ab; margin-top: 2px; }
+.brow-urgent td { background: #fff5f5; }
+.bsegs { display: flex; gap: 4px; }
+.bseg { border: 1.5px solid #cfd8dc; background: #fbfcfd; color: #54687a; border-radius: 8px; padding: 6px 5px; font-size: 13.5px; cursor: pointer; }
+.bseg.on { background: #1e88e5; border-color: #1e88e5; color: #fff; font-weight: 700; }
+.btext { width: 78px; padding: 7px 8px; border: 1.5px solid #cfd8dc; border-radius: 8px; font-size: 14.5px; }
+.bstatus { padding-left: 3px !important; color: #90a4b4; font-size: 13.5px; white-space: nowrap; }
+.bstatus.ok { color: #0b7a55; font-weight: 700; }
+.bstatus.mid { color: #a4760a; }
+.batch-strip { display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px 2px; }
+.bpill { flex: 0 0 auto; border: 1.5px solid #b9cbd9; background: #fff; color: #54687a; border-radius: 999px; padding: 8px 13px; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.bpill.done { border-color: #0b7a55; color: #0b7a55; background: #e6f4ee; }
+.bpill.cur { background: #1e88e5; border-color: #1e88e5; color: #fff; }
+#batch-card { background: #fff; border: 1px solid #e3ebf2; border-radius: 14px; margin: 10px 16px; padding: 4px 16px 10px; }
+.bcard-head { display: flex; align-items: baseline; gap: 10px; padding: 12px 0 6px; border-bottom: 1px solid #eef3f7; }
+.bcard-id { font-size: 24px; font-weight: 800; }
+.bcard-meta { margin-left: auto; font-size: 13.5px; color: #7d97ab; text-align: right; }
+.batch-navbar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; background: #fff; border-top: 1.5px solid #d7e3ec; margin: 12px 0 0; padding: 10px 16px 14px; }
+.batch-navbtn { border: 1.5px solid #b9cbd9; background: #fff; color: #33566e; border-radius: 11px; padding: 13px 14px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.batch-navbtn.next { background: #1e88e5; border-color: #1e88e5; color: #fff; flex: 1; font-size: 16px; }
+.batch-navbtn:disabled { opacity: .45; }
+.batch-prog { font-size: 13px; color: #54687a; text-align: center; min-width: 62px; line-height: 1.3; }
+.batch-prog b { color: #0b7a55; font-size: 16px; }
+
 </style>
 <style>
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
@@ -788,7 +825,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v48</span>
+    <span class="app-version">LabEntry v49</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -866,6 +903,7 @@ svg { width: 24px; height: 24px; display: block; }
 
   <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
   <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
+  <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
 
   <div id="group-noresult">
     <h2 class="group-title">Chưa kết quả</h2>
@@ -1263,6 +1301,40 @@ svg { width: 24px; height: 24px; display: block; }
   <div class="form-actions padded-actions">
     <button type="button" id="btn-handover-copy" class="primary-btn outline">📋 Sao chép danh sách</button>
     <button type="button" id="btn-handover-print" class="primary-btn">🖨 In bàn giao</button>
+  </div>
+</section>
+
+<section id="view-batch" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-batch-back" class="icon-btn" title="Lưu thay đổi rồi quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Nhập kết quả theo lô</span>
+    <span class="toolbar-spacer"></span>
+    <span id="batch-count" class="batch-count"></span>
+  </header>
+
+  <div class="batch-typebar">
+    <label for="batch-type">Loại xét nghiệm</label>
+    <select id="batch-type"></select>
+  </div>
+  <p class="types-note">Chỉ hiện các mẫu <b>chưa có kết quả</b> của loại đã chọn, theo đúng thứ tự tiếp nhận — mẫu nhận trước nhập trước. Nút quay lại (‹) sẽ lưu mọi thay đổi rồi thoát. Trên máy tính, lô hiện dạng bảng; trên điện thoại, dạng thẻ từng mẫu.</p>
+  <div id="batch-empty" class="empty-msg hidden">Không còn mẫu nào chưa có kết quả của loại này.</div>
+
+  <div id="batch-grid-wrap"></div>
+  <div id="batch-grid-actions" class="form-actions padded-actions hidden">
+    <button type="button" id="btn-batch-discard" class="primary-btn outline">Để sau (không lưu)</button>
+    <button type="button" id="btn-batch-save" class="primary-btn">Lưu kết quả</button>
+  </div>
+
+  <div id="batch-card-wrap" class="hidden">
+    <div id="batch-strip" class="batch-strip"></div>
+    <div id="batch-card"></div>
+    <div class="batch-navbar">
+      <button type="button" id="btn-batch-prev" class="batch-navbtn">← Trước</button>
+      <div id="batch-prog" class="batch-prog"></div>
+      <button type="button" id="btn-batch-next" class="batch-navbtn next">Lưu &amp; mẫu tiếp theo →</button>
+    </div>
   </div>
 </section>
 
@@ -1939,8 +2011,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover';
+  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export');
@@ -1952,6 +2024,7 @@ function switchView(name) {
   if (name === 'types') renderTypes();
   if (name === 'audit') renderAuditLog();
   if (name === 'handover') renderHandover();
+  if (name === 'batch') renderBatch();
   window.scrollTo(0, 0);
 }
 
@@ -3398,6 +3471,248 @@ function saveForm() {
     switchView(mainView);
   }
   syncNativeAlarms(); /* F26: khớp báo thức native sau khi lưu (nhập kết quả = hủy báo) */
+}
+
+/* ================= Nhập kết quả theo lô (F27, v49) =================
+ * Màn hình nhập kết quả cho NHIỀU mẫu cùng loại một lúc — chỉ gồm các mẫu
+ * "chưa có kết quả" của loại đã chọn, xếp ĐÚNG thứ tự tiếp nhận (nhận trước
+ * nhập trước — yêu cầu của Minh 2026-11-07; không đẩy mẫu khẩn lên đầu).
+ * Hai hình dạng theo bề rộng màn hình: >= 900px (PC/máy tính bảng) = bảng
+ * lưới đầy đủ (mỗi hàng một mẫu, mỗi cột một chỉ mục, điền nhanh cả cột);
+ * < 900px (điện thoại) = thẻ từng mẫu + thanh chọn mẫu + nút "Lưu & mẫu
+ * tiếp theo". Lưu theo đúng ngữ nghĩa của form nhập đơn (saveForm): mẫu có
+ * kết quả thì xóa bấm giờ, đóng dấu KTV thực hiện = người trực, ghi nhật ký
+ * 'save' với chi tiết thay đổi. Mọi đường thoát khỏi màn hình lô (nút ‹,
+ * nút Lưu, nút "mẫu tiếp theo") đều LƯU các thay đổi trước; riêng nút
+ * "Để sau" ở dạng bảng là bỏ thay đổi (có hỏi xác nhận). */
+let batchState = null;
+
+function batchPending(typeId) {
+  return store.getAll()
+    .filter((r) => r.typeId === typeId && store.statusOf(r) === 'no-result')
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+function batchTypesWithPending() {
+  return getTestTypes()
+    .map((t) => ({ type: t, n: batchPending(t.id).length }))
+    .filter((x) => x.n > 0);
+}
+function openBatch() {
+  if (!requireOperator('nhập kết quả theo lô')) return;
+  const withPending = batchTypesWithPending();
+  const typeId = withPending.length
+    ? withPending.slice().sort((a, b) => b.n - a.n)[0].type.id
+    : (getTestTypes()[0] ? getTestTypes()[0].id : null);
+  batchState = { typeId, uids: [], work: {}, cur: 0, mode: null };
+  if (typeId) loadBatchType(typeId);
+  switchView('batch');
+}
+function loadBatchType(typeId) {
+  batchState.typeId = typeId;
+  const recs = batchPending(typeId);
+  batchState.uids = recs.map((r) => r.uid);
+  batchState.work = {};
+  recs.forEach((r) => { batchState.work[r.uid] = Object.assign({}, r.results || {}); });
+  batchState.cur = 0;
+}
+function batchIsGrid() { return window.innerWidth >= 900; }
+function batchEntered(uid) {
+  return store.hasResult({ typeId: batchState.typeId, results: batchState.work[uid] });
+}
+function batchDirty(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return false;
+  const type = getTestType(batchState.typeId);
+  return type.fields.some((f) => (batchState.work[uid][f.key] || '') !== ((rec.results || {})[f.key] || ''));
+}
+function batchDirtyCount() { return batchState.uids.filter(batchDirty).length; }
+function saveBatch() {
+  let saved = 0;
+  batchState.uids.slice().forEach((uid) => {
+    if (!batchDirty(uid)) return;
+    const oldRec = store.getByUid(uid);
+    if (!oldRec) return;
+    const work = batchState.work[uid];
+    const payload = { results: Object.assign({}, work) };
+    if (store.hasResult({ typeId: batchState.typeId, results: work })) {
+      payload.timerEndsAt = null;
+      payload.performer = currentOperator;
+    }
+    const res = store.update(uid, payload);
+    if (res.ok) {
+      saved++;
+      const parts = diffRecordChanges(oldRec, Object.assign({}, oldRec, payload));
+      if (parts.length) audit('save', parts.join('; '), res.record);
+    }
+  });
+  if (saved) {
+    syncNativeAlarms();
+    toast('Đã lưu kết quả ' + saved + ' mẫu');
+  }
+  return saved;
+}
+function batchTimeOf(iso) {
+  return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderBatch() {
+  if (!batchState) return;
+  batchState.mode = batchIsGrid() ? 'grid' : 'card';
+  const sel = $('batch-type');
+  const opts = batchTypesWithPending();
+  if (batchState.typeId && !opts.some((x) => x.type.id === batchState.typeId)) {
+    const t = getTestType(batchState.typeId);
+    if (t) opts.push({ type: t, n: 0 });
+  }
+  sel.innerHTML = opts.map((x) =>
+    '<option value="' + x.type.id + '"' + (x.type.id === batchState.typeId ? ' selected' : '') + '>' +
+    esc(x.type.name) + ' (' + x.n + ' mẫu chờ)</option>').join('');
+  const type = getTestType(batchState.typeId);
+  $('batch-count').textContent = batchState.uids.length + ' mẫu chờ';
+  const empty = batchState.uids.length === 0 || !type;
+  $('batch-empty').classList.toggle('hidden', !empty);
+  const grid = batchIsGrid();
+  $('batch-grid-wrap').classList.toggle('hidden', empty || !grid);
+  $('batch-grid-actions').classList.toggle('hidden', empty || !grid);
+  $('batch-card-wrap').classList.toggle('hidden', empty || grid);
+  if (empty) return;
+  if (grid) renderBatchGrid(type); else renderBatchCard(type);
+  refreshBatchCounts();
+}
+
+function refreshBatchCounts() {
+  if (!batchState) return;
+  const dirty = batchDirtyCount();
+  const saveBtn = $('btn-batch-save');
+  if (saveBtn) saveBtn.textContent = 'Lưu kết quả' + (dirty ? ' (' + dirty + ' mẫu)' : '');
+}
+
+function renderBatchGrid(type) {
+  const wrap = $('batch-grid-wrap');
+  const head = '<tr><th class="bcol-id">Mẫu</th>' + type.fields.map((f) => {
+    const colBtn = f.type === 'chips'
+      ? '<button type="button" class="bcol-clear" data-bcol="' + f.key + '" title="Đặt cả cột thành Âm tính (bỏ chọn)">Âm tính cả cột</button>'
+      : '';
+    return '<th>' + esc(f.label) + colBtn + '</th>';
+  }).join('') + '<th></th></tr>';
+  const rows = batchState.uids.map((uid) => {
+    const rec = store.getByUid(uid);
+    const w = batchState.work[uid];
+    const cells = type.fields.map((f) => {
+      if (f.type === 'text') {
+        return '<td><input type="text" class="btext" data-btext="' + uid + '|' + f.key + '" value="' +
+          esc(w[f.key] || '') + '" autocomplete="off"></td>';
+      }
+      const segs = f.levels.map((lv) =>
+        '<button type="button" class="bseg' + (w[f.key] === lv ? ' on' : '') + '" data-bchip="' +
+        uid + '|' + f.key + '|' + esc(lv) + '">' + esc(lv) + '</button>').join('');
+      return '<td><div class="bsegs">' + segs + '</div></td>';
+    }).join('');
+    return '<tr' + (rec.urgent ? ' class="brow-urgent"' : '') + '>' +
+      '<td class="bcol-id"><span class="bid">' + esc(rec.testId) + '</span>' +
+      (rec.urgent ? ' <span class="urgent-tag">KHẨN</span>' : '') +
+      '<div class="bmeta">nhận ' + batchTimeOf(rec.createdAt) + '</div></td>' +
+      cells + '<td class="bstatus" id="bstatus-' + uid + '"></td></tr>';
+  }).join('');
+  wrap.innerHTML = '<div class="btable-scroll"><table class="btable"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table></div>';
+  wrap.querySelectorAll('[data-bchip]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [uid, key, val] = btn.dataset.bchip.split('|');
+      batchState.work[uid][key] = batchState.work[uid][key] === val ? '' : val;
+      renderBatch();
+    });
+  });
+  wrap.querySelectorAll('[data-btext]').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const [uid, key] = inp.dataset.btext.split('|');
+      batchState.work[uid][key] = inp.value;
+      updateBatchRowStatus(uid);
+      refreshBatchCounts();
+    });
+  });
+  wrap.querySelectorAll('[data-bcol]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.bcol;
+      batchState.uids.forEach((uid) => { batchState.work[uid][key] = ''; });
+      renderBatch();
+    });
+  });
+  batchState.uids.forEach(updateBatchRowStatus);
+}
+function updateBatchRowStatus(uid) {
+  const el = $('bstatus-' + uid);
+  if (!el || !batchState) return;
+  if (batchEntered(uid)) { el.textContent = '✓ Đã nhập'; el.className = 'bstatus ok'; }
+  else if (batchDirty(uid)) { el.textContent = 'Đang nhập'; el.className = 'bstatus mid'; }
+  else { el.textContent = 'Chưa nhập'; el.className = 'bstatus'; }
+}
+
+function renderBatchCard(type) {
+  const strip = $('batch-strip');
+  strip.innerHTML = batchState.uids.map((uid, i) => {
+    const rec = store.getByUid(uid);
+    return '<button type="button" class="bpill' + (i === batchState.cur ? ' cur' : '') +
+      (batchEntered(uid) ? ' done' : '') + '" data-bpill="' + i + '">' + esc(rec.testId) +
+      (batchEntered(uid) ? ' ✓' : '') + (rec.urgent ? ' · KHẨN' : '') + '</button>';
+  }).join('');
+  strip.querySelectorAll('[data-bpill]').forEach((btn) => {
+    btn.addEventListener('click', () => { batchState.cur = Number(btn.dataset.bpill); renderBatch(); });
+  });
+  const uid = batchState.uids[batchState.cur];
+  const rec = store.getByUid(uid);
+  const w = batchState.work[uid];
+  const quickHtml = type.quick && type.quick.length
+    ? '<div class="quick-row"><span class="quick-caption">⚡ Nhập nhanh:</span>' +
+      type.quick.map((q, qi) => '<button type="button" class="quick-btn" data-bquick="' + qi + '">' + esc(q.label) + '</button>').join('') + '</div>'
+    : '';
+  const fieldsHtml = type.fields.map((f) => {
+    const label = esc(type.name) + ': ' + esc(f.label);
+    if (f.type === 'text') {
+      return '<div class="form-row"><label class="form-label">' + label + '</label>' +
+        '<input type="text" data-bfield="' + f.key + '" value="' + esc(w[f.key] || '') + '" autocomplete="off"></div>';
+    }
+    const chips = f.levels.map((lv) =>
+      '<button type="button" class="chip' + (w[f.key] === lv ? ' selected' : '') + '" data-bchipf="' +
+      f.key + '|' + esc(lv) + '">' + esc(lv) + '</button>').join('');
+    return '<div class="form-row"><span class="form-label">' + label + '</span><div class="chips">' + chips + '</div></div>';
+  }).join('');
+  $('batch-card').innerHTML =
+    '<div class="bcard-head"><span class="bcard-id">' + esc(rec.testId) + '</span>' +
+    (rec.urgent ? ' <span class="urgent-tag">KHẨN</span>' : '') +
+    '<span class="bcard-meta">' + esc(type.name) + ' · nhận ' + batchTimeOf(rec.createdAt) + '</span></div>' +
+    quickHtml + fieldsHtml;
+  const card = $('batch-card');
+  card.querySelectorAll('[data-bfield]').forEach((inp) => {
+    inp.addEventListener('input', () => { batchState.work[uid][inp.dataset.bfield] = inp.value; refreshBatchCardMeta(); });
+    wrapWithMic(inp);
+  });
+  card.querySelectorAll('[data-bchipf]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [key, val] = btn.dataset.bchipf.split('|');
+      batchState.work[uid][key] = batchState.work[uid][key] === val ? '' : val;
+      renderBatch();
+    });
+  });
+  card.querySelectorAll('[data-bquick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const q = type.quick[Number(btn.dataset.bquick)];
+      type.fields.forEach((f) => { batchState.work[uid][f.key] = q.values[f.key] || ''; });
+      renderBatch();
+    });
+  });
+  refreshBatchCardMeta();
+}
+function refreshBatchCardMeta() {
+  if (!batchState) return;
+  const entered = batchState.uids.filter(batchEntered).length;
+  $('batch-prog').innerHTML = 'đã nhập<br><b>' + entered + ' / ' + batchState.uids.length + '</b>';
+  $('btn-batch-prev').disabled = batchState.cur <= 0;
+  $('btn-batch-next').textContent = batchState.cur >= batchState.uids.length - 1
+    ? 'Lưu & xong ✓' : 'Lưu & mẫu tiếp theo →';
+  const strip = $('batch-strip');
+  strip.querySelectorAll('[data-bpill]').forEach((btn, i) => {
+    btn.classList.toggle('done', batchEntered(batchState.uids[i]));
+  });
 }
 
 /* ================= Quét mã =================
@@ -4911,6 +5226,53 @@ function init() {
   $('btn-handover-back').addEventListener('click', () => switchView('manage'));
   $('btn-handover-copy').addEventListener('click', copyHandover);
   $('btn-handover-print').addEventListener('click', printHandover);
+  /* F27: nhập kết quả theo lô */
+  $('btn-batch').addEventListener('click', openBatch);
+  $('btn-batch-back').addEventListener('click', () => {
+    if (batchState) saveBatch();
+    batchState = null;
+    switchView('manage');
+  });
+  $('batch-type').addEventListener('change', () => {
+    if (!batchState) return;
+    if (batchDirtyCount()) saveBatch();
+    loadBatchType($('batch-type').value);
+    renderBatch();
+  });
+  $('btn-batch-save').addEventListener('click', () => {
+    if (!batchState) return;
+    saveBatch();
+    loadBatchType(batchState.typeId);
+    renderBatch();
+  });
+  $('btn-batch-discard').addEventListener('click', () => {
+    if (batchState && batchDirtyCount() && !window.confirm('Bỏ các thay đổi chưa lưu trong lô này?')) return;
+    batchState = null;
+    switchView('manage');
+  });
+  $('btn-batch-prev').addEventListener('click', () => {
+    if (!batchState || batchState.cur <= 0) return;
+    batchState.cur--;
+    renderBatch();
+  });
+  $('btn-batch-next').addEventListener('click', () => {
+    if (!batchState) return;
+    const wasLast = batchState.cur >= batchState.uids.length - 1;
+    const nextUid = wasLast ? null : batchState.uids[batchState.cur + 1];
+    saveBatch();
+    if (wasLast) { batchState = null; switchView('manage'); return; }
+    const typeId = batchState.typeId;
+    loadBatchType(typeId);
+    const idx = batchState.uids.indexOf(nextUid);
+    batchState.cur = idx >= 0 ? idx : 0;
+    if (!batchState.uids.length) { batchState = null; switchView('manage'); return; }
+    renderBatch();
+  });
+  window.addEventListener('resize', () => {
+    if (!batchState || $('view-batch').classList.contains('hidden')) return;
+    const mode = batchIsGrid() ? 'grid' : 'card';
+    if (mode !== batchState.mode) renderBatch();
+  });
   $('btn-scan-find').addEventListener('click', () => openScanner('find'));
   $('btn-backup-now').addEventListener('click', exportBackupFile);
   $('btn-backup-later').addEventListener('click', () => {

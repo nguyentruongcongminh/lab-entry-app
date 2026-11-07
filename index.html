@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=48">
-<link rel="stylesheet" href="print.css?v=48">
+<link rel="stylesheet" href="styles.css?v=49">
+<link rel="stylesheet" href="print.css?v=49">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -35,7 +35,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v48</span>
+    <span class="app-version">LabEntry v49</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -113,6 +113,7 @@
 
   <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
   <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
+  <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
 
   <div id="group-noresult">
     <h2 class="group-title">Chưa kết quả</h2>
@@ -513,6 +514,40 @@
   </div>
 </section>
 
+<section id="view-batch" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-batch-back" class="icon-btn" title="Lưu thay đổi rồi quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Nhập kết quả theo lô</span>
+    <span class="toolbar-spacer"></span>
+    <span id="batch-count" class="batch-count"></span>
+  </header>
+
+  <div class="batch-typebar">
+    <label for="batch-type">Loại xét nghiệm</label>
+    <select id="batch-type"></select>
+  </div>
+  <p class="types-note">Chỉ hiện các mẫu <b>chưa có kết quả</b> của loại đã chọn, theo đúng thứ tự tiếp nhận — mẫu nhận trước nhập trước. Nút quay lại (‹) sẽ lưu mọi thay đổi rồi thoát. Trên máy tính, lô hiện dạng bảng; trên điện thoại, dạng thẻ từng mẫu.</p>
+  <div id="batch-empty" class="empty-msg hidden">Không còn mẫu nào chưa có kết quả của loại này.</div>
+
+  <div id="batch-grid-wrap"></div>
+  <div id="batch-grid-actions" class="form-actions padded-actions hidden">
+    <button type="button" id="btn-batch-discard" class="primary-btn outline">Để sau (không lưu)</button>
+    <button type="button" id="btn-batch-save" class="primary-btn">Lưu kết quả</button>
+  </div>
+
+  <div id="batch-card-wrap" class="hidden">
+    <div id="batch-strip" class="batch-strip"></div>
+    <div id="batch-card"></div>
+    <div class="batch-navbar">
+      <button type="button" id="btn-batch-prev" class="batch-navbtn">← Trước</button>
+      <div id="batch-prog" class="batch-prog"></div>
+      <button type="button" id="btn-batch-next" class="batch-navbtn next">Lưu &amp; mẫu tiếp theo →</button>
+    </div>
+  </div>
+</section>
+
 <!-- ============ TRANG: NHẬT KÝ THAO TÁC (F22) ============ -->
 <section id="view-audit" class="view hidden">
   <header class="toolbar">
@@ -698,8 +733,8 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=48"></script>
-<script src="store.js?v=48"></script>
-<script src="app.js?v=48"></script>
+<script src="config.js?v=49"></script>
+<script src="store.js?v=49"></script>
+<script src="app.js?v=49"></script>
 </body>
 </html>

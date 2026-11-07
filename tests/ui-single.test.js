@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v48 và precache đúng URL ?v=48 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v49 và precache đúng URL ?v=49 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v48'"), 'sw.js phải gắn VERSION v48');
-    for (const a of ['styles.css?v=48', 'print.css?v=48', 'config.js?v=48', 'store.js?v=48', 'app.js?v=48', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v49'"), 'sw.js phải gắn VERSION v49');
+    for (const a of ['styles.css?v=49', 'print.css?v=49', 'config.js?v=49', 'store.js?v=49', 'app.js?v=49', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1589,6 +1589,85 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     iosPayload = JSON.parse(iosCalls[iosCalls.length - 1]);
     assert.ok(!iosPayload.some((p) => p.id === uid3), 'hủy bấm giờ thì iOS phải hủy thông báo tương ứng');
     w4.close();
+  });
+
+  test('nhập kết quả theo lô: đúng thứ tự nhận mẫu; bảng (PC) + thẻ (điện thoại) cùng lưu đúng (v49 F27)', async () => {
+    /* Phiên riêng dom5: gieo KTV + người trực */
+    const dom5 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lô', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV Lô',
+        });
+      },
+    });
+    const w5 = dom5.window;
+    const d5 = w5.document;
+    const $5 = (id) => d5.getElementById(id);
+    await new Promise((res) => w5.addEventListener('load', res));
+    const now = Date.now();
+    /* Thêm ngược thứ tự nhận: XN-L01 thêm trước nhưng giờ nhận SAU XN-L02.
+       Lô phải xếp theo giờ nhận (nhận trước nhập trước), không theo thứ tự thêm. */
+    const u1 = w5.eval("store.add({ testId: 'XN-L01', typeId: 'mau-an', results: {} }, new Date(" + (now - 10 * 60000) + ")).record.uid");
+    const u2 = w5.eval("store.add({ testId: 'XN-L02', typeId: 'mau-an', results: {} }, new Date(" + (now - 20 * 60000) + ")).record.uid");
+    w5.eval("store.add({ testId: 'XN-L03', typeId: 'mau-an', results: {} }, new Date(" + (now - 5 * 60000) + "))");
+    const u4 = w5.eval("store.add({ testId: 'XN-L04', typeId: 'soi-tuoi-huyet-trang', results: {}, urgent: true }, new Date(" + (now - 8 * 60000) + ")).record.uid");
+    w5.eval("store.add({ testId: 'XN-L00', typeId: 'mau-an', results: { ketQua: 'Âm tính' } }, new Date(" + (now - 30 * 60000) + "))");
+    /* Mở lô: mặc định loại Máu ẩn (3 mẫu chờ > 1 của Soi tươi) */
+    w5.eval('openBatch()');
+    assert.ok(!$5('view-batch').classList.contains('hidden'), 'màn hình lô phải hiện');
+    assert.strictEqual(w5.eval('batchState.typeId'), 'mau-an', 'mặc định phải chọn loại nhiều mẫu chờ nhất');
+    assert.deepStrictEqual([...d5.querySelectorAll('#batch-grid-wrap .bid')].map((e) => e.textContent),
+      ['XN-L02', 'XN-L01', 'XN-L03'],
+      'thứ tự lô phải theo giờ nhận (kèm mẫu đã có kết quả XN-L00 không được xuất hiện)');
+    /* Dạng bảng: gõ kết quả cho XN-L02 rồi lưu */
+    const inp = d5.querySelector('[data-btext="' + u2 + '|ketQua"]');
+    inp.value = 'Âm tính';
+    inp.dispatchEvent(new w5.Event('input', { bubbles: true }));
+    $5('btn-batch-save').click();
+    assert.strictEqual(w5.eval('store.statusOf(store.getByUid("' + u2 + '"))'), 'pending-release',
+      'lưu lô xong mẫu phải chuyển chờ phát hành');
+    assert.strictEqual(w5.eval('store.getByUid("' + u2 + '").performer'), 'KTV Lô',
+      'lưu lô phải đóng dấu KTV thực hiện = người trực');
+    assert.ok(w5.eval('auditLog.some((e) => e.action === "save" && e.testId === "XN-L02")'),
+      'lưu lô phải ghi nhật ký save cho mẫu');
+    assert.deepStrictEqual([...d5.querySelectorAll('#batch-grid-wrap .bid')].map((e) => e.textContent),
+      ['XN-L01', 'XN-L03'], 'mẫu đã lưu phải rời khỏi lô');
+    /* Đổi sang Soi tươi: chọn chips một ô, ô khác chọn rồi xóa bằng "Âm tính cả cột" */
+    $5('batch-type').value = 'soi-tuoi-huyet-trang';
+    $5('batch-type').dispatchEvent(new w5.Event('change', { bubbles: true }));
+    d5.querySelector('[data-bchip="' + u4 + '|nam|(++)"]').click();
+    d5.querySelector('[data-bchip="' + u4 + '|trichomonas|(+)"]').click();
+    d5.querySelector('[data-bcol="trichomonas"]').click();
+    $5('btn-batch-save').click();
+    const rec4 = w5.eval('store.getByUid("' + u4 + '")');
+    assert.strictEqual(rec4.results.nam, '(++)', 'ô chips đã chọn phải được lưu');
+    assert.ok(!rec4.results.trichomonas, '"Âm tính cả cột" phải xóa giá trị của cột');
+    assert.strictEqual(w5.eval('store.statusOf(store.getByUid("' + u4 + '"))'), 'pending-release');
+    /* Dạng thẻ ở bề rộng điện thoại: quay lại Máu ẩn, ép bề rộng 400px */
+    $5('batch-type').value = 'mau-an';
+    $5('batch-type').dispatchEvent(new w5.Event('change', { bubbles: true }));
+    Object.defineProperty(w5, 'innerWidth', { value: 400, configurable: true });
+    w5.eval('renderBatch()');
+    assert.ok(!$5('batch-card-wrap').classList.contains('hidden'), 'màn hình hẹp phải hiện dạng thẻ');
+    assert.ok($5('batch-grid-wrap').classList.contains('hidden'), 'màn hình hẹp không hiện dạng bảng');
+    assert.deepStrictEqual([...d5.querySelectorAll('[data-bpill]')].map((e) => e.textContent.replace(' · KHẨN', '')),
+      ['XN-L01', 'XN-L03'], 'thanh chọn mẫu phải giữ đúng thứ tự nhận');
+    assert.ok($5('batch-card').textContent.includes('XN-L01'), 'thẻ phải mở ở mẫu đầu lô');
+    const cardInp = d5.querySelector('#batch-card [data-bfield="ketQua"]');
+    cardInp.value = 'Dương tính';
+    cardInp.dispatchEvent(new w5.Event('input', { bubbles: true }));
+    $5('btn-batch-next').click();
+    assert.strictEqual(w5.eval('store.statusOf(store.getByUid("' + u1 + '"))'), 'pending-release',
+      'nút "mẫu tiếp theo" phải lưu mẫu vừa nhập');
+    assert.ok($5('batch-card').textContent.includes('XN-L03'), 'sau khi lưu phải chuyển sang mẫu tiếp theo trong lô');
+    $5('btn-batch-next').click(); /* mẫu cuối: lưu & xong -> về Quản lý */
+    assert.ok(!$5('view-manage').classList.contains('hidden'), 'hết lô phải quay về tab Quản lý');
+    w5.close();
   });
 
   await chain;
