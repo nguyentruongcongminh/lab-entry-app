@@ -1,0 +1,65 @@
+name: Build LabEntry iOS (trial)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android-shell/**'
+      - '.github/workflows/build-ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install JS dependencies
+        working-directory: android-shell
+        run: npm ci
+
+      - name: Sync Capacitor iOS project
+        working-directory: android-shell
+        run: npx cap sync ios
+
+      - name: Generate app icon and splash images
+        run: |
+          python3 -c "import base64,pathlib; pathlib.Path('/tmp/icon-512.png').write_bytes(base64.b64decode(pathlib.Path('android-shell/tools/icon-512.png.b64').read_text()))"
+          sips -z 1024 1024 /tmp/icon-512.png --out "android-shell/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
+          for f in splash-2732x2732.png splash-2732x2732-1.png splash-2732x2732-2.png; do
+            sips -z 2732 2732 /tmp/icon-512.png --out "android-shell/ios/App/App/Assets.xcassets/Splash.imageset/$f"
+          done
+
+      - name: Install CocoaPods dependencies
+        working-directory: android-shell/ios/App
+        run: pod install
+
+      - name: Build app (unsigned)
+        working-directory: android-shell/ios/App
+        run: |
+          xcodebuild build -workspace App.xcworkspace -scheme App -configuration Release \
+            -sdk iphoneos -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Package unsigned IPA
+        run: |
+          APP=$(find android-shell/ios/App/build/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)
+          echo "App bundle: $APP"
+          test -n "$APP"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry LabEntry-unsigned.ipa Payload
+          ls -la LabEntry-unsigned.ipa
+
+      - name: Publish IPA to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-trial-${{ github.run_number }}
+          name: LabEntry iOS trial ${{ github.run_number }}
+          files: LabEntry-unsigned.ipa
