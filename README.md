@@ -6,6 +6,12 @@
 
 🔗 **Dùng thử / Live demo:** https://nguyentruongcongminh.github.io/lab-entry-app/
 
+📥 **Tải ứng dụng / Download the app:**
+
+- 🤖 **Android (APK):** [**Tải LabEntry cho Android (v1.0.0-trial3)**](https://github.com/nguyentruongcongminh/lab-entry-app/releases/download/android-v1.0.0-trial3/LabEntry-trial3.apk) — bản chạy trực tiếp trên điện thoại Android (6.0 trở lên, ~3,3 MB): ruột ứng dụng luôn là bản mới nhất như bản web, thêm **báo thức hệ thống kêu + rung đúng giờ nhập kết quả ngay cả khi app đã đóng**, và quét mã vạch bằng camera ngay trong app. Cài đặt: mở file APK, cho phép cài ứng dụng từ tệp/trình duyệt khi máy hỏi. · *Native Android app: always-current web core, plus OS-level due-time alarms that ring and vibrate even when the app is fully closed, and in-app barcode scanning.*
+- 🍎 **iOS:** đang thử nghiệm — link tải sẽ cập nhật sau. · *iOS: in testing — download link coming soon.*
+- 🌐 **Bản web / Web version:** dùng ngay tại link demo ở trên, không cần cài đặt. · *Runs instantly in the browser via the demo link above.*
+
 ![Màn hình chính](screenshots/01-trang-chinh.png)
 
 | | |
@@ -43,6 +49,10 @@
 
 ## Cập nhật gần đây / Recent updates
 
+- **Android (APK) v1.0.0-trial3** — **Có bản Android chính thức** (xem mục Tải ứng dụng ở đầu trang): báo thức tới giờ do hệ điều hành phụ trách — kêu + rung ngay cả khi app đã đóng hẳn, quét mã vạch bằng camera trong app. · *Official Android app: OS-level due-time alarms (ring + vibrate even when fully closed) and in-app camera scanning.*
+- **v48** — Sửa lỗi bố cục form nhập kết quả: tên chỉ mục ở các ô nhập chữ bị ép hẹp khi có nút nhập giọng nói. · *Fixed squeezed field labels in the result-entry form when the voice-input button is present.*
+- **v47** — Thêm đường đồng bộ báo thức cho bản iOS (đang thử nghiệm). · *Added the alarm-sync path for the iOS build (in testing).*
+- **v46** — Móc đồng bộ báo thức native: khi chạy trong app Android, danh sách mẫu đang đếm giờ được gửi sang hệ điều hành đặt báo thức. · *Native alarm sync hook used by the Android app.*
 - **v45** — Hướng dẫn cài nhắc Lịch chuyển từ thông báo thoáng qua sang hộp thoại cố định, đọc thong thả; nút nhắc Lịch chỉ hiện trên điện thoại, ẩn trên máy tính. · *Calendar-setup guide is now a persistent dialog instead of a fleeting toast; the calendar button is mobile-only.*
 - **v44** — Nhắc tới giờ qua Lịch điện thoại (file .ics có chuông báo đúng giờ); nhận mẫu mới tự chuyển sang tab Quản lý, khung Chưa kết quả. · *Phone-calendar due reminders (.ics with an alarm); auto-switch to the Manage tab after sample intake.*
 - **v43** — Gói ca trực: nhắc sao lưu, trang bàn giao ca, cờ KHẨN, tự khóa người trực, đọc to mẫu tới giờ, quét tìm mẫu. · *Shift package: backup reminder, handover page, STAT flag, operator auto-lock, spoken due alerts, scan-to-find.*
