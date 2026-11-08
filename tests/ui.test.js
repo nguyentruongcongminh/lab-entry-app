@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v63 và precache đúng URL ?v=63 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v64 và precache đúng URL ?v=64 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v63'"), 'sw.js phải gắn VERSION v63');
-    for (const a of ['styles.css?v=63', 'print.css?v=63', 'config.js?v=63', 'store.js?v=63', 'mascot.js?v=63', 'app.js?v=63', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v64'"), 'sw.js phải gắn VERSION v64');
+    for (const a of ['styles.css?v=64', 'print.css?v=64', 'config.js?v=64', 'store.js?v=64', 'mascot.js?v=64', 'app.js?v=64', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1877,7 +1877,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w9.close();
   });
 
-  test('F32 (v58, nới rộng v60–v63): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
+  test('F32 (v58, nới rộng v60–v64): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
     const dom10 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
       beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lễ', salt: 's10', pinHash: 'h10' }]), 'labentry.operator.v1': 'KTV Lễ' }); } });
     const w10 = dom10.window;
@@ -1947,6 +1947,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     sel.dispatchEvent(new w10.Event('change'));
     assert.ok(!banner.classList.contains('hidden'), 'quay lại Tết là lời chúc hiện tiếp, không tắt hẳn (kể cả khi đã từng tắt)');
     assert.ok(decor.textContent.includes('🌸') && decor.textContent.includes('🧧'), 'trang trí Tết vẫn có hoa đào rơi + bao lì xì ở góc');
+    /* v64a: vật rơi rải đều toàn chiều ngang (trước đây công thức cũ dồn
+       hết về phía phải, bên trái trống — Minh chỉ ra 2026-11-08) */
+    const lefts = [...d10.querySelectorAll('#theme-decor .decor-fall')].map((el) => parseFloat(el.style.left));
+    assert.ok(lefts.length >= 9, 'Tết có 9 hoa đào rơi');
+    assert.ok(Math.min(...lefts) <= 12, 'có hoa rơi ở sát mép trái');
+    assert.ok(Math.max(...lefts) >= 85, 'có hoa rơi ở phía phải');
+    assert.ok(lefts.filter((x) => x < 34).length >= 2, 'một phần ba trái màn hình có ít nhất 2 hoa');
+
+    /* v64b: nhạc đệm chỉ cho Tết / Giáng Sinh / Trung Thu, dài 6–11 giây,
+       phát/dừng an toàn cả khi máy không có WebAudio (jsdom) */
+    assert.strictEqual(JSON.stringify(w10.eval('Object.keys(THEME_MUSIC).sort()')), JSON.stringify(['tet', 'trungthu', 'xmas']), 'đúng 3 chủ đề có nhạc');
+    for (const k of ['tet', 'xmas', 'trungthu']) {
+      const sec = w10.eval(`themeMusicSeconds('${k}')`);
+      assert.ok(sec >= 6 && sec <= 11, `nhạc ${k} dài ~10 giây (thực tế ${sec.toFixed(1)}s)`);
+      assert.ok(w10.eval(`THEME_MUSIC.${k}.notes.every((n) => n[1] > 0 && (n[0] === 0 || (n[0] >= 55 && n[0] <= 88)))`), `nốt nhạc ${k} hợp lệ`);
+    }
+    w10.eval("playThemeMusic('tet'); stopThemeMusic();");
+    assert.strictEqual(w10.eval('themeMusicState.playing'), false, 'không có WebAudio thì không phát, không lỗi');
+
     sel.value = 'trungthu';
     sel.dispatchEvent(new w10.Event('change'));
     assert.ok(!banner.classList.contains('hidden'), 'Trung Thu lời chúc hiện bình thường');

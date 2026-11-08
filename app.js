@@ -3613,7 +3613,7 @@ function renderThemeDecor(t) {
   if (d.fall && DECOR_FALLS[d.fall]) {
     const f = DECOR_FALLS[d.fall];
     for (let i = 0; i < f.n; i++) {
-      const left = 3 + ((i * 89) % 94);
+      const left = Math.round(((i + 0.5) * 100) / f.n + ((i * 37) % 7) - 3);
       const size = f.size[0] + ((i * 7) % (f.size[1] - f.size[0] + 1));
       const dur = f.dur[0] + ((i * 13) % (f.dur[1] - f.dur[0] + 1));
       const delay = -((i * 29) % 12);
@@ -3623,6 +3623,101 @@ function renderThemeDecor(t) {
   layer.innerHTML = html;
   layer.classList.remove('hidden');
 }
+/* Nhạc đệm dịp lễ (v64): Tết, Giáng Sinh, Trung Thu có giai điệu riêng
+ * (~10 giây) phát khi dải lời chúc hiện. Giai điệu soạn bằng WebAudio
+ * (nốt nhạc -> sóng âm) nên không cần file nhạc, chạy offline được.
+ * Trình duyệt chặn tiếng trước lần chạm đầu tiên vào app: khi đó nhạc
+ * ở trạng thái chờ và phát ngay ở lần chạm kế tiếp nếu lời chúc còn
+ * hiện. Bấm ✕ tắt lời chúc, hoặc chuyển sang chủ đề không có nhạc,
+ * thì nhạc dừng. */
+const THEME_MUSIC = {
+  /* Ngũ cung (C D E G A) tươi vui — giai điệu chúc Tết */
+  tet: { bpm: 120, notes: [[72, 1], [76, 1], [79, 1], [81, 1], [79, 1], [76, 1], [74, 1], [76, 2], [74, 1], [72, 1], [74, 1], [76, 1], [79, 2], [76, 1], [74, 1], [72, 2]] },
+  /* Jingle Bells (nhạc truyền thống Giáng Sinh) */
+  xmas: { bpm: 112, notes: [[64, 1], [64, 1], [64, 2], [64, 1], [64, 1], [64, 2], [64, 1], [67, 1], [60, 1.5], [62, 0.5], [64, 4]] },
+  /* Ngũ cung êm dịu — giai điệu Trung Thu */
+  trungthu: { bpm: 96, notes: [[72, 1], [76, 1], [79, 1], [76, 1], [74, 1], [72, 1], [69, 1], [72, 2], [74, 1], [76, 1], [74, 1], [69, 1], [67, 3]] },
+};
+const themeMusicState = { playing: false, theme: '', playedFor: '', pending: '' };
+let themeCtx = null;
+let themeMaster = null;
+let themeStopTimer = null;
+function themeMusicSeconds(t) {
+  const spec = THEME_MUSIC[t];
+  if (!spec) return 0;
+  return (spec.notes.reduce((a, n) => a + n[1], 0) * 60) / spec.bpm;
+}
+function stopThemeMusic(fadeSec) {
+  if (themeStopTimer) { clearTimeout(themeStopTimer); themeStopTimer = null; }
+  const m = themeMaster;
+  const ctx = themeCtx;
+  themeMaster = null;
+  themeMusicState.playing = false;
+  themeMusicState.theme = '';
+  if (m && ctx) {
+    try {
+      const now = ctx.currentTime;
+      const f = fadeSec || 0.15;
+      m.gain.cancelScheduledValues(now);
+      m.gain.setValueAtTime(m.gain.value, now);
+      m.gain.linearRampToValueAtTime(0.0001, now + f);
+      setTimeout(() => { try { m.disconnect(); } catch (e) { /* bỏ qua */ } }, (f + 0.1) * 1000);
+    } catch (e) { /* bỏ qua */ }
+  }
+}
+function playThemeMusic(t) {
+  const spec = THEME_MUSIC[t];
+  if (!spec) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  stopThemeMusic();
+  try {
+    if (!themeCtx || themeCtx.state === 'closed') themeCtx = new AC();
+    if (themeCtx.state === 'suspended') {
+      themeMusicState.pending = t;
+      themeCtx.resume().catch(() => {});
+      if (themeCtx.state !== 'running') return; /* chờ lần chạm đầu tiên */
+    }
+    themeMusicState.pending = '';
+    themeMaster = themeCtx.createGain();
+    themeMaster.gain.value = 0.14;
+    themeMaster.connect(themeCtx.destination);
+    const spb = 60 / spec.bpm;
+    let at = themeCtx.currentTime + 0.06;
+    spec.notes.forEach((pair) => {
+      const midi = pair[0];
+      const dur = pair[1] * spb;
+      if (midi > 0) {
+        const fr = 440 * Math.pow(2, (midi - 69) / 12);
+        const g = themeCtx.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.55, at + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + Math.max(0.12, dur * 0.92));
+        const o1 = themeCtx.createOscillator();
+        o1.type = 'triangle';
+        o1.frequency.value = fr;
+        o1.connect(g);
+        const o2 = themeCtx.createOscillator();
+        o2.type = 'sine';
+        o2.frequency.value = fr;
+        const g2 = themeCtx.createGain();
+        g2.gain.value = 0.35;
+        o2.connect(g2);
+        g2.connect(g);
+        g.connect(themeMaster);
+        o1.start(at);
+        o2.start(at);
+        o1.stop(at + dur);
+        o2.stop(at + dur);
+      }
+      at += dur;
+    });
+    themeMusicState.playing = true;
+    themeMusicState.theme = t;
+    themeStopTimer = setTimeout(() => stopThemeMusic(0.5), themeMusicSeconds(t) * 1000 + 60);
+  } catch (e) { /* thiết bị không phát được tiếng: bỏ qua, không làm hỏng app */ }
+}
+
 /* Tắt lời chúc chỉ là TẠM THỜI (v63, đúng ý Minh chốt 2026-11-08): bấm ✕
  * ẩn lời chúc của chủ đề đang xem; hễ rời sang chủ đề khác rồi quay lại —
  * hoặc mở lại app — là lời chúc hiện tiếp, không tắt hẳn. */
@@ -3644,6 +3739,18 @@ function applyTheme() {
     $('theme-banner-decor-l').textContent = d.l;
     $('theme-banner-decor-r').textContent = d.r;
   }
+  /* Nhạc đệm (v64): phát một lần cho mỗi lần lời chúc hiện */
+  const musicKey = show && THEME_MUSIC[t] ? t : '';
+  if (musicKey) {
+    if (themeMusicState.playedFor !== musicKey) {
+      themeMusicState.playedFor = musicKey;
+      playThemeMusic(musicKey);
+    }
+  } else {
+    themeMusicState.playedFor = '';
+    themeMusicState.pending = '';
+    if (themeMusicState.playing) stopThemeMusic();
+  }
 }
 function initTheme() {
   const sel = $('theme-mode');
@@ -3660,6 +3767,11 @@ function initTheme() {
     bannerDismissedTheme = themeForDate(new Date());
     applyTheme();
   });
+  /* Nếu nhạc đang chờ vì trình duyệt chặn autoplay, phát ở lần chạm đầu tiên */
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => {
+    const p = themeMusicState.pending;
+    if (p && themeMusicState.playedFor === p && themeForDate(new Date()) === p) playThemeMusic(p);
+  }, { passive: true }));
   applyTheme();
 }
 
