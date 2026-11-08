@@ -161,7 +161,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 
 ### F31 — Linh vật đồng ca "Bé kính hiển vi" (v55, 2026-11-08; ý tưởng số 13 trong IDEAS-BACKLOG, Minh duyệt hình + hành vi ngày 2026-11-08)
 
-- Linh vật nhỏ (ảnh ~96px) nổi ở góc phải dưới, **trên nút +**, chỉ hiện ở 3 tab chính (Hôm nay / Quản lý / Lọc & Xuất) và tự ẩn khi có hộp thoại/màn hình quét mở; là phần tử con trực tiếp của `body` nên `print.css` tự loại khỏi bản in. Thuần trang trí — **không đụng** dữ liệu, hẹn giờ, báo động, in ấn, sao lưu: trạng thái được tính lại mỗi giây ở cuối `timerTick()` trong `try/catch` riêng, chỉ đọc `store.getAll()`.
+- Linh vật nhỏ (ảnh hiển thị 64px — v57 thu nhỏ từ 96px theo góp ý của Minh vì bản 96px choáng danh sách kết quả bên dưới; bong bóng cũng gọn lại: max-width 205px, chữ 12.5px) nổi ở góc phải dưới, **trên nút +**, chỉ hiện ở 3 tab chính (Hôm nay / Quản lý / Lọc & Xuất) và tự ẩn khi có hộp thoại/màn hình quét mở; là phần tử con trực tiếp của `body` nên `print.css` tự loại khỏi bản in. Thuần trang trí — **không đụng** dữ liệu, hẹn giờ, báo động, in ấn, sao lưu: trạng thái được tính lại mỗi giây ở cuối `timerTick()` trong `try/catch` riêng, chỉ đọc `store.getAll()`.
 - **Trạng thái theo tình hình ca** (ưu tiên từ trên xuống; chỉ xét mẫu *Chưa kết quả*):
   1. `overdue` — có mẫu hẹn giờ **đã quá giờ**: bong bóng "Có mẫu quá giờ chưa nhập kết quả: {ID, …}", huy hiệu đỏ = số mẫu quá giờ, ảnh mặt lo (dùng chung ảnh `hurried`), nhịp rung nhanh.
   2. `hurried` — mẫu hẹn giờ gần nhất **còn ≤5 phút** (quy tắc của Minh): bong bóng gồm **ID + loại xét nghiệm + thời gian còn lại**, vd "⏰ XN-2612 · Máu ẩn · còn 4 phút tới giờ!", ảnh ôm đồng hồ bấm giờ, huy hiệu "!".

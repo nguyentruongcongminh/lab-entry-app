@@ -11,18 +11,18 @@
  *   nên người dùng mở app là gặp bản mới nhất, dữ liệu localStorage không
  *   bị đụng tới (cache này chỉ chứa file chương trình).
  */
-const VERSION = 'v56';
+const VERSION = 'v57';
 const CACHE = 'labentry-' + VERSION;
 
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=56',
-  './print.css?v=56',
-  './config.js?v=56',
-  './store.js?v=56',
-  './mascot.js?v=56',
-  './app.js?v=56',
+  './styles.css?v=57',
+  './print.css?v=57',
+  './config.js?v=57',
+  './store.js?v=57',
+  './mascot.js?v=57',
+  './app.js?v=57',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
