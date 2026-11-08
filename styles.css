@@ -854,3 +854,20 @@ body.theme-trungthu .theme-banner { background: linear-gradient(90deg, #14264d, 
 body.theme-xmas { --blue: #2e7d32; --blue-dark: #1b5e20; }
 body.theme-xmas .theme-banner { background: linear-gradient(90deg, #1b5e20, #2e7d32); color: #ffffff; }
 body.theme-xmas .fab { background: #c62828; }
+/* v60: thêm 8 ngày lễ (Minh yêu cầu) */
+body.theme-thaythuoc { --blue: #0e8a6d; --blue-dark: #0a6b54; }
+body.theme-thaythuoc .theme-banner { background: linear-gradient(90deg, #0a6b54, #0e8a6d); color: #ffffff; }
+body.theme-phunuqt { --blue: #d6336c; --blue-dark: #b02557; }
+body.theme-phunuqt .theme-banner { background: linear-gradient(90deg, #b02557, #d6336c); color: #ffffff; }
+body.theme-gioto { --blue: #9a6a2f; --blue-dark: #7a5223; }
+body.theme-gioto .theme-banner { background: linear-gradient(90deg, #5f3f1a, #7a5223); color: #ffd54f; }
+body.theme-giaiphong { --blue: #e03131; --blue-dark: #b01e1e; }
+body.theme-giaiphong .theme-banner { background: linear-gradient(90deg, #b01e1e, #e03131); color: #ffe082; }
+body.theme-laodong { --blue: #e8590c; --blue-dark: #bf4a08; }
+body.theme-laodong .theme-banner { background: linear-gradient(90deg, #bf4a08, #e8590c); color: #ffffff; }
+body.theme-phunuvn { --blue: #9c36b5; --blue-dark: #7d2a91; }
+body.theme-phunuvn .theme-banner { background: linear-gradient(90deg, #7d2a91, #9c36b5); color: #ffffff; }
+body.theme-nhagiao { --blue: #6d4aa0; --blue-dark: #573a82; }
+body.theme-nhagiao .theme-banner { background: linear-gradient(90deg, #573a82, #6d4aa0); color: #ffffff; }
+body.theme-qdnd { --blue: #59783f; --blue-dark: #476331; }
+body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476331); color: #ffffff; }

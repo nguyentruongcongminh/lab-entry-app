@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v59 và precache đúng URL ?v=59 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v60 và precache đúng URL ?v=60 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v59'"), 'sw.js phải gắn VERSION v59');
-    for (const a of ['styles.css?v=59', 'print.css?v=59', 'config.js?v=59', 'store.js?v=59', 'mascot.js?v=59', 'app.js?v=59', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v60'"), 'sw.js phải gắn VERSION v60');
+    for (const a of ['styles.css?v=60', 'print.css?v=60', 'config.js?v=60', 'store.js?v=60', 'mascot.js?v=60', 'app.js?v=60', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1896,9 +1896,21 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 24))'), 'xmas', '24/12 -> xmas');
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 10, 8))'), '', 'ngày thường không có chủ đề');
 
+    /* v60: thêm 8 ngày lễ — dương lịch đúng ngày, Giỗ Tổ theo âm lịch,
+       22/12 Quân đội thắng khoảng Giáng Sinh */
+    assert.strictEqual(w10.eval('themeForDate(new Date(2027, 1, 27))'), 'thaythuoc', '27/2 -> Thầy thuốc VN');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 2, 8))'), 'phunuqt', '8/3 -> Quốc tế Phụ nữ');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 3, 26))'), 'gioto', '26/4/2026 = 10/3 âm -> Giỗ Tổ');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 3, 30))'), 'giaiphong', '30/4 -> Giải phóng');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 4, 1))'), 'laodong', '1/5 -> Quốc tế Lao động');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 9, 20))'), 'phunuvn', '20/10 -> Phụ nữ VN');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 10, 20))'), 'nhagiao', '20/11 -> Nhà giáo VN');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 22))'), 'qdnd', '22/12 -> Quân đội (không phải Giáng Sinh)');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 24))'), 'xmas', '24/12 vẫn là Giáng Sinh');
+
     /* Chọn tay ghi đè; áp dụng lên body + dải lời chúc */
     const sel = d10.getElementById('theme-mode');
-    assert.ok(sel && sel.options.length === 5, 'ô chọn chủ đề có 5 mức');
+    assert.ok(sel && sel.options.length === 13, 'ô chọn chủ đề có 13 mức (tự động + 11 lễ + tắt)');
     sel.value = 'tet';
     sel.dispatchEvent(new w10.Event('change'));
     assert.ok(d10.body.classList.contains('theme-tet'), 'chọn Tết thì body mang theme-tet');

@@ -3451,9 +3451,18 @@ function initMascot() {
  * (dương lịch 20–26/12); chọn tay ở tab Quản lý. Lưu ở khóa riêng
  * labentry.theme.v1 (chỉ máy này, không vào file sao lưu). */
 const THEME_KEY = 'labentry.theme.v1';
+const THEME_KEYS = ['tet', 'thaythuoc', 'phunuqt', 'gioto', 'giaiphong', 'laodong', 'trungthu', 'phunuvn', 'nhagiao', 'qdnd', 'xmas'];
 const THEME_GREETINGS = {
   tet: '🧧 Chúc Mừng Năm Mới — chúc ca trực an khang, thịnh vượng!',
+  thaythuoc: '🩺 Chúc mừng Ngày Thầy thuốc Việt Nam 27/2!',
+  phunuqt: '🌸 Chúc mừng Quốc tế Phụ nữ 8/3 — chúc một nửa thế giới luôn rạng rỡ!',
+  gioto: '🏯 Giỗ Tổ Hùng Vương — nhớ ơn các Vua Hùng đã có công dựng nước!',
+  giaiphong: '🎉 Chào mừng Ngày Giải phóng miền Nam, thống nhất đất nước 30/4!',
+  laodong: '🛠️ Chúc mừng Quốc tế Lao động 1/5!',
   trungthu: '🏮 Tết Trung Thu — chúc ca trực đoàn viên, vui vẻ!',
+  phunuvn: '🌺 Chúc mừng Ngày Phụ nữ Việt Nam 20/10!',
+  nhagiao: '💐 Chúc mừng Ngày Nhà giáo Việt Nam 20/11 — tri ân thầy cô!',
+  qdnd: '⭐ Chúc mừng Ngày thành lập Quân đội Nhân dân Việt Nam 22/12!',
   xmas: '🎄 Giáng Sinh an lành — chúc ca trực ấm áp!',
 };
 function loadThemeSettings() {
@@ -3461,7 +3470,7 @@ function loadThemeSettings() {
     const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
     if (o && typeof o === 'object') {
       return {
-        mode: ['auto', 'tet', 'trungthu', 'xmas', 'off'].includes(o.mode) ? o.mode : 'auto',
+        mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto',
         bannerOff: typeof o.bannerOff === 'string' ? o.bannerOff : '',
       };
     }
@@ -3557,17 +3566,27 @@ function themeForDate(date) {
   if (themeSettings.mode !== 'auto') return themeSettings.mode;
   const d = date.getDate();
   const m = date.getMonth() + 1;
+  /* Ngày lễ dương lịch (đúng ngày) — kiểm tra trước các khoảng nhiều ngày
+     để 22/12 (Quân đội) không bị khoảng Giáng Sinh 20–26/12 nuốt mất */
+  if (m === 2 && d === 27) return 'thaythuoc';
+  if (m === 3 && d === 8) return 'phunuqt';
+  if (m === 4 && d === 30) return 'giaiphong';
+  if (m === 5 && d === 1) return 'laodong';
+  if (m === 10 && d === 20) return 'phunuvn';
+  if (m === 11 && d === 20) return 'nhagiao';
+  if (m === 12 && d === 22) return 'qdnd';
   if (m === 12 && d >= 20 && d <= 26) return 'xmas';
   const lu = convertSolar2Lunar(d, m, date.getFullYear());
   const ld = lu[0];
   const lm = lu[1];
   if ((lm === 12 && ld >= 23) || (lm === 1 && ld <= 5)) return 'tet';
   if (lm === 8 && ld >= 13 && ld <= 17) return 'trungthu';
+  if (lm === 3 && ld === 10) return 'gioto';
   return '';
 }
 function applyTheme() {
   const t = themeForDate(new Date());
-  ['tet', 'trungthu', 'xmas'].forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
+  THEME_KEYS.forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
   const banner = $('theme-banner');
   if (!banner) return;
   const show = !!t && themeSettings.bannerOff !== todayKey();
