@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v51 và precache đúng URL ?v=51 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v52 và precache đúng URL ?v=52 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v51'"), 'sw.js phải gắn VERSION v51');
-    for (const a of ['styles.css?v=51', 'print.css?v=51', 'config.js?v=51', 'store.js?v=51', 'app.js?v=51', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v52'"), 'sw.js phải gắn VERSION v52');
+    for (const a of ['styles.css?v=52', 'print.css?v=52', 'config.js?v=52', 'store.js?v=52', 'app.js?v=52', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1670,6 +1670,41 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $5('btn-batch-next').click(); /* mẫu cuối: lưu & xong -> về Quản lý */
     assert.ok(!$5('view-manage').classList.contains('hidden'), 'hết lô phải quay về tab Quản lý');
     w5.close();
+  });
+
+  test('xuất file trong vỏ app: đi qua cầu nối file, chỉ ghi nhận sao lưu khi ghi được (v52 F28)', async () => {
+    /* Phiên riêng dom6: gieo KTV + người trực */
+    const dom6 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV File', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV File',
+        });
+      },
+    });
+    const w6 = dom6.window;
+    await new Promise((res) => w6.addEventListener('load', res));
+    w6.eval("store.add({ testId: 'XN-F28', typeId: 'mau-an', results: {} })");
+    const saved = [];
+    w6.LabFileNative = { saveFile(name, text) { saved.push([name, text]); return 'OK'; } };
+    w6.eval('exportBackupFile()');
+    assert.strictEqual(saved.length, 1, 'trong vỏ app, xuất sao lưu phải đi qua cầu nối file native');
+    assert.ok(/^labentry-sao-luu-.*\.json$/.test(saved[0][0]), 'tên file sao lưu phải đúng mẫu labentry-sao-luu-*.json');
+    assert.strictEqual(JSON.parse(saved[0][1]).records.length, 1, 'nội dung file phải chứa đúng bản ghi đã gieo');
+    assert.ok(w6.eval('appMeta.lastBackupAt'), 'ghi được file thì mới ghi nhận lần sao lưu gần nhất');
+    /* Cầu nối báo lỗi -> không ghi nhận sao lưu (không còn "thành công giả" như tới v51) */
+    w6.eval("appMeta.lastBackupAt = ''; saveMeta();");
+    w6.LabFileNative = { saveFile() { return 'ERR'; } };
+    w6.eval('exportBackupFile()');
+    assert.strictEqual(w6.eval('appMeta.lastBackupAt'), '', 'ghi file thất bại thì không được ghi nhận đã sao lưu');
+    /* Không cầu nối + không ở trong vỏ app -> kênh tải thường của trình duyệt */
+    delete w6.LabFileNative;
+    assert.strictEqual(w6.eval("downloadTextFile('a.txt', 'x')"), 'download');
+    w6.close();
   });
 
   await chain;

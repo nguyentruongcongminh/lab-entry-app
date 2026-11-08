@@ -521,7 +521,10 @@ function downloadCalendarReminder(uid) {
   }
   const safeId = rec.testId.replace(/[^\w-]+/g, '_');
   const fileName = 'labentry-nhac-' + safeId + '.ics';
-  downloadTextFile(fileName, buildCalendarIcs(rec), 'text/calendar;charset=utf-8');
+  if (downloadTextFile(fileName, buildCalendarIcs(rec), 'text/calendar;charset=utf-8') === 'fail') {
+    toast('Không tạo được file nhắc lịch trên thiết bị này');
+    return;
+  }
   /* Hướng dẫn cài lịch hiện bằng HỘP THOẠI CỐ ĐỊNH, không dùng toast nữa
      (v45, theo phản hồi của Minh): toast tắt sau vài giây, người dùng chưa
      kịp đọc để làm theo. Hộp thoại ở nguyên cho tới khi người dùng bấm Đóng. */
@@ -726,8 +729,10 @@ function buildCsv(recs) {
 function exportCsv() {
   const recs = applyExport();
   if (!recs.length) { toast('Không có kết quả nào để xuất'); return; }
-  downloadTextFile(stampName('labentry-ket-qua', '.csv'), buildCsv(recs), 'text/csv;charset=utf-8');
-  toast('Đã xuất CSV: ' + recs.length + ' kết quả');
+  const delivered = downloadTextFile(stampName('labentry-ket-qua', '.csv'), buildCsv(recs), 'text/csv;charset=utf-8');
+  const done = (how) => toast(how === 'fail' ? 'Không xuất được file CSV trên thiết bị này' : 'Đã xuất CSV: ' + recs.length + ' kết quả');
+  if (delivered && typeof delivered.then === 'function') delivered.then(done);
+  else done(delivered);
 }
 
 /* ================= Sao lưu / phục hồi (F8) ================= */
@@ -737,10 +742,36 @@ function stampName(prefix, ext) {
   return prefix + '-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + ext;
 }
 
-/* Tải một nội dung text xuống thành file (dùng chung cho sao lưu + CSV) */
+/* Đưa một nội dung text thành file cho người dùng (sao lưu + CSV + nhắc lịch).
+   Ba kênh theo thứ tự (F28, v52):
+   1) Cầu nối file native trong vỏ app (window.LabFileNative.saveFile) — ghi
+      thẳng vào thư mục Tải xuống của máy, trả 'OK'/'ERR'.
+   2) Web Share kèm file (navigator.canShare) — người dùng tự chọn nơi lưu/gửi.
+   3) Tải xuống kiểu trình duyệt (blob + <a download>) — chạy tốt trên trình
+      duyệt thường, nhưng WebView của vỏ app NUỐT LẶNG thao tác này (không ghi
+      file, không báo lỗi) nên khi đang ở trong vỏ app mà hai kênh trên không
+      có thì phải trả 'fail' thay vì giả vờ thành công.
+   Trả về 'native' | 'share' | 'download' | 'fail' (kênh share trả Promise).
+   Bối cảnh: tới v51, exportBackupFile báo "Đã xuất file sao lưu" vô điều kiện
+   nên trong bản APK file không hề tồn tại mà người dùng tưởng đã sao lưu —
+   lỗi do Minh phát hiện trên máy thật 2026-11-08 (161 bản ghi). */
 function downloadTextFile(name, text, mime) {
+  const type = mime || 'text/plain;charset=utf-8';
   try {
-    const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+    if (window.LabFileNative && typeof window.LabFileNative.saveFile === 'function') {
+      return window.LabFileNative.saveFile(name, text) === 'OK' ? 'native' : 'fail';
+    }
+  } catch (e) { /* cầu nối lỗi -> thử kênh khác */ }
+  try {
+    const file = new File([text], name, { type });
+    if (navigator.canShare && navigator.share && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file] }).then(() => 'share', () => 'fail');
+    }
+  } catch (e) { /* không chia sẻ được file -> thử tải thường */ }
+  const inShell = !!(window.Capacitor || window.LabAlarmNative ||
+    (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.labAlarm));
+  try {
+    const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
     if (url) {
       const a = document.createElement('a');
@@ -752,6 +783,7 @@ function downloadTextFile(name, text, mime) {
       setTimeout(() => URL.revokeObjectURL(url), 4000);
     }
   } catch (e) { /* môi trường không hỗ trợ tải file (vd môi trường test) */ }
+  return inShell ? 'fail' : 'download';
 }
 
 function exportBackupFile() {
@@ -765,12 +797,22 @@ function exportBackupFile() {
     obj.auditLog = JSON.parse(JSON.stringify(auditLog)); /* nhật ký thao tác (F22) */
   } catch (e) { /* bỏ qua nếu lỗi sao chép */ }
   const count = store.getAll().length;
-  downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
-  /* Ghi nhớ lần sao lưu gần nhất để tắt thanh nhắc + hiện ở thẻ sao lưu (F24) */
-  appMeta.lastBackupAt = new Date().toISOString();
-  saveMeta();
-  renderBackupNag();
-  toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
+  const delivered = downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
+  /* Chỉ ghi nhận sao lưu + báo thành công khi file THẬT SỰ được giao (F28):
+     trước đây báo thành công vô điều kiện kể cả khi vỏ app nuốt mất file */
+  const markDone = (how) => {
+    if (how === 'fail') {
+      toast('Không xuất được file sao lưu trên thiết bị này — dữ liệu vẫn còn nguyên trong app');
+      return;
+    }
+    /* Ghi nhớ lần sao lưu gần nhất để tắt thanh nhắc + hiện ở thẻ sao lưu (F24) */
+    appMeta.lastBackupAt = new Date().toISOString();
+    saveMeta();
+    renderBackupNag();
+    toast('Đã xuất file sao lưu: ' + count + ' bản ghi');
+  };
+  if (delivered && typeof delivered.then === 'function') delivered.then(markDone);
+  else markDone(delivered);
   return obj;
 }
 
