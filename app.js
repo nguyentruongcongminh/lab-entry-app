@@ -3268,7 +3268,15 @@ const MASCOT_KEY = 'labentry.mascot.v1';
 const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried' };
 let mascotSettings = loadMascotSettings();
 let mascotSig = '';
-let mascotBubbleOffKey = '';
+/* Vòng đời bong bóng (Minh góp ý 2026-11-08): mỗi tình huống mới hiện khung
+   thoại 5 giây rồi tự tắt cho đỡ choáng màn hình; tình huống còn đó thì sau
+   60 giây hiện lại 5 giây. Bấm vào linh vật: đang hiện thì tắt ngay, đang
+   tắt thì hiện 5 giây. */
+const MASCOT_BUBBLE_MS = 5000;
+const MASCOT_RESHOW_MS = 60000;
+let mascotBubbleKey = '';
+let mascotBubbleUntil = 0;
+let mascotNextShowAt = 0;
 
 function loadMascotSettings() {
   try {
@@ -3332,9 +3340,19 @@ function updateMascot() {
   const box = $('mascot');
   if (!box) return;
   if (!mascotVisibleHere()) { box.classList.add('hidden'); mascotSig = ''; return; }
-  const s = computeMascotState(Date.now());
+  const now = Date.now();
+  const s = computeMascotState(now);
   const stateKey = s.state + '|' + s.text;
-  const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (mascotBubbleOffKey === stateKey ? 'off' : 'on');
+  if (stateKey !== mascotBubbleKey) {
+    mascotBubbleKey = stateKey;
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+  } else if (now >= mascotNextShowAt) {
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+  }
+  const bubbleShown = now < mascotBubbleUntil;
+  const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (bubbleShown ? 'b1' : 'b0');
   box.classList.remove('hidden');
   if (sig === mascotSig) return;
   mascotSig = sig;
@@ -3349,7 +3367,7 @@ function updateMascot() {
   badge.classList.toggle('hidden', !s.badge);
   const bubble = $('mascot-bubble');
   bubble.textContent = s.text;
-  bubble.classList.toggle('hidden', mascotBubbleOffKey === stateKey);
+  bubble.classList.toggle('hidden', !bubbleShown);
 }
 
 /* Thu nhỏ ảnh người dùng chọn thành data URL (giữ nền trong suốt bằng PNG) */
@@ -3375,9 +3393,14 @@ function initMascot() {
   const img = $('mascot-img');
   if (!img) return;
   img.addEventListener('click', () => {
-    const s = computeMascotState(Date.now());
-    const key = s.state + '|' + s.text;
-    mascotBubbleOffKey = mascotBubbleOffKey === key ? '' : key;
+    const now = Date.now();
+    if (now < mascotBubbleUntil) {
+      mascotBubbleUntil = now;
+      mascotNextShowAt = now + MASCOT_RESHOW_MS;
+    } else {
+      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    }
     mascotSig = '';
     updateMascot();
   });

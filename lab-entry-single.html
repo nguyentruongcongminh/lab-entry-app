@@ -882,7 +882,7 @@ svg { width: 24px; height: 24px; display: block; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v55</span>
+    <span class="app-version">LabEntry v56</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -972,7 +972,7 @@ svg { width: 24px; height: 24px; display: block; }
       <button type="button" id="btn-mascot-reset" class="mascot-set-btn">↩ Ảnh mặc định</button>
       <input type="file" id="mascot-file" accept="image/*" class="hidden">
     </div>
-    <p class="mascot-set-note">Bé nhắc theo tình hình ca: mẫu sắp tới giờ (còn ≤5 phút), mẫu quá giờ, từ 3 mẫu chờ quá 15 phút chưa nhập kết quả. Ảnh riêng chỉ lưu trên máy này — không vào file sao lưu, không theo bản phát hành.</p>
+    <p class="mascot-set-note">Bé nhắc theo tình hình ca: mẫu sắp tới giờ (còn ≤5 phút), mẫu quá giờ, từ 3 mẫu chờ quá 15 phút chưa nhập kết quả. Khung thoại của bé tự tắt sau 5 giây, lúc cần sẽ hiện lại. Ảnh riêng chỉ lưu trên máy này — không vào file sao lưu, không theo bản phát hành.</p>
   </div>
 
   <div id="group-noresult">
@@ -5320,7 +5320,15 @@ const MASCOT_KEY = 'labentry.mascot.v1';
 const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried' };
 let mascotSettings = loadMascotSettings();
 let mascotSig = '';
-let mascotBubbleOffKey = '';
+/* Vòng đời bong bóng (Minh góp ý 2026-11-08): mỗi tình huống mới hiện khung
+   thoại 5 giây rồi tự tắt cho đỡ choáng màn hình; tình huống còn đó thì sau
+   60 giây hiện lại 5 giây. Bấm vào linh vật: đang hiện thì tắt ngay, đang
+   tắt thì hiện 5 giây. */
+const MASCOT_BUBBLE_MS = 5000;
+const MASCOT_RESHOW_MS = 60000;
+let mascotBubbleKey = '';
+let mascotBubbleUntil = 0;
+let mascotNextShowAt = 0;
 
 function loadMascotSettings() {
   try {
@@ -5384,9 +5392,19 @@ function updateMascot() {
   const box = $('mascot');
   if (!box) return;
   if (!mascotVisibleHere()) { box.classList.add('hidden'); mascotSig = ''; return; }
-  const s = computeMascotState(Date.now());
+  const now = Date.now();
+  const s = computeMascotState(now);
   const stateKey = s.state + '|' + s.text;
-  const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (mascotBubbleOffKey === stateKey ? 'off' : 'on');
+  if (stateKey !== mascotBubbleKey) {
+    mascotBubbleKey = stateKey;
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+  } else if (now >= mascotNextShowAt) {
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+  }
+  const bubbleShown = now < mascotBubbleUntil;
+  const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (bubbleShown ? 'b1' : 'b0');
   box.classList.remove('hidden');
   if (sig === mascotSig) return;
   mascotSig = sig;
@@ -5401,7 +5419,7 @@ function updateMascot() {
   badge.classList.toggle('hidden', !s.badge);
   const bubble = $('mascot-bubble');
   bubble.textContent = s.text;
-  bubble.classList.toggle('hidden', mascotBubbleOffKey === stateKey);
+  bubble.classList.toggle('hidden', !bubbleShown);
 }
 
 /* Thu nhỏ ảnh người dùng chọn thành data URL (giữ nền trong suốt bằng PNG) */
@@ -5427,9 +5445,14 @@ function initMascot() {
   const img = $('mascot-img');
   if (!img) return;
   img.addEventListener('click', () => {
-    const s = computeMascotState(Date.now());
-    const key = s.state + '|' + s.text;
-    mascotBubbleOffKey = mascotBubbleOffKey === key ? '' : key;
+    const now = Date.now();
+    if (now < mascotBubbleUntil) {
+      mascotBubbleUntil = now;
+      mascotNextShowAt = now + MASCOT_RESHOW_MS;
+    } else {
+      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    }
     mascotSig = '';
     updateMascot();
   });
