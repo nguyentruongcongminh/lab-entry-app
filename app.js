@@ -695,6 +695,7 @@ function applyExport() {
     : '';
   $('print-area').innerHTML = renderSheet(printSettings, recs, { rangeText, tatText });
   drawSheetBarcodes($('print-area')); /* mã vạch khối tài liệu (F21) */
+  printAreaKind = 'results'; /* #print-area đang giữ tờ kết quả (F30) */
   updatePrintPageStyle();
   return recs;
 }
@@ -786,6 +787,11 @@ function downloadTextFile(name, text, mime) {
   return inShell ? 'fail' : 'download';
 }
 
+/* #print-area đang giữ tờ nào: 'results' (kết quả) hay 'handover' (bàn giao).
+   Theo dõi tường minh để sự kiện in của hệ thống không ghi đè nhầm tờ (F30). */
+let printAreaKind = 'results';
+let lastPrintViaNative = false; /* lần in gần nhất có đi qua cầu nối native không */
+
 /* In tờ hiện tại (bản kết quả / tờ bàn giao / xem trước bố cục). Trong vỏ
    app, window.print() của WebView là hàm rỗng — không có hộp thoại in nào
    hiện ra (Minh phát hiện trên APK 2026-11-08: sao lưu đã sửa ở F28 nhưng
@@ -795,10 +801,12 @@ function downloadTextFile(name, text, mime) {
 function printSheet() {
   try {
     if (window.LabFileNative && typeof window.LabFileNative.print === 'function') {
+      lastPrintViaNative = true;
       window.LabFileNative.print();
       return;
     }
   } catch (e) { /* cầu nối lỗi -> thử in thường */ }
+  lastPrintViaNative = false;
   if (typeof window.print === 'function') window.print();
 }
 
@@ -2620,7 +2628,6 @@ async function copyHandover() {
   toast(ok ? 'Đã sao chép danh sách bàn giao' : 'Hãy bôi đen nội dung và sao chép thủ công');
 }
 
-let handoverPrinting = false;
 function printHandover() {
   const h = handoverRecords();
   const rows = h.noresult.concat(h.pending).map((r, i) =>
@@ -2628,22 +2635,20 @@ function printHandover() {
     esc((getTestType(r.typeId) || {}).name || r.typeId) + '</td><td>' + STATUS_LABEL[store.statusOf(r)] + '</td><td>' +
     esc(fmtList(r.createdAt)) + '</td><td>' + esc(fmtWait(r.createdAt)) + '</td></tr>').join('');
   const pa = $('print-area');
-  const prev = pa.innerHTML;
   pa.innerHTML = '<div class="ho-sheet"><h1>DANH SÁCH BÀN GIAO CA</h1>' +
     '<p>Lập lúc: ' + esc(fmtFull(new Date().toISOString())) + ' · KTV trực: ' + esc(currentOperator || '(chưa chọn)') +
     ' · Tổng số mẫu chưa xong: ' + (h.noresult.length + h.pending.length) + '</p>' +
     '<table><thead><tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Trạng thái</th><th>Nhận lúc</th><th>Đã chờ</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table></div>';
-  /* beforeprint toàn cục sẽ dựng lại tờ kết quả vào #print-area — phải chặn
-     trong lần in này để không ghi đè tờ bàn giao */
-  handoverPrinting = true;
-  const restore = () => {
-    pa.innerHTML = prev;
-    handoverPrinting = false;
-    window.removeEventListener('afterprint', restore);
-  };
-  window.addEventListener('afterprint', restore);
-  setTimeout(() => { handoverPrinting = false; }, 3000); /* dự phòng nếu afterprint không bắn */
+  /* Đánh dấu #print-area đang giữ tờ bàn giao và GIỮ NGUYÊN như vậy cho tới
+     lần dựng tờ kế tiếp (F30): adapter in của Android dựng trang in bất đồng
+     bộ, có thể nhiều lượt (mở hộp thoại, đổi khổ giấy...) — cơ chế cũ khôi
+     phục nội dung cũ theo afterprint + cờ hẹn giờ 3 giây khiến một lượt dựng
+     muộn đọc phải tờ kết quả -> in bàn giao ra danh sách kết quả (Minh gặp
+     trên APK 2026-11-08). Giờ beforeprint chỉ dựng lại tờ kết quả khi
+     printAreaKind đang là 'results'; trên trình duyệt, afterprint dựng lại
+     tờ kết quả sau khi in bàn giao xong (xem listener ở phần khởi tạo). */
+  printAreaKind = 'handover';
   printSheet();
 }
 
@@ -3474,7 +3479,13 @@ function init() {
     e.target.value = '';
     await handleBackupFile(file);
   });
-  window.addEventListener('beforeprint', () => { if (!handoverPrinting) applyExport(); });
+  window.addEventListener('beforeprint', () => { if (printAreaKind !== 'handover') applyExport(); });
+  /* Trên trình duyệt: in bàn giao xong thì dựng lại tờ kết quả vào #print-area
+     như hành vi cũ. Trong vỏ app KHÔNG làm vậy — adapter in dựng trang bất
+     đồng bộ, afterprint có thể bắn giữa chừng và ghi đè tờ bàn giao (F30). */
+  window.addEventListener('afterprint', () => {
+    if (!lastPrintViaNative && printAreaKind === 'handover') applyExport();
+  });
 
   $('btn-back').addEventListener('click', () => switchView(mainView));
   $('btn-cancel').addEventListener('click', () => switchView(mainView));

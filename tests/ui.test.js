@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v53 và precache đúng URL ?v=53 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v54 và precache đúng URL ?v=54 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v53'"), 'sw.js phải gắn VERSION v53');
-    for (const a of ['styles.css?v=53', 'print.css?v=53', 'config.js?v=53', 'store.js?v=53', 'app.js?v=53', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v54'"), 'sw.js phải gắn VERSION v54');
+    for (const a of ['styles.css?v=54', 'print.css?v=54', 'config.js?v=54', 'store.js?v=54', 'app.js?v=54', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1735,6 +1735,45 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     delete w7.LabFileNative; /* ngoài vỏ app: rơi về window.print thường, không lỗi */
     $7('btn-print').click();
     w7.close();
+  });
+
+  test('in bàn giao trong vỏ app: sự kiện in bất đồng bộ không ghi đè tờ bàn giao bằng tờ kết quả (v54 F30)', async () => {
+    const dom8 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV Giao', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV Giao',
+        });
+      },
+    });
+    const w8 = dom8.window;
+    const d8 = w8.document;
+    await new Promise((res) => w8.addEventListener('load', res));
+    w8.eval("store.add({ testId: 'XN-F30', typeId: 'mau-an', results: {} })"); /* chưa có kết quả -> nằm trong tờ bàn giao */
+    let prints = 0;
+    w8.LabFileNative = { saveFile() { return 'OK'; }, print() { prints++; } };
+    w8.eval('applyExport()'); /* tờ kết quả vào #print-area trước, như lúc đang ở tab Lọc & Xuất */
+    assert.ok(d8.getElementById('print-area').innerHTML.includes('Danh sách kết quả xét nghiệm'), 'điều kiện đầu: #print-area là tờ kết quả');
+    w8.eval('printHandover()');
+    assert.strictEqual(prints, 1, 'in bàn giao phải gọi cầu nối in');
+    const hoHtml = () => d8.getElementById('print-area').innerHTML;
+    assert.ok(hoHtml().includes('DANH SÁCH BÀN GIAO CA'), 'sau khi bấm in bàn giao, #print-area phải là tờ bàn giao');
+    /* Adapter in của Android bắn beforeprint/afterprint bất đồng bộ và có thể
+       nhiều lượt — không lượt nào được phép đổi nội dung tờ đang in */
+    w8.dispatchEvent(new w8.Event('beforeprint'));
+    assert.ok(hoHtml().includes('DANH SÁCH BÀN GIAO CA'), 'beforeprint không được ghi đè tờ bàn giao bằng tờ kết quả');
+    w8.dispatchEvent(new w8.Event('afterprint'));
+    assert.ok(hoHtml().includes('DANH SÁCH BÀN GIAO CA'), 'afterprint trong vỏ app không được khôi phục tờ kết quả (lỗi Minh gặp 2026-11-08)');
+    assert.ok(!hoHtml().includes('Danh sách kết quả xét nghiệm'), '#print-area không được chứa tờ kết quả khi đang in bàn giao');
+    /* In kết quả ngay sau đó vẫn ra đúng tờ kết quả */
+    d8.getElementById('btn-print').click();
+    assert.strictEqual(prints, 2);
+    assert.ok(hoHtml().includes('Danh sách kết quả xét nghiệm'), 'in kết quả sau in bàn giao phải ra tờ kết quả');
+    w8.close();
   });
 
   await chain;
