@@ -19,6 +19,9 @@ public class MainActivity extends BridgeActivity {
            báo thức vẫn khớp đúng trong cùng phiên. */
         if (getBridge() != null && getBridge().getWebView() != null) {
             getBridge().getWebView().addJavascriptInterface(new LabAlarmBridge(this), "LabAlarmNative");
+            /* Cầu nối ghi file (v52, F28): xuất sao lưu/CSV/nhắc Lịch ghi thẳng
+               vào thư mục Tải xuống — WebView tự nó nuốt mất tải file blob */
+            getBridge().getWebView().addJavascriptInterface(new LabFileBridge(this), "LabFileNative");
         }
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
