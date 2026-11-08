@@ -159,6 +159,20 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
 - **Bảo mật PIN:** app **không bao giờ lưu PIN gốc** — chỉ lưu băm **SHA-256 kèm muối riêng** từng KTV (không có khóa giải mã, không đọc ngược được; trình duyệt thiếu WebCrypto thì dùng hàm băm dự phòng kèm muối). Vì vậy file sao lưu mang theo `staff` ở dạng băm: mở file ra không thấy PIN của ai, phục hồi/gộp sang máy khác thì băm đi theo và người dùng vẫn gõ PIN cũ để đổi trực bình thường (đây là cách "giải mã" đúng nghĩa cho nhu cầu kiểm tra PIN: chỉ cần kiểm tra khớp, không cần khôi phục gốc). Gộp dữ liệu hợp nhất danh sách theo tên như cũ.
 - Giới hạn đã nêu rõ với Minh: PIN là lớp ngăn "chọn tên người khác tiện tay" trên máy dùng chung, không phải bảo mật cấp tài khoản — ai có quyền đào sâu dữ liệu trên máy vẫn có thể xóa KTV tạo lại; xóa KTV và việc chọn tên chưa có PIN vẫn không bị khóa PIN.
 
+### F31 — Linh vật đồng ca "Bé kính hiển vi" (v55, 2026-11-08; ý tưởng số 13 trong IDEAS-BACKLOG, Minh duyệt hình + hành vi ngày 2026-11-08)
+
+- Linh vật nhỏ (ảnh ~96px) nổi ở góc phải dưới, **trên nút +**, chỉ hiện ở 3 tab chính (Hôm nay / Quản lý / Lọc & Xuất) và tự ẩn khi có hộp thoại/màn hình quét mở; là phần tử con trực tiếp của `body` nên `print.css` tự loại khỏi bản in. Thuần trang trí — **không đụng** dữ liệu, hẹn giờ, báo động, in ấn, sao lưu: trạng thái được tính lại mỗi giây ở cuối `timerTick()` trong `try/catch` riêng, chỉ đọc `store.getAll()`.
+- **Trạng thái theo tình hình ca** (ưu tiên từ trên xuống; chỉ xét mẫu *Chưa kết quả*):
+  1. `overdue` — có mẫu hẹn giờ **đã quá giờ**: bong bóng "Có mẫu quá giờ chưa nhập kết quả: {ID, …}", huy hiệu đỏ = số mẫu quá giờ, ảnh mặt lo (dùng chung ảnh `hurried`), nhịp rung nhanh.
+  2. `hurried` — mẫu hẹn giờ gần nhất **còn ≤5 phút** (quy tắc của Minh): bong bóng gồm **ID + loại xét nghiệm + thời gian còn lại**, vd "⏰ XN-2612 · Máu ẩn · còn 4 phút tới giờ!", ảnh ôm đồng hồ bấm giờ, huy hiệu "!".
+  3. `overload` — **từ 3 mẫu trở lên** (Minh chốt) chưa có kết quả mà đã chờ **quá 15 phút từ lúc nhận**: bong bóng liệt kê các ID "{ID, …} chờ quá 15 phút chưa nhập kết quả", ảnh ôm chồng giấy, huy hiệu = số mẫu.
+  4. `waiting` — còn mẫu đang đếm giờ (>5 phút): "Đang chờ {ID} tới giờ… còn X phút ⏳" (mẫu gần nhất); hoặc còn mẫu chưa kết quả nhưng không hẹn giờ: câu động viên kèm số mẫu. Ảnh ôm đồng hồ cát.
+  5. `calm` — không còn mẫu chưa kết quả: "Ca êm quá — không còn mẫu nào tồn! 🎉", ảnh hai tay giơ cao.
+- **Ảnh mặc định** là nhân vật gốc "Bé kính hiển vi" do AI vẽ cho dự án (4 biểu cảm: vui / chờ / vội / lo), nhúng dạng data URI WebP trong `mascot.js` (`window.LABENTRY_MASCOTS`) để chạy offline và đóng gói 1 file — tổng ~94 KB.
+- **Ảnh riêng từng máy (chống rủi ro bản quyền)**: trong tab Quản lý có khối "Linh vật đồng ca": bật/tắt, nút đổi ảnh (chọn ảnh từ máy, tự thu nhỏ ≤288px, lưu data URL vào khóa riêng `labentry.mascot.v1`) và nút về ảnh mặc định. Ảnh riêng **chỉ nằm trên máy đó**: không vào file sao lưu, không vào mã nguồn/bản công khai — bản phát hành công khai không chứa nhân vật có bản quyền của bên thứ ba (Minh dùng ảnh Mimikyu của anh qua đường này trên máy cá nhân). Khi dùng ảnh riêng, mọi trạng thái dùng chung một ảnh, trạng thái thể hiện bằng bong bóng + huy hiệu.
+- Bấm vào linh vật để ẩn/hiện bong bóng của tình huống hiện tại; đổi tình huống thì bong bóng tự hiện lại. Cài đặt (bật/tắt + ảnh riêng) lưu ở `labentry.mascot.v1`, không nằm trong sao lưu (đúng tính chất "chỉ máy này").
+- Tôn trọng `prefers-reduced-motion`: tắt mọi chuyển động của linh vật.
+
 ### F25 — Nhắc qua Lịch + nhận mẫu mới tự chuyển tab Quản lý (v44, 2026-11-06)
 
 - Theo yêu cầu của Minh (2026-11-06), sau khi máy thật của anh xác nhận báo động trong app không kêu khi app bị thu nhỏ dù đã chỉnh pin không giới hạn + thông báo + không ngủ (đúng giới hạn nền web của F23).

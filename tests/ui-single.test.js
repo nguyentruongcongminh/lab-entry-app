@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v54 và precache đúng URL ?v=54 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v55 và precache đúng URL ?v=55 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v54'"), 'sw.js phải gắn VERSION v54');
-    for (const a of ['styles.css?v=54', 'print.css?v=54', 'config.js?v=54', 'store.js?v=54', 'app.js?v=54', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v55'"), 'sw.js phải gắn VERSION v55');
+    for (const a of ['styles.css?v=55', 'print.css?v=55', 'config.js?v=55', 'store.js?v=55', 'mascot.js?v=55', 'app.js?v=55', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1774,6 +1774,99 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(prints, 2);
     assert.ok(hoHtml().includes('Danh sách kết quả xét nghiệm'), 'in kết quả sau in bàn giao phải ra tờ kết quả');
     w8.close();
+  });
+
+  test('linh vật đồng ca: trạng thái theo ca (êm/chờ/vội/quá giờ/quá tải), cài đặt + ảnh riêng chỉ máy này (v55 F31)', async () => {
+    const dom9 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV Vật', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV Vật',
+        });
+      },
+    });
+    const w9 = dom9.window;
+    const d9 = w9.document;
+    await new Promise((res) => w9.addEventListener('load', res));
+    const box = d9.getElementById('mascot'), img = d9.getElementById('mascot-img'),
+      bubble = d9.getElementById('mascot-bubble'), badge = d9.getElementById('mascot-badge');
+    const state = () => w9.eval('computeMascotState(Date.now()).state');
+    const upd = () => w9.eval('updateMascot()');
+
+    /* Ca êm: không còn mẫu chưa kết quả */
+    upd();
+    assert.ok(!box.classList.contains('hidden'), 'linh vật hiện ở tab chính');
+    assert.strictEqual(box.dataset.state, 'calm');
+    assert.ok(bubble.textContent.includes('Ca êm quá'), 'bong bóng ca êm');
+    assert.strictEqual(box.parentElement, d9.body, 'linh vật là con trực tiếp của body nên print.css tự loại khỏi bản in');
+    assert.ok(w9.eval("typeof LABENTRY_MASCOTS === 'object' && LABENTRY_MASCOTS.calm.indexOf('data:image/webp') === 0"), 'ảnh mặc định nhúng sẵn trong mascot.js');
+    assert.ok((img.getAttribute('src') || '').indexOf('data:image/webp') === 0, 'đang hiển thị ảnh mặc định');
+
+    /* Đang chờ: mẫu hẹn giờ còn 12 phút */
+    const uid = w9.eval("store.add({ testId: 'XN-VAT1', typeId: 'mau-an', results: {} }).record.uid");
+    w9.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() + 12 * 60000).toISOString() })");
+    upd();
+    assert.strictEqual(state(), 'waiting');
+    assert.ok(bubble.textContent.includes('XN-VAT1') && bubble.textContent.includes('còn 12 phút'), 'waiting: nêu ID + thời gian còn. Thực tế: ' + bubble.textContent);
+
+    /* Vội: còn ~3,5 phút -> bong bóng gồm ID + loại XN + còn 4 phút, huy hiệu ! */
+    w9.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() + 3.5 * 60000).toISOString() })");
+    upd();
+    assert.strictEqual(state(), 'hurried');
+    assert.ok(bubble.textContent.includes('XN-VAT1') && bubble.textContent.includes('Máu ẩn') && bubble.textContent.includes('còn 4 phút'), 'hurried: ID + loại + còn 4 phút. Thực tế: ' + bubble.textContent);
+    assert.strictEqual(badge.textContent, '!');
+
+    /* Quá giờ */
+    w9.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() - 60000).toISOString() })");
+    upd();
+    assert.strictEqual(state(), 'overdue');
+    assert.strictEqual(badge.textContent, '1');
+
+    /* Quá tải cần >=3 mẫu chờ >15 phút; quá giờ vẫn thắng quá tải */
+    w9.eval("store.add({ testId: 'XN-VAT2', typeId: 'sp', results: {} }, new Date(Date.now() - 20 * 60000))");
+    w9.eval("store.add({ testId: 'XN-VAT3', typeId: 'sp', results: {} }, new Date(Date.now() - 25 * 60000))");
+    w9.eval("store.add({ testId: 'XN-VAT4', typeId: 'sp', results: {} }, new Date(Date.now() - 30 * 60000))");
+    upd();
+    assert.strictEqual(state(), 'overdue', 'quá giờ thắng quá tải');
+    w9.eval("store.update('" + uid + "', { results: { ketQua: 'Âm tính' } })");
+    upd();
+    assert.strictEqual(state(), 'overload');
+    assert.ok(bubble.textContent.includes('XN-VAT2') && bubble.textContent.includes('quá 15 phút'), 'overload: liệt kê ID + quá 15 phút. Thực tế: ' + bubble.textContent);
+    assert.strictEqual(badge.textContent, '3');
+
+    /* Bấm vào linh vật ẩn/hiện bong bóng */
+    img.click();
+    assert.ok(bubble.classList.contains('hidden'), 'bấm linh vật thì ẩn bong bóng');
+    img.click();
+    assert.ok(!bubble.classList.contains('hidden'), 'bấm lần nữa thì hiện lại');
+
+    /* Cài đặt tắt -> ẩn hẳn và lưu ở khóa riêng */
+    const sel = d9.getElementById('mascot-enabled');
+    sel.value = 'off';
+    sel.dispatchEvent(new w9.Event('change'));
+    upd();
+    assert.ok(box.classList.contains('hidden'), 'tắt trong cài đặt thì linh vật ẩn');
+    assert.strictEqual(JSON.parse(w9.localStorage.getItem('labentry.mascot.v1')).on, false, 'cài đặt lưu ở labentry.mascot.v1');
+    sel.value = 'on';
+    sel.dispatchEvent(new w9.Event('change'));
+    upd();
+    assert.ok(!box.classList.contains('hidden'), 'bật lại thì hiện');
+
+    /* Ảnh riêng: dùng cho mọi trạng thái, chỉ lưu trên máy; nút mặc định khôi phục */
+    w9.eval("mascotSettings.custom = 'data:image/png;base64,AAAA'; saveMascotSettings(); mascotSig = ''; updateMascot();");
+    assert.strictEqual(img.getAttribute('src'), 'data:image/png;base64,AAAA', 'ảnh riêng được dùng');
+    assert.ok(JSON.parse(w9.localStorage.getItem('labentry.mascot.v1')).custom.indexOf('data:image/png') === 0, 'ảnh riêng lưu ở khóa riêng trên máy');
+    d9.getElementById('btn-mascot-reset').click();
+    assert.ok((img.getAttribute('src') || '').indexOf('data:image/webp') === 0, 'bấm Ảnh mặc định thì về ảnh gốc');
+
+    /* Cài đặt linh vật KHÔNG đi theo file sao lưu */
+    const backupJson = JSON.stringify(w9.eval('store.exportBackup()'));
+    assert.ok(!backupJson.includes('labentry.mascot') && !backupJson.includes('base64,AAAA'), 'file sao lưu không mang cài đặt/ảnh linh vật');
+    w9.close();
   });
 
   await chain;

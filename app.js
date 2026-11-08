@@ -564,6 +564,7 @@ function timerTick() {
   if (now - lastWakeCheckAt >= 5000) { lastWakeCheckAt = now; manageWakeLock(); }
   checkAutoLock(now); /* tự khóa người trực khi không thao tác (F24) */
   if (now - lastNagCheckAt >= 30000) { lastNagCheckAt = now; renderBackupNag(); }
+  try { updateMascot(); } catch (e) { /* F31: lỗi linh vật không bao giờ được làm hỏng nhịp báo động */ }
 }
 
 function refreshCurrent() {
@@ -3257,6 +3258,169 @@ function bindPrintCfg() {
 }
 
 /* ================= Khởi tạo ================= */
+/* ================= F31: Linh vật đồng ca =================
+   Bé kính hiển vi nổi ở góc phải dưới 3 tab chính, nhắc theo tình hình ca.
+   Thuần trang trí: chỉ ĐỌC store.getAll(), không sửa dữ liệu; trạng thái
+   tính lại mỗi giây ở cuối timerTick() (bọc try/catch) và khi đổi cài đặt.
+   Cài đặt lưu ở khóa riêng labentry.mascot.v1, KHÔNG vào file sao lưu:
+   { on: bool, custom: dataURL|null } — ảnh riêng chỉ nằm trên máy này. */
+const MASCOT_KEY = 'labentry.mascot.v1';
+const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried' };
+let mascotSettings = loadMascotSettings();
+let mascotSig = '';
+let mascotBubbleOffKey = '';
+
+function loadMascotSettings() {
+  try {
+    const v = JSON.parse(localStorage.getItem(MASCOT_KEY) || 'null');
+    if (v && typeof v === 'object') return { on: v.on !== false, custom: typeof v.custom === 'string' && v.custom ? v.custom : null };
+  } catch (e) { /* cài đặt hỏng -> mặc định */ }
+  return { on: true, custom: null };
+}
+
+function saveMascotSettings() {
+  try { localStorage.setItem(MASCOT_KEY, JSON.stringify(mascotSettings)); return true; }
+  catch (e) { return false; }
+}
+
+function mascotRemainText(ms) {
+  const m = Math.max(1, Math.ceil(ms / 60000));
+  if (m < 60) return 'còn ' + m + ' phút';
+  const h = Math.floor(m / 60); const r = m % 60;
+  return 'còn ' + h + ' giờ' + (r ? ' ' + r + ' phút' : '');
+}
+
+/* Trạng thái suy ra từ các mẫu CHƯA CÓ KẾT QUẢ — thứ tự ưu tiên:
+   quá giờ > sắp tới giờ (≤5') > quá tải (≥3 mẫu chờ >15') > đang chờ > ca êm */
+function computeMascotState(now) {
+  const recs = store.getAll().filter((r) => store.statusOf(r) === 'no-result');
+  const timed = recs.filter((r) => r.timerEndsAt)
+    .map((r) => ({ r, at: new Date(r.timerEndsAt).getTime() }))
+    .sort((a, b) => a.at - b.at);
+  const overdue = timed.filter((t) => t.at <= now);
+  if (overdue.length) {
+    return { state: 'overdue', badge: String(overdue.length), text: 'Có mẫu quá giờ chưa nhập kết quả: ' + overdue.map((t) => t.r.testId).join(', ') + ' 😟' };
+  }
+  const next = timed[0];
+  if (next && next.at - now <= 5 * 60000) {
+    const t = getTestType(next.r.typeId);
+    return { state: 'hurried', badge: '!', text: '⏰ ' + next.r.testId + ' · ' + ((t && t.name) || next.r.typeId) + ' · ' + mascotRemainText(next.at - now) + ' tới giờ!' };
+  }
+  const stale = recs.filter((r) => now - new Date(r.createdAt).getTime() > 15 * 60000)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  if (stale.length >= 3) {
+    return { state: 'overload', badge: String(stale.length), text: stale.map((r) => r.testId).join(', ') + ' chờ quá 15 phút chưa nhập kết quả 🥵' };
+  }
+  if (next) {
+    return { state: 'waiting', badge: '', text: 'Đang chờ ' + next.r.testId + ' tới giờ… ' + mascotRemainText(next.at - now) + ' ⏳' };
+  }
+  if (recs.length) {
+    return { state: 'waiting', badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
+  }
+  return { state: 'calm', badge: '', text: 'Ca êm quá — không còn mẫu nào tồn! 🎉' };
+}
+
+function mascotVisibleHere() {
+  if (!mascotSettings.on) return false;
+  const mainShown = ['today', 'manage', 'export'].some((v) => !$('view-' + v).classList.contains('hidden'));
+  if (!mainShown) return false;
+  if (document.querySelector('.modal:not(.hidden)')) return false;
+  return true;
+}
+
+function updateMascot() {
+  const box = $('mascot');
+  if (!box) return;
+  if (!mascotVisibleHere()) { box.classList.add('hidden'); mascotSig = ''; return; }
+  const s = computeMascotState(Date.now());
+  const stateKey = s.state + '|' + s.text;
+  const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (mascotBubbleOffKey === stateKey ? 'off' : 'on');
+  box.classList.remove('hidden');
+  if (sig === mascotSig) return;
+  mascotSig = sig;
+  box.dataset.state = s.state;
+  const img = $('mascot-img');
+  const src = mascotSettings.custom
+    || (window.LABENTRY_MASCOTS && window.LABENTRY_MASCOTS[MASCOT_IMG_FOR[s.state]])
+    || (window.LABENTRY_MASCOTS && window.LABENTRY_MASCOTS.calm) || '';
+  if (src && img.getAttribute('src') !== src) img.src = src;
+  const badge = $('mascot-badge');
+  badge.textContent = s.badge;
+  badge.classList.toggle('hidden', !s.badge);
+  const bubble = $('mascot-bubble');
+  bubble.textContent = s.text;
+  bubble.classList.toggle('hidden', mascotBubbleOffKey === stateKey);
+}
+
+/* Thu nhỏ ảnh người dùng chọn thành data URL (giữ nền trong suốt bằng PNG) */
+function mascotDownscale(file, cb) {
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    try {
+      const scale = Math.min(1, 288 / Math.max(im.width, im.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(im.width * scale));
+      c.height = Math.max(1, Math.round(im.height * scale));
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      cb(c.toDataURL('image/png'));
+    } catch (e) { URL.revokeObjectURL(url); cb(null); }
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); cb(null); };
+  im.src = url;
+}
+
+function initMascot() {
+  const img = $('mascot-img');
+  if (!img) return;
+  img.addEventListener('click', () => {
+    const s = computeMascotState(Date.now());
+    const key = s.state + '|' + s.text;
+    mascotBubbleOffKey = mascotBubbleOffKey === key ? '' : key;
+    mascotSig = '';
+    updateMascot();
+  });
+  const sel = $('mascot-enabled');
+  if (sel) {
+    sel.value = mascotSettings.on ? 'on' : 'off';
+    sel.addEventListener('change', () => {
+      mascotSettings.on = sel.value === 'on';
+      saveMascotSettings();
+      mascotSig = '';
+      updateMascot();
+    });
+  }
+  const file = $('mascot-file');
+  if ($('btn-mascot-img') && file) $('btn-mascot-img').addEventListener('click', () => file.click());
+  if (file) file.addEventListener('change', () => {
+    const f = file.files && file.files[0];
+    file.value = '';
+    if (!f) return;
+    mascotDownscale(f, (dataUrl) => {
+      if (!dataUrl) { toast('Không đọc được ảnh này'); return; }
+      const prev = mascotSettings.custom;
+      mascotSettings.custom = dataUrl;
+      if (!saveMascotSettings()) {
+        mascotSettings.custom = prev;
+        toast('Ảnh quá nặng, bộ nhớ máy không còn chỗ — chọn ảnh nhỏ hơn');
+        return;
+      }
+      mascotSig = '';
+      updateMascot();
+      toast('Đã đổi ảnh linh vật (chỉ trên máy này)');
+    });
+  });
+  if ($('btn-mascot-reset')) $('btn-mascot-reset').addEventListener('click', () => {
+    mascotSettings.custom = null;
+    saveMascotSettings();
+    mascotSig = '';
+    updateMascot();
+    toast('Đã về ảnh linh vật mặc định');
+  });
+  updateMascot();
+}
+
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
@@ -3267,6 +3431,7 @@ function init() {
   renderOperatorControls();
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
+  initMascot(); /* linh vật đồng ca (F31) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);

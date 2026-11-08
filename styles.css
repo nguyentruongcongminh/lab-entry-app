@@ -776,3 +776,60 @@ svg { width: 24px; height: 24px; display: block; }
 .batch-navbtn:disabled { opacity: .45; }
 .batch-prog { font-size: 13px; color: #54687a; text-align: center; min-width: 62px; line-height: 1.3; }
 .batch-prog b { color: #0b7a55; font-size: 16px; }
+
+/* ===== F31: Linh vật đồng ca (Bé kính hiển vi) =====
+   Phần tử nổi trang trí thuần túy: không nhận thao tác nào ngoài bấm vào
+   chính ảnh để ẩn/hiện bong bóng; bong bóng + huy hiệu không bấm được. */
+.mascot {
+  position: fixed; right: max(10px, calc(50vw - 600px)); bottom: 150px; z-index: 25;
+  width: 96px; text-align: center;
+}
+.mascot img {
+  width: 96px; height: auto; display: block; margin: 0 auto; cursor: pointer;
+  filter: drop-shadow(0 4px 6px rgba(15, 45, 70, .35));
+  -webkit-tap-highlight-color: transparent;
+}
+.mascot-bubble {
+  position: absolute; right: 0; bottom: calc(100% + 10px);
+  width: max-content; max-width: 240px;
+  background: #fff; border: 2px solid #0B5FA5; color: #12334D;
+  border-radius: 14px; padding: 7px 10px;
+  font-size: 13px; font-weight: 600; line-height: 1.35; text-align: left;
+  box-shadow: 0 4px 14px rgba(10, 40, 70, .25); pointer-events: none;
+}
+.mascot-bubble::after {
+  content: ''; position: absolute; right: 30px; bottom: -8px; width: 13px; height: 13px;
+  background: #fff; border-right: 2px solid #0B5FA5; border-bottom: 2px solid #0B5FA5;
+  transform: rotate(45deg);
+}
+.mascot-badge {
+  position: absolute; top: -4px; right: 2px; z-index: 2;
+  background: #C62828; color: #fff; border-radius: 999px;
+  min-width: 22px; height: 22px; padding: 0 5px;
+  font-size: 13px; font-weight: 700; line-height: 22px; text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .3); pointer-events: none;
+}
+.mascot[data-state='calm'] img { animation: mascot-bob 2.8s ease-in-out infinite; }
+.mascot[data-state='waiting'] img { animation: mascot-bob 3.6s ease-in-out infinite; }
+.mascot[data-state='hurried'] img { animation: mascot-urgent .5s ease-in-out infinite; }
+.mascot[data-state='overdue'] img { animation: mascot-urgent .42s ease-in-out infinite; }
+.mascot[data-state='overload'] img { animation: mascot-sway 1.7s ease-in-out infinite; }
+@keyframes mascot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes mascot-urgent { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-1.5deg); } 75% { transform: translateX(2px) rotate(1.5deg); } }
+@keyframes mascot-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@media (prefers-reduced-motion: reduce) { .mascot img { animation: none !important; } }
+
+/* Khối cài đặt linh vật ở tab Quản lý */
+.mascot-settings {
+  margin: 14px 0 4px; padding: 12px 14px;
+  background: #EFF5F9; border: 1px solid #D7E3EC; border-radius: 12px;
+}
+.mascot-settings-title { font-weight: 700; color: #0A3556; margin-bottom: 8px; }
+.mascot-set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; margin-bottom: 8px; }
+.mascot-set-row select { font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid #B9CCDB; background: #fff; }
+.mascot-set-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.mascot-set-btn {
+  flex: 1 1 150px; padding: 8px 10px; font-size: 13.5px; font-weight: 600;
+  background: #fff; color: #0B5FA5; border: 1.5px solid #0B5FA5; border-radius: 9px; cursor: pointer;
+}
+.mascot-set-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: #54687A; }
