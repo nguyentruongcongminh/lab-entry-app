@@ -3489,19 +3489,10 @@ function loadThemeSettings() {
   try {
     const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
     if (o && typeof o === 'object') {
-      const mode = (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto';
-      if (Array.isArray(o.bannerOffThemes)) {
-        return { mode, bannerOffDate: typeof o.bannerOffDate === 'string' ? o.bannerOffDate : '', bannerOffThemes: o.bannerOffThemes.filter((k) => THEME_KEYS.includes(k)) };
-      }
-      /* Tương thích ngược bản v61 (chỉ nhớ MỘT chủ đề vừa tắt gần nhất) */
-      return {
-        mode,
-        bannerOffDate: typeof o.bannerOff === 'string' ? o.bannerOff : '',
-        bannerOffThemes: (typeof o.bannerOffTheme === 'string' && o.bannerOffTheme) ? [o.bannerOffTheme] : [],
-      };
+      return { mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto' };
     }
   } catch (e) { /* bỏ qua */ }
-  return { mode: 'auto', bannerOffDate: '', bannerOffThemes: [] };
+  return { mode: 'auto' };
 }
 let themeSettings = loadThemeSettings();
 function saveThemeSettings() {
@@ -3632,18 +3623,20 @@ function renderThemeDecor(t) {
   layer.innerHTML = html;
   layer.classList.remove('hidden');
 }
+/* Tắt lời chúc chỉ là TẠM THỜI (v63, đúng ý Minh chốt 2026-11-08): bấm ✕
+ * ẩn lời chúc của chủ đề đang xem; hễ rời sang chủ đề khác rồi quay lại —
+ * hoặc mở lại app — là lời chúc hiện tiếp, không tắt hẳn. */
+let bannerDismissedTheme = '';
+let lastThemeApplied = null;
 function applyTheme() {
   const t = themeForDate(new Date());
+  if (lastThemeApplied !== null && t !== lastThemeApplied) bannerDismissedTheme = '';
+  lastThemeApplied = t;
   THEME_KEYS.forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
   renderThemeDecor(t);
   const banner = $('theme-banner');
   if (!banner) return;
-  /* Tắt lời chúc được ghi nhớ THEO TỪNG chủ đề trong ngày (v62): chủ đề
-     nào đã tắt thì quay lại vẫn ẩn; tắt thêm chủ đề khác KHÔNG làm hồi
-     sinh chủ đề đã tắt trước đó (v61 chỉ nhớ một chủ đề gần nhất nên bị
-     ghi đè — lỗi Minh chỉ ra). */
-  const dismissed = themeSettings.bannerOffDate === todayKey() && themeSettings.bannerOffThemes.includes(t);
-  const show = !!t && !dismissed;
+  const show = !!t && bannerDismissedTheme !== t;
   banner.classList.toggle('hidden', !show);
   if (show) {
     $('theme-banner-text').textContent = THEME_GREETINGS[t];
@@ -3664,14 +3657,7 @@ function initTheme() {
   }
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
-    const t = themeForDate(new Date());
-    if (!t) return;
-    if (themeSettings.bannerOffDate !== todayKey()) {
-      themeSettings.bannerOffDate = todayKey();
-      themeSettings.bannerOffThemes = [];
-    }
-    if (!themeSettings.bannerOffThemes.includes(t)) themeSettings.bannerOffThemes.push(t);
-    saveThemeSettings();
+    bannerDismissedTheme = themeForDate(new Date());
     applyTheme();
   });
   applyTheme();
