@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v58 và precache đúng URL ?v=58 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v59 và precache đúng URL ?v=59 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v58'"), 'sw.js phải gắn VERSION v58');
-    for (const a of ['styles.css?v=58', 'print.css?v=58', 'config.js?v=58', 'store.js?v=58', 'mascot.js?v=58', 'app.js?v=58', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v59'"), 'sw.js phải gắn VERSION v59');
+    for (const a of ['styles.css?v=59', 'print.css?v=59', 'config.js?v=59', 'store.js?v=59', 'mascot.js?v=59', 'app.js?v=59', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1924,6 +1924,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     /* Cài đặt chủ đề KHÔNG đi theo file sao lưu */
     const bk = JSON.stringify(w10.eval('store.exportBackup()'));
     assert.ok(!bk.includes('labentry.theme'), 'file sao lưu không mang cài đặt chủ đề');
+
+    /* v59: hai thẻ tùy chỉnh nằm ở tab riêng Giao diện, cạnh Quản lý */
+    const navBtns = [...d10.querySelectorAll('.nav-btn')];
+    assert.deepStrictEqual(navBtns.map((b) => b.dataset.view), ['today', 'manage', 'display', 'export'], 'thanh dưới có 4 tab, Giao diện ngay sau Quản lý');
+    const viewDisplay = d10.getElementById('view-display');
+    assert.ok(viewDisplay.querySelector('#mascot-enabled') && viewDisplay.querySelector('#theme-mode'), 'tab Giao diện chứa cả hai thẻ tùy chỉnh');
+    assert.ok(!d10.getElementById('view-manage').querySelector('#mascot-enabled'), 'tab Quản lý không còn thẻ linh vật');
+    navBtns.find((b) => b.dataset.view === 'display').click();
+    assert.ok(!viewDisplay.classList.contains('hidden') && d10.getElementById('view-manage').classList.contains('hidden'), 'bấm tab Giao diện thì mở đúng trang');
+    assert.ok(d10.getElementById('fab-add').classList.contains('hidden'), 'nút + ẩn ở tab Giao diện');
+    assert.strictEqual(w10.eval('mascotVisibleHere()'), true, 'linh vật vẫn hiện ở tab Giao diện để xem trước khi tùy chỉnh');
     w10.close();
   });
 

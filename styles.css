@@ -836,6 +836,9 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .mascot-set-note { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: #54687A; }
 
+/* Tab Giao diện (v59): vùng đệm cho các thẻ tùy chỉnh */
+.display-wrap { padding: 2px 12px 0; }
+
 /* ===== F32: Chủ đề lễ hội (ý tưởng 14) =====
    Chỉ đổi biến màu chủ đạo + dải lời chúc mỏng trên cùng; không đổi bố cục,
    không đụng bản in (dải chúc là con trực tiếp của body, print.css tự ẩn). */

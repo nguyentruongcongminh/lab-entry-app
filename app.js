@@ -49,13 +49,13 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
   const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
-  $('fab-add').classList.toggle('hidden', subView || name === 'export');
+  $('fab-add').classList.toggle('hidden', subView || name === 'export' || name === 'display');
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
-  if (name === 'today' || name === 'manage' || name === 'export') mainView = name;
+  if (name === 'today' || name === 'manage' || name === 'export' || name === 'display') mainView = name;
   if (name === 'today') renderToday();
   if (name === 'manage') renderManage();
   if (name === 'export') applyExport();
@@ -3330,7 +3330,7 @@ function computeMascotState(now) {
 
 function mascotVisibleHere() {
   if (!mascotSettings.on) return false;
-  const mainShown = ['today', 'manage', 'export'].some((v) => !$('view-' + v).classList.contains('hidden'));
+  const mainShown = ['today', 'manage', 'export', 'display'].some((v) => !$('view-' + v).classList.contains('hidden'));
   if (!mainShown) return false;
   if (document.querySelector('.modal:not(.hidden)')) return false;
   return true;
