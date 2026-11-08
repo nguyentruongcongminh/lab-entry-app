@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v61 và precache đúng URL ?v=61 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v62 và precache đúng URL ?v=62 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v61'"), 'sw.js phải gắn VERSION v61');
-    for (const a of ['styles.css?v=61', 'print.css?v=61', 'config.js?v=61', 'store.js?v=61', 'mascot.js?v=61', 'app.js?v=61', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v62'"), 'sw.js phải gắn VERSION v62');
+    for (const a of ['styles.css?v=62', 'print.css?v=62', 'config.js?v=62', 'store.js?v=62', 'mascot.js?v=62', 'app.js?v=62', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1877,7 +1877,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w9.close();
   });
 
-  test('F32 (v58, nới rộng v60–v61): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
+  test('F32 (v58, nới rộng v60–v62): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
     const dom10 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
       beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lễ', salt: 's10', pinHash: 'h10' }]), 'labentry.operator.v1': 'KTV Lễ' }); } });
     const w10 = dom10.window;
@@ -1940,10 +1940,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(d10.getElementById('theme-banner-decor-l').textContent, '🎄', 'đầu trái dải chúc có cây thông');
     d10.getElementById('theme-banner-close').click();
     assert.ok(banner.classList.contains('hidden'), 'tắt chúc Giáng Sinh thì ẩn');
+
+    /* v62: ghi nhớ tắt theo TỪNG chủ đề trong cả ngày — tắt thêm Giáng Sinh
+       không làm hồi sinh Tết đã tắt trước đó (lỗi Minh chỉ ra 2026-11-08) */
     sel.value = 'tet';
     sel.dispatchEvent(new w10.Event('change'));
-    assert.ok(!banner.classList.contains('hidden'), 'quay lại Tết thì chúc Tết hiện lại (lần tắt gần nhất là của Giáng Sinh)');
-    assert.ok(decor.textContent.includes('🌸') && decor.textContent.includes('🧧'), 'Tết có hoa đào rơi + bao lì xì ở góc');
+    assert.ok(banner.classList.contains('hidden'), 'Tết đã tắt từ trước nên quay lại vẫn ẩn, dù vừa tắt thêm Giáng Sinh');
+    assert.ok(decor.textContent.includes('🌸') && decor.textContent.includes('🧧'), 'trang trí Tết vẫn có hoa đào rơi + bao lì xì ở góc');
+    sel.value = 'trungthu';
+    sel.dispatchEvent(new w10.Event('change'));
+    assert.ok(!banner.classList.contains('hidden'), 'Trung Thu chưa từng tắt nên lời chúc vẫn hiện');
 
     /* Thẻ cài đặt linh vật đã gọn: tiêu đề + ô chọn cùng hàng, ghi chú ngắn */
     assert.ok(d10.querySelector('.mascot-set-head select#mascot-enabled'), 'ô chọn linh vật nằm cùng hàng tiêu đề (thẻ gọn v58)');

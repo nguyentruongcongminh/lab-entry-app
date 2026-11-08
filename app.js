@@ -3489,14 +3489,19 @@ function loadThemeSettings() {
   try {
     const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
     if (o && typeof o === 'object') {
+      const mode = (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto';
+      if (Array.isArray(o.bannerOffThemes)) {
+        return { mode, bannerOffDate: typeof o.bannerOffDate === 'string' ? o.bannerOffDate : '', bannerOffThemes: o.bannerOffThemes.filter((k) => THEME_KEYS.includes(k)) };
+      }
+      /* Tương thích ngược bản v61 (chỉ nhớ MỘT chủ đề vừa tắt gần nhất) */
       return {
-        mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto',
-        bannerOff: typeof o.bannerOff === 'string' ? o.bannerOff : '',
-        bannerOffTheme: typeof o.bannerOffTheme === 'string' ? o.bannerOffTheme : '',
+        mode,
+        bannerOffDate: typeof o.bannerOff === 'string' ? o.bannerOff : '',
+        bannerOffThemes: (typeof o.bannerOffTheme === 'string' && o.bannerOffTheme) ? [o.bannerOffTheme] : [],
       };
     }
   } catch (e) { /* bỏ qua */ }
-  return { mode: 'auto', bannerOff: '', bannerOffTheme: '' };
+  return { mode: 'auto', bannerOffDate: '', bannerOffThemes: [] };
 }
 let themeSettings = loadThemeSettings();
 function saveThemeSettings() {
@@ -3633,9 +3638,11 @@ function applyTheme() {
   renderThemeDecor(t);
   const banner = $('theme-banner');
   if (!banner) return;
-  /* Tắt lời chúc chỉ áp dụng cho ĐÚNG chủ đề đã tắt trong ngày hôm đó —
-     chọn chủ đề khác là lời chúc của chủ đề mới lại hiện (sửa lỗi Minh báo). */
-  const dismissed = themeSettings.bannerOff === todayKey() && themeSettings.bannerOffTheme === t;
+  /* Tắt lời chúc được ghi nhớ THEO TỪNG chủ đề trong ngày (v62): chủ đề
+     nào đã tắt thì quay lại vẫn ẩn; tắt thêm chủ đề khác KHÔNG làm hồi
+     sinh chủ đề đã tắt trước đó (v61 chỉ nhớ một chủ đề gần nhất nên bị
+     ghi đè — lỗi Minh chỉ ra). */
+  const dismissed = themeSettings.bannerOffDate === todayKey() && themeSettings.bannerOffThemes.includes(t);
   const show = !!t && !dismissed;
   banner.classList.toggle('hidden', !show);
   if (show) {
@@ -3657,8 +3664,13 @@ function initTheme() {
   }
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
-    themeSettings.bannerOff = todayKey();
-    themeSettings.bannerOffTheme = themeForDate(new Date());
+    const t = themeForDate(new Date());
+    if (!t) return;
+    if (themeSettings.bannerOffDate !== todayKey()) {
+      themeSettings.bannerOffDate = todayKey();
+      themeSettings.bannerOffThemes = [];
+    }
+    if (!themeSettings.bannerOffThemes.includes(t)) themeSettings.bannerOffThemes.push(t);
     saveThemeSettings();
     applyTheme();
   });
