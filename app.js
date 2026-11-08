@@ -3444,6 +3444,155 @@ function initMascot() {
   updateMascot();
 }
 
+/* ================= F32: Chủ đề lễ hội (ý tưởng 14) =================
+ * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
+ * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
+ * Tết (âm lịch 23/12 → 5/1), Trung Thu (âm lịch 13–17/8), Giáng Sinh
+ * (dương lịch 20–26/12); chọn tay ở tab Quản lý. Lưu ở khóa riêng
+ * labentry.theme.v1 (chỉ máy này, không vào file sao lưu). */
+const THEME_KEY = 'labentry.theme.v1';
+const THEME_GREETINGS = {
+  tet: '🧧 Chúc Mừng Năm Mới — chúc ca trực an khang, thịnh vượng!',
+  trungthu: '🏮 Tết Trung Thu — chúc ca trực đoàn viên, vui vẻ!',
+  xmas: '🎄 Giáng Sinh an lành — chúc ca trực ấm áp!',
+};
+function loadThemeSettings() {
+  try {
+    const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
+    if (o && typeof o === 'object') {
+      return {
+        mode: ['auto', 'tet', 'trungthu', 'xmas', 'off'].includes(o.mode) ? o.mode : 'auto',
+        bannerOff: typeof o.bannerOff === 'string' ? o.bannerOff : '',
+      };
+    }
+  } catch (e) { /* bỏ qua */ }
+  return { mode: 'auto', bannerOff: '' };
+}
+let themeSettings = loadThemeSettings();
+function saveThemeSettings() {
+  try { localStorage.setItem(THEME_KEY, JSON.stringify(themeSettings)); } catch (e) { /* bỏ qua */ }
+}
+
+/* --- Lịch âm Việt Nam: thuật toán Hồ Ngọc Đức, múi giờ 7 --- */
+function jdFromDate(dd, mm, yy) {
+  const a = Math.floor((14 - mm) / 12);
+  const y = yy + 4800 - a;
+  const m = mm + 12 * a - 3;
+  return dd + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+}
+function newMoonDay(k) {
+  const T = k / 1236.85;
+  const T2 = T * T;
+  const T3 = T2 * T;
+  const dr = Math.PI / 180;
+  let jd1 = 2415020.75933 + 29.53058868 * k + 0.0001178 * T2 - 0.000000155 * T3;
+  jd1 += 0.00033 * Math.sin((166.56 + 132.87 * T - 0.009173 * T2) * dr);
+  const M = 359.2242 + 29.10535608 * k - 0.0000333 * T2 - 0.00000347 * T3;
+  const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 0.00001236 * T3;
+  const F = 21.2964 + 390.67050646 * k - 0.0016528 * T2 - 0.00000239 * T3;
+  const C1 = (0.1734 - 0.000393 * T) * Math.sin(M * dr) + 0.0021 * Math.sin(2 * dr * M)
+    - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(2 * dr * Mpr)
+    - 0.0004 * Math.sin(3 * dr * Mpr) - 0.0051 * Math.sin((M + Mpr) * dr)
+    - 0.0074 * Math.sin((M - Mpr) * dr) + 0.0004 * Math.sin((2 * F + M) * dr)
+    - 0.0004 * Math.sin((2 * F - M) * dr) - 0.0006 * Math.sin((2 * F + Mpr) * dr)
+    + 0.0010 * Math.sin((2 * F - Mpr) * dr) + 0.0005 * Math.sin((2 * Mpr + M) * dr);
+  let deltaT;
+  if (T < -11) deltaT = 0.001 + 0.000839 * T + 0.0002261 * T2 - 0.00000845 * T3 - 0.000000081 * T * T3;
+  else deltaT = -0.000278 + 0.000265 * T + 0.000262 * T2;
+  return Math.floor(jd1 + C1 - deltaT + 0.5 + 7 / 24);
+}
+function sunLongitudeSector(jdn) {
+  const T = (jdn - 2451545.5 - 7 / 24) / 36525;
+  const T2 = T * T;
+  const dr = Math.PI / 180;
+  const M = 357.52910 + 35999.05030 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+  const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+  let DL = (1.914600 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+  DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.000290 * Math.sin(dr * 3 * M);
+  let L = (L0 + DL) * dr;
+  L = L - Math.PI * 2 * Math.floor(L / (Math.PI * 2));
+  return Math.floor((L / Math.PI) * 6);
+}
+function getLunarMonth11(yy) {
+  const k = Math.floor((jdFromDate(31, 12, yy) - 2415021) / 29.530588853);
+  let nm = newMoonDay(k);
+  if (sunLongitudeSector(nm) >= 9) nm = newMoonDay(k - 1);
+  return nm;
+}
+function leapMonthOffset(a11) {
+  const k = Math.floor((a11 - 2415021.076998695) / 29.530588853 + 0.5);
+  let last = 0;
+  let i = 1;
+  let arc = sunLongitudeSector(newMoonDay(k + i));
+  do { last = arc; i++; arc = sunLongitudeSector(newMoonDay(k + i)); } while (arc !== last && i < 14);
+  return i - 1;
+}
+function convertSolar2Lunar(dd, mm, yy) {
+  const dayNumber = jdFromDate(dd, mm, yy);
+  const k = Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
+  let monthStart = newMoonDay(k + 1);
+  if (monthStart > dayNumber) monthStart = newMoonDay(k);
+  let a11 = getLunarMonth11(yy);
+  let b11 = a11;
+  let lunarYear;
+  if (a11 >= monthStart) { lunarYear = yy; a11 = getLunarMonth11(yy - 1); }
+  else { lunarYear = yy + 1; b11 = getLunarMonth11(yy + 1); }
+  const lunarDay = dayNumber - monthStart + 1;
+  const diff = Math.floor((monthStart - a11) / 29);
+  let lunarLeap = 0;
+  let lunarMonth = diff + 11;
+  if (b11 - a11 > 365) {
+    const leapOff = leapMonthOffset(a11);
+    if (diff >= leapOff) {
+      lunarMonth = diff + 10;
+      if (diff === leapOff) lunarLeap = 1;
+    }
+  }
+  if (lunarMonth > 12) lunarMonth -= 12;
+  if (lunarMonth >= 11 && diff < 4) lunarYear -= 1;
+  return [lunarDay, lunarMonth, lunarYear, lunarLeap];
+}
+function themeForDate(date) {
+  if (themeSettings.mode === 'off') return '';
+  if (themeSettings.mode !== 'auto') return themeSettings.mode;
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  if (m === 12 && d >= 20 && d <= 26) return 'xmas';
+  const lu = convertSolar2Lunar(d, m, date.getFullYear());
+  const ld = lu[0];
+  const lm = lu[1];
+  if ((lm === 12 && ld >= 23) || (lm === 1 && ld <= 5)) return 'tet';
+  if (lm === 8 && ld >= 13 && ld <= 17) return 'trungthu';
+  return '';
+}
+function applyTheme() {
+  const t = themeForDate(new Date());
+  ['tet', 'trungthu', 'xmas'].forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
+  const banner = $('theme-banner');
+  if (!banner) return;
+  const show = !!t && themeSettings.bannerOff !== todayKey();
+  banner.classList.toggle('hidden', !show);
+  if (show) $('theme-banner-text').textContent = THEME_GREETINGS[t];
+}
+function initTheme() {
+  const sel = $('theme-mode');
+  if (sel) {
+    sel.value = themeSettings.mode;
+    sel.addEventListener('change', () => {
+      themeSettings.mode = sel.value;
+      saveThemeSettings();
+      applyTheme();
+    });
+  }
+  const close = $('theme-banner-close');
+  if (close) close.addEventListener('click', () => {
+    themeSettings.bannerOff = todayKey();
+    saveThemeSettings();
+    applyTheme();
+  });
+  applyTheme();
+}
+
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
@@ -3455,6 +3604,7 @@ function init() {
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* linh vật đồng ca (F31) */
+  initTheme(); /* chủ đề lễ hội (F32) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);

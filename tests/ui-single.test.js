@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v57 và precache đúng URL ?v=57 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v58 và precache đúng URL ?v=58 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v57'"), 'sw.js phải gắn VERSION v57');
-    for (const a of ['styles.css?v=57', 'print.css?v=57', 'config.js?v=57', 'store.js?v=57', 'mascot.js?v=57', 'app.js?v=57', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v58'"), 'sw.js phải gắn VERSION v58');
+    for (const a of ['styles.css?v=58', 'print.css?v=58', 'config.js?v=58', 'store.js?v=58', 'mascot.js?v=58', 'app.js?v=58', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1875,6 +1875,56 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const backupJson = JSON.stringify(w9.eval('store.exportBackup()'));
     assert.ok(!backupJson.includes('labentry.mascot') && !backupJson.includes('base64,AAAA'), 'file sao lưu không mang cài đặt/ảnh linh vật');
     w9.close();
+  });
+
+  test('F32 (v58): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
+    const dom10 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lễ', salt: 's10', pinHash: 'h10' }]), 'labentry.operator.v1': 'KTV Lễ' }); } });
+    const w10 = dom10.window;
+    await new Promise((res) => { if (w10.document.readyState === 'complete') res(); else w10.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const d10 = w10.document;
+
+    /* Lịch âm khớp các ngày lễ có thật */
+    assert.strictEqual(JSON.stringify(w10.eval('convertSolar2Lunar(17, 2, 2026)').slice(0, 3)), '[1,1,2026]', '17/02/2026 = mùng 1 Tết');
+    assert.strictEqual(JSON.stringify(w10.eval('convertSolar2Lunar(25, 9, 2026)').slice(0, 3)), '[15,8,2026]', '25/09/2026 = rằm Trung Thu');
+    assert.strictEqual(JSON.stringify(w10.eval('convertSolar2Lunar(6, 2, 2027)').slice(0, 3)), '[1,1,2027]', '06/02/2027 = mùng 1 Tết 2027');
+
+    /* Tự động theo ngày */
+    assert.strictEqual(w10.eval("themeSettings.mode = 'auto'; themeForDate(new Date(2026, 1, 17))"), 'tet', 'mùng 1 Tết -> chủ đề tet');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 8, 25))'), 'trungthu', 'rằm tháng 8 -> trungthu');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 24))'), 'xmas', '24/12 -> xmas');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 10, 8))'), '', 'ngày thường không có chủ đề');
+
+    /* Chọn tay ghi đè; áp dụng lên body + dải lời chúc */
+    const sel = d10.getElementById('theme-mode');
+    assert.ok(sel && sel.options.length === 5, 'ô chọn chủ đề có 5 mức');
+    sel.value = 'tet';
+    sel.dispatchEvent(new w10.Event('change'));
+    assert.ok(d10.body.classList.contains('theme-tet'), 'chọn Tết thì body mang theme-tet');
+    const banner = d10.getElementById('theme-banner');
+    assert.ok(!banner.classList.contains('hidden'), 'dải lời chúc hiện khi có chủ đề');
+    assert.ok(d10.getElementById('theme-banner-text').textContent.includes('Chúc Mừng Năm Mới'), 'lời chúc Tết đúng');
+    assert.strictEqual(JSON.parse(w10.localStorage.getItem('labentry.theme.v1')).mode, 'tet', 'lựa chọn lưu ở labentry.theme.v1');
+
+    /* Nút ✕ ẩn dải chúc cho hôm nay */
+    d10.getElementById('theme-banner-close').click();
+    assert.ok(banner.classList.contains('hidden'), 'bấm ✕ thì ẩn dải chúc');
+
+    /* Tắt hẳn: gỡ class + ẩn dải */
+    sel.value = 'off';
+    sel.dispatchEvent(new w10.Event('change'));
+    assert.ok(!d10.body.classList.contains('theme-tet'), 'chọn Tắt thì gỡ chủ đề');
+    assert.ok(banner.classList.contains('hidden'), 'tắt thì ẩn dải chúc');
+
+    /* Thẻ cài đặt linh vật đã gọn: tiêu đề + ô chọn cùng hàng, ghi chú ngắn */
+    assert.ok(d10.querySelector('.mascot-set-head select#mascot-enabled'), 'ô chọn linh vật nằm cùng hàng tiêu đề (thẻ gọn v58)');
+    assert.ok(!d10.querySelector('.mascot-settings').textContent.includes('không vào file sao lưu'), 'ghi chú dài cũ đã bỏ');
+
+    /* Cài đặt chủ đề KHÔNG đi theo file sao lưu */
+    const bk = JSON.stringify(w10.eval('store.exportBackup()'));
+    assert.ok(!bk.includes('labentry.theme'), 'file sao lưu không mang cài đặt chủ đề');
+    w10.close();
   });
 
   await chain;

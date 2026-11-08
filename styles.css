@@ -820,16 +820,34 @@ svg { width: 24px; height: 24px; display: block; }
 @media (prefers-reduced-motion: reduce) { .mascot img { animation: none !important; } }
 
 /* Khối cài đặt linh vật ở tab Quản lý */
+/* v58: thẻ cài đặt gọn lại theo góp ý của Minh (bản cũ choáng chỗ) — tiêu đề
+   và ô chọn cùng một hàng, nút nhỏ, ghi chú rút còn 2 dòng. */
 .mascot-settings {
-  margin: 14px 0 4px; padding: 12px 14px;
+  margin: 12px 0 4px; padding: 10px 12px;
   background: #EFF5F9; border: 1px solid #D7E3EC; border-radius: 12px;
 }
-.mascot-settings-title { font-weight: 700; color: #0A3556; margin-bottom: 8px; }
-.mascot-set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; margin-bottom: 8px; }
-.mascot-set-row select { font-size: 14px; padding: 5px 8px; border-radius: 8px; border: 1px solid #B9CCDB; background: #fff; }
+.mascot-set-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.mascot-settings-title { font-weight: 700; color: #0A3556; font-size: 14.5px; }
+.mascot-set-head select { font-size: 14px; padding: 4px 8px; border-radius: 8px; border: 1px solid #B9CCDB; background: #fff; }
 .mascot-set-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .mascot-set-btn {
-  flex: 1 1 150px; padding: 8px 10px; font-size: 13.5px; font-weight: 600;
+  flex: 1 1 120px; padding: 6px 8px; font-size: 13px; font-weight: 600;
   background: #fff; color: #0B5FA5; border: 1.5px solid #0B5FA5; border-radius: 9px; cursor: pointer;
 }
-.mascot-set-note { margin: 8px 0 0; font-size: 12.5px; line-height: 1.45; color: #54687A; }
+.mascot-set-note { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: #54687A; }
+
+/* ===== F32: Chủ đề lễ hội (ý tưởng 14) =====
+   Chỉ đổi biến màu chủ đạo + dải lời chúc mỏng trên cùng; không đổi bố cục,
+   không đụng bản in (dải chúc là con trực tiếp của body, print.css tự ẩn). */
+.theme-banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 10px; font-size: 13.5px; font-weight: 700; text-align: center;
+}
+.theme-banner button { color: inherit; opacity: .8; font-size: 13px; padding: 2px 7px; }
+body.theme-tet { --blue: #d32f2f; --blue-dark: #a52727; }
+body.theme-tet .theme-banner { background: linear-gradient(90deg, #a52727, #d32f2f); color: #ffe082; }
+body.theme-trungthu { --blue: #31579e; --blue-dark: #1e3a6e; }
+body.theme-trungthu .theme-banner { background: linear-gradient(90deg, #14264d, #1e3a6e); color: #ffd54f; }
+body.theme-xmas { --blue: #2e7d32; --blue-dark: #1b5e20; }
+body.theme-xmas .theme-banner { background: linear-gradient(90deg, #1b5e20, #2e7d32); color: #ffffff; }
+body.theme-xmas .fab { background: #c62828; }

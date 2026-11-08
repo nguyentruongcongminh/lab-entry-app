@@ -169,7 +169,7 @@ Nhóm rỗng hiển thị "Không có kết quả" (đúng như ảnh mẫu).
   4. `waiting` — còn mẫu đang đếm giờ (>5 phút): "Đang chờ {ID} tới giờ… còn X phút ⏳" (mẫu gần nhất); hoặc còn mẫu chưa kết quả nhưng không hẹn giờ: câu động viên kèm số mẫu. Ảnh ôm đồng hồ cát.
   5. `calm` — không còn mẫu chưa kết quả: "Ca êm quá — không còn mẫu nào tồn! 🎉", ảnh hai tay giơ cao.
 - **Ảnh mặc định** là nhân vật gốc "Bé kính hiển vi" do AI vẽ cho dự án (4 biểu cảm: vui / chờ / vội / lo), nhúng dạng data URI WebP trong `mascot.js` (`window.LABENTRY_MASCOTS`) để chạy offline và đóng gói 1 file — tổng ~94 KB.
-- **Ảnh riêng từng máy (chống rủi ro bản quyền)**: trong tab Quản lý có khối "Linh vật đồng ca": bật/tắt, nút đổi ảnh (chọn ảnh từ máy, tự thu nhỏ ≤288px, lưu data URL vào khóa riêng `labentry.mascot.v1`) và nút về ảnh mặc định. Ảnh riêng **chỉ nằm trên máy đó**: không vào file sao lưu, không vào mã nguồn/bản công khai — bản phát hành công khai không chứa nhân vật có bản quyền của bên thứ ba (Minh dùng ảnh Mimikyu của anh qua đường này trên máy cá nhân). Khi dùng ảnh riêng, mọi trạng thái dùng chung một ảnh, trạng thái thể hiện bằng bong bóng + huy hiệu.
+- **Ảnh riêng từng máy (chống rủi ro bản quyền)**: trong tab Quản lý có khối "Linh vật đồng ca" (v58 thiết kế lại gọn theo góp ý của Minh — tiêu đề và ô chọn cùng một hàng, nút rút gọn nhãn, ghi chú còn 2 dòng): bật/tắt, nút đổi ảnh (chọn ảnh từ máy, tự thu nhỏ ≤288px, lưu data URL vào khóa riêng `labentry.mascot.v1`) và nút về ảnh mặc định. Ảnh riêng **chỉ nằm trên máy đó**: không vào file sao lưu, không vào mã nguồn/bản công khai — bản phát hành công khai không chứa nhân vật có bản quyền của bên thứ ba (Minh dùng ảnh Mimikyu của anh qua đường này trên máy cá nhân). Khi dùng ảnh riêng, mọi trạng thái dùng chung một ảnh, trạng thái thể hiện bằng bong bóng + huy hiệu.
 - **Vòng đời bong bóng (v56, góp ý của Minh 2026-11-08 — khung thoại hiện hoài gây choáng không gian):** mỗi tình huống mới hiện bong bóng **5 giây rồi tự tắt** (linh vật vẫn ở lại); tình huống còn đó thì **sau 60 giây hiện lại 5 giây**. Tình huống *sắp tới giờ/đang chờ* có số phút thay đổi từng phút nên coi như tình huống mới mỗi phút. Bấm vào linh vật: đang hiện thì tắt ngay (lùi lần hiện lại +60 giây), đang tắt thì hiện 5 giây. Cài đặt (bật/tắt + ảnh riêng) lưu ở `labentry.mascot.v1`, không nằm trong sao lưu (đúng tính chất "chỉ máy này").
 - Tôn trọng `prefers-reduced-motion`: tắt mọi chuyển động của linh vật.
 
@@ -369,3 +369,11 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 3. **Nút quét QR/barcode** ở ô ID: mặc định làm quét bằng camera điện thoại nếu trình duyệt hỗ trợ, nhập tay vẫn là chính. Nếu chỉ cần trang trí giống mẫu thì bỏ qua chức năng quét.
 4. **Danh sách loại XN**: giữ đúng 6 loại như ảnh; thêm loại khác (nhuộm Gram, soi tươi dịch...) thì liệt kê thêm khi duyệt.
 5. **PDF**: mặc định xuất bảng tổng hợp các kết quả đã lọc; nếu cần mỗi bệnh nhân một phiếu riêng thì làm thêm mẫu phiếu.
+
+
+## F32 — Chủ đề lễ hội theo mùa (v58, ý tưởng 14)
+
+- **Phạm vi:** thuần trang trí — đổi biến màu chủ đạo (`--blue`, `--blue-dark`) + một dải lời chúc mỏng ở trên cùng; KHÔNG đổi bố cục, KHÔNG đụng dữ liệu/hẹn giờ/báo động/in ấn/sao lưu. Dải chúc là con trực tiếp của `body` nên `print.css` tự ẩn khi in; bấm ✕ ẩn dải chúc cho ngày hôm đó.
+- **Ba chủ đề:** 🧧 **Tết** (đỏ/vàng), 🏮 **Trung Thu** (xanh đêm/vàng), 🎄 **Giáng Sinh** (xanh lá; riêng nút + chuyển đỏ). Lời chúc tương ứng hiện trên dải.
+- **Tự động theo ngày (chế độ mặc định):** Tết = âm lịch 23/12 → 5/1; Trung Thu = âm lịch 13–17/8; Giáng Sinh = dương lịch 20–26/12. Lịch âm Việt Nam tính ngay trong app bằng thuật toán Hồ Ngọc Đức (múi giờ 7) — hàm `convertSolar2Lunar` có test khóa với ngày lễ thật (17/02/2026 = 1/1; 25/09/2026 = 15/8; 06/02/2027 = 1/1).
+- **Chọn tay:** ô chọn ở thẻ "Chủ đề lễ hội" (tab Quản lý): Tự động / Tết / Trung Thu / Giáng Sinh / Tắt. Lưu ở `localStorage` khóa `labentry.theme.v1` (chỉ máy này, KHÔNG vào file sao lưu — cùng quy ước với cài đặt linh vật).
