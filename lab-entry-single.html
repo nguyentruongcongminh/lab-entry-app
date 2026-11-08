@@ -861,6 +861,15 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 6px 10px; font-size: 13.5px; font-weight: 700; text-align: center;
 }
 .theme-banner button { color: inherit; opacity: .8; font-size: 13px; padding: 2px 7px; }
+.theme-banner-decor { font-size: 16px; line-height: 1; }
+/* Lớp trang trí lễ hội (v61): góc dưới trái + hiệu ứng rơi (hoa đào, tuyết).
+   Thuần trang trí: không nhận thao tác (pointer-events none), nằm dưới
+   linh vật và các hộp thoại; là con của body nên print.css tự ẩn khi in. */
+.theme-decor { position: fixed; inset: 0; pointer-events: none; z-index: 15; overflow: hidden; }
+.decor-bl { position: absolute; left: 12px; bottom: 86px; font-size: 34px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .25)); animation: mascot-bob 3.2s ease-in-out infinite; }
+.decor-fall { position: absolute; top: -6vh; line-height: 1; animation-name: decor-fall; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes decor-fall { to { transform: translate3d(4vw, 114vh, 0) rotate(320deg); } }
+@media (prefers-reduced-motion: reduce) { .decor-fall { display: none; } .decor-bl { animation: none; } }
 body.theme-tet { --blue: #d32f2f; --blue-dark: #a52727; }
 body.theme-tet .theme-banner { background: linear-gradient(90deg, #a52727, #d32f2f); color: #ffe082; }
 body.theme-trungthu { --blue: #31579e; --blue-dark: #1e3a6e; }
@@ -901,7 +910,8 @@ body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476
 <style id="print-page-style"></style>
 </head>
 <body>
-<div id="theme-banner" class="theme-banner hidden"><span id="theme-banner-text"></span><button type="button" id="theme-banner-close" aria-label="Ẩn lời chúc">✕</button></div>
+<div id="theme-banner" class="theme-banner hidden"><span id="theme-banner-decor-l" class="theme-banner-decor"></span><span id="theme-banner-text"></span><span id="theme-banner-decor-r" class="theme-banner-decor"></span><button type="button" id="theme-banner-close" aria-label="Ẩn lời chúc">✕</button></div>
+<div id="theme-decor" class="theme-decor hidden" aria-hidden="true"></div>
 
 <!-- Thanh báo động mẫu tới giờ (F23) — bấm vào mở form của mẫu tới giờ sớm nhất -->
 <div id="alarm-banner" class="alarm-banner hidden" role="alert"></div>
@@ -921,7 +931,7 @@ body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v60</span>
+    <span class="app-version">LabEntry v61</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -5575,6 +5585,26 @@ const THEME_GREETINGS = {
   qdnd: '⭐ Chúc mừng Ngày thành lập Quân đội Nhân dân Việt Nam 22/12!',
   xmas: '🎄 Giáng Sinh an lành — chúc ca trực ấm áp!',
 };
+/* Trang trí riêng cho từng event (v61, yêu cầu của Minh — event nào cũng
+ * phải có): hai đầu dải chúc (l/r), biểu tượng ở góc dưới trái (bl) và
+ * hiệu ứng rơi (fall: 'petal' hoa đào/hồng, 'snow' tuyết; null = không rơi). */
+const THEME_DECOR = {
+  tet:       { l: '🌸', r: '🏮', bl: '🧧', fall: 'petal' },
+  thaythuoc: { l: '🏥', r: '💊', bl: '🩺', fall: null },
+  phunuqt:   { l: '🌸', r: '🌹', bl: '🌷', fall: 'petal' },
+  gioto:     { l: '🌾', r: '🕯️', bl: '🏯', fall: null },
+  giaiphong: { l: '⭐', r: '🎉', bl: '🇻🇳', fall: null },
+  laodong:   { l: '⚙️', r: '🌾', bl: '🔧', fall: null },
+  trungthu:  { l: '🏮', r: '🌕', bl: '🐇', fall: null },
+  phunuvn:   { l: '🪷', r: '🦋', bl: '🌺', fall: null },
+  nhagiao:   { l: '📚', r: '✏️', bl: '💐', fall: null },
+  qdnd:      { l: '🎖️', r: '🕊️', bl: '⭐', fall: null },
+  xmas:      { l: '🎄', r: '🔔', bl: '⛄', fall: 'snow' },
+};
+const DECOR_FALLS = {
+  petal: { ch: '🌸', n: 9, size: [13, 19], dur: [9, 15] },
+  snow: { ch: '❄', n: 12, size: [11, 17], dur: [7, 12] },
+};
 function loadThemeSettings() {
   try {
     const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
@@ -5582,10 +5612,11 @@ function loadThemeSettings() {
       return {
         mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto',
         bannerOff: typeof o.bannerOff === 'string' ? o.bannerOff : '',
+        bannerOffTheme: typeof o.bannerOffTheme === 'string' ? o.bannerOffTheme : '',
       };
     }
   } catch (e) { /* bỏ qua */ }
-  return { mode: 'auto', bannerOff: '' };
+  return { mode: 'auto', bannerOff: '', bannerOffTheme: '' };
 }
 let themeSettings = loadThemeSettings();
 function saveThemeSettings() {
@@ -5694,14 +5725,45 @@ function themeForDate(date) {
   if (lm === 3 && ld === 10) return 'gioto';
   return '';
 }
+let decorThemeShown = '__none__';
+function renderThemeDecor(t) {
+  const layer = $('theme-decor');
+  if (!layer) return;
+  if (t === decorThemeShown) return;
+  decorThemeShown = t;
+  if (!t || !THEME_DECOR[t]) { layer.classList.add('hidden'); layer.innerHTML = ''; return; }
+  const d = THEME_DECOR[t];
+  let html = '<span class="decor-bl">' + d.bl + '</span>';
+  if (d.fall && DECOR_FALLS[d.fall]) {
+    const f = DECOR_FALLS[d.fall];
+    for (let i = 0; i < f.n; i++) {
+      const left = 3 + ((i * 89) % 94);
+      const size = f.size[0] + ((i * 7) % (f.size[1] - f.size[0] + 1));
+      const dur = f.dur[0] + ((i * 13) % (f.dur[1] - f.dur[0] + 1));
+      const delay = -((i * 29) % 12);
+      html += '<span class="decor-fall" style="left:' + left + '%;font-size:' + size + 'px;animation-duration:' + dur + 's;animation-delay:' + delay + 's">' + f.ch + '</span>';
+    }
+  }
+  layer.innerHTML = html;
+  layer.classList.remove('hidden');
+}
 function applyTheme() {
   const t = themeForDate(new Date());
   THEME_KEYS.forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
+  renderThemeDecor(t);
   const banner = $('theme-banner');
   if (!banner) return;
-  const show = !!t && themeSettings.bannerOff !== todayKey();
+  /* Tắt lời chúc chỉ áp dụng cho ĐÚNG chủ đề đã tắt trong ngày hôm đó —
+     chọn chủ đề khác là lời chúc của chủ đề mới lại hiện (sửa lỗi Minh báo). */
+  const dismissed = themeSettings.bannerOff === todayKey() && themeSettings.bannerOffTheme === t;
+  const show = !!t && !dismissed;
   banner.classList.toggle('hidden', !show);
-  if (show) $('theme-banner-text').textContent = THEME_GREETINGS[t];
+  if (show) {
+    $('theme-banner-text').textContent = THEME_GREETINGS[t];
+    const d = THEME_DECOR[t] || { l: '', r: '' };
+    $('theme-banner-decor-l').textContent = d.l;
+    $('theme-banner-decor-r').textContent = d.r;
+  }
 }
 function initTheme() {
   const sel = $('theme-mode');
@@ -5716,6 +5778,7 @@ function initTheme() {
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
     themeSettings.bannerOff = todayKey();
+    themeSettings.bannerOffTheme = themeForDate(new Date());
     saveThemeSettings();
     applyTheme();
   });

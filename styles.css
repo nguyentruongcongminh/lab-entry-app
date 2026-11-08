@@ -847,6 +847,15 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 6px 10px; font-size: 13.5px; font-weight: 700; text-align: center;
 }
 .theme-banner button { color: inherit; opacity: .8; font-size: 13px; padding: 2px 7px; }
+.theme-banner-decor { font-size: 16px; line-height: 1; }
+/* Lớp trang trí lễ hội (v61): góc dưới trái + hiệu ứng rơi (hoa đào, tuyết).
+   Thuần trang trí: không nhận thao tác (pointer-events none), nằm dưới
+   linh vật và các hộp thoại; là con của body nên print.css tự ẩn khi in. */
+.theme-decor { position: fixed; inset: 0; pointer-events: none; z-index: 15; overflow: hidden; }
+.decor-bl { position: absolute; left: 12px; bottom: 86px; font-size: 34px; line-height: 1; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .25)); animation: mascot-bob 3.2s ease-in-out infinite; }
+.decor-fall { position: absolute; top: -6vh; line-height: 1; animation-name: decor-fall; animation-timing-function: linear; animation-iteration-count: infinite; }
+@keyframes decor-fall { to { transform: translate3d(4vw, 114vh, 0) rotate(320deg); } }
+@media (prefers-reduced-motion: reduce) { .decor-fall { display: none; } .decor-bl { animation: none; } }
 body.theme-tet { --blue: #d32f2f; --blue-dark: #a52727; }
 body.theme-tet .theme-banner { background: linear-gradient(90deg, #a52727, #d32f2f); color: #ffe082; }
 body.theme-trungthu { --blue: #31579e; --blue-dark: #1e3a6e; }

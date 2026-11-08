@@ -3465,6 +3465,26 @@ const THEME_GREETINGS = {
   qdnd: '⭐ Chúc mừng Ngày thành lập Quân đội Nhân dân Việt Nam 22/12!',
   xmas: '🎄 Giáng Sinh an lành — chúc ca trực ấm áp!',
 };
+/* Trang trí riêng cho từng event (v61, yêu cầu của Minh — event nào cũng
+ * phải có): hai đầu dải chúc (l/r), biểu tượng ở góc dưới trái (bl) và
+ * hiệu ứng rơi (fall: 'petal' hoa đào/hồng, 'snow' tuyết; null = không rơi). */
+const THEME_DECOR = {
+  tet:       { l: '🌸', r: '🏮', bl: '🧧', fall: 'petal' },
+  thaythuoc: { l: '🏥', r: '💊', bl: '🩺', fall: null },
+  phunuqt:   { l: '🌸', r: '🌹', bl: '🌷', fall: 'petal' },
+  gioto:     { l: '🌾', r: '🕯️', bl: '🏯', fall: null },
+  giaiphong: { l: '⭐', r: '🎉', bl: '🇻🇳', fall: null },
+  laodong:   { l: '⚙️', r: '🌾', bl: '🔧', fall: null },
+  trungthu:  { l: '🏮', r: '🌕', bl: '🐇', fall: null },
+  phunuvn:   { l: '🪷', r: '🦋', bl: '🌺', fall: null },
+  nhagiao:   { l: '📚', r: '✏️', bl: '💐', fall: null },
+  qdnd:      { l: '🎖️', r: '🕊️', bl: '⭐', fall: null },
+  xmas:      { l: '🎄', r: '🔔', bl: '⛄', fall: 'snow' },
+};
+const DECOR_FALLS = {
+  petal: { ch: '🌸', n: 9, size: [13, 19], dur: [9, 15] },
+  snow: { ch: '❄', n: 12, size: [11, 17], dur: [7, 12] },
+};
 function loadThemeSettings() {
   try {
     const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
@@ -3472,10 +3492,11 @@ function loadThemeSettings() {
       return {
         mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto',
         bannerOff: typeof o.bannerOff === 'string' ? o.bannerOff : '',
+        bannerOffTheme: typeof o.bannerOffTheme === 'string' ? o.bannerOffTheme : '',
       };
     }
   } catch (e) { /* bỏ qua */ }
-  return { mode: 'auto', bannerOff: '' };
+  return { mode: 'auto', bannerOff: '', bannerOffTheme: '' };
 }
 let themeSettings = loadThemeSettings();
 function saveThemeSettings() {
@@ -3584,14 +3605,45 @@ function themeForDate(date) {
   if (lm === 3 && ld === 10) return 'gioto';
   return '';
 }
+let decorThemeShown = '__none__';
+function renderThemeDecor(t) {
+  const layer = $('theme-decor');
+  if (!layer) return;
+  if (t === decorThemeShown) return;
+  decorThemeShown = t;
+  if (!t || !THEME_DECOR[t]) { layer.classList.add('hidden'); layer.innerHTML = ''; return; }
+  const d = THEME_DECOR[t];
+  let html = '<span class="decor-bl">' + d.bl + '</span>';
+  if (d.fall && DECOR_FALLS[d.fall]) {
+    const f = DECOR_FALLS[d.fall];
+    for (let i = 0; i < f.n; i++) {
+      const left = 3 + ((i * 89) % 94);
+      const size = f.size[0] + ((i * 7) % (f.size[1] - f.size[0] + 1));
+      const dur = f.dur[0] + ((i * 13) % (f.dur[1] - f.dur[0] + 1));
+      const delay = -((i * 29) % 12);
+      html += '<span class="decor-fall" style="left:' + left + '%;font-size:' + size + 'px;animation-duration:' + dur + 's;animation-delay:' + delay + 's">' + f.ch + '</span>';
+    }
+  }
+  layer.innerHTML = html;
+  layer.classList.remove('hidden');
+}
 function applyTheme() {
   const t = themeForDate(new Date());
   THEME_KEYS.forEach((k) => document.body.classList.toggle('theme-' + k, t === k));
+  renderThemeDecor(t);
   const banner = $('theme-banner');
   if (!banner) return;
-  const show = !!t && themeSettings.bannerOff !== todayKey();
+  /* Tắt lời chúc chỉ áp dụng cho ĐÚNG chủ đề đã tắt trong ngày hôm đó —
+     chọn chủ đề khác là lời chúc của chủ đề mới lại hiện (sửa lỗi Minh báo). */
+  const dismissed = themeSettings.bannerOff === todayKey() && themeSettings.bannerOffTheme === t;
+  const show = !!t && !dismissed;
   banner.classList.toggle('hidden', !show);
-  if (show) $('theme-banner-text').textContent = THEME_GREETINGS[t];
+  if (show) {
+    $('theme-banner-text').textContent = THEME_GREETINGS[t];
+    const d = THEME_DECOR[t] || { l: '', r: '' };
+    $('theme-banner-decor-l').textContent = d.l;
+    $('theme-banner-decor-r').textContent = d.r;
+  }
 }
 function initTheme() {
   const sel = $('theme-mode');
@@ -3606,6 +3658,7 @@ function initTheme() {
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
     themeSettings.bannerOff = todayKey();
+    themeSettings.bannerOffTheme = themeForDate(new Date());
     saveThemeSettings();
     applyTheme();
   });
