@@ -786,6 +786,22 @@ function downloadTextFile(name, text, mime) {
   return inShell ? 'fail' : 'download';
 }
 
+/* In tờ hiện tại (bản kết quả / tờ bàn giao / xem trước bố cục). Trong vỏ
+   app, window.print() của WebView là hàm rỗng — không có hộp thoại in nào
+   hiện ra (Minh phát hiện trên APK 2026-11-08: sao lưu đã sửa ở F28 nhưng
+   in/xuất PDF vẫn không chạy). Khi có cầu nối native thì gọi
+   LabFileNative.print() -> PrintManager của Android (hộp thoại in hệ thống,
+   có cả "Lưu thành PDF"); ngoài vỏ app giữ nguyên window.print(). (F29) */
+function printSheet() {
+  try {
+    if (window.LabFileNative && typeof window.LabFileNative.print === 'function') {
+      window.LabFileNative.print();
+      return;
+    }
+  } catch (e) { /* cầu nối lỗi -> thử in thường */ }
+  if (typeof window.print === 'function') window.print();
+}
+
 function exportBackupFile() {
   const obj = JSON.parse(store.exportBackup());
   if (typesCustom) obj.types = getTestTypes(); /* kèm danh mục tự tạo để sang máy khác phục hồi đủ loại */
@@ -2628,7 +2644,7 @@ function printHandover() {
   };
   window.addEventListener('afterprint', restore);
   setTimeout(() => { handoverPrinting = false; }, 3000); /* dự phòng nếu afterprint không bắn */
-  if (typeof window.print === 'function') window.print();
+  printSheet();
 }
 
 function defaultPrintSettings() {
@@ -3230,7 +3246,7 @@ function bindPrintCfg() {
     savePrintSettings(); fillPrintCfgControls(); renderPrintPreview(); updatePrintPageStyle();
     toast('Đã khôi phục bố cục bản in mặc định');
   });
-  $('btn-pcfg-print').addEventListener('click', () => { applyExport(); window.print(); });
+  $('btn-pcfg-print').addEventListener('click', () => { applyExport(); printSheet(); });
   $('btn-pcfg-back').addEventListener('click', () => switchView('export'));
   $('btn-printcfg').addEventListener('click', openPrintCfg);
 }
@@ -3419,7 +3435,7 @@ function init() {
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 
   $('btn-apply-filter').addEventListener('click', applyExport);
-  $('btn-print').addEventListener('click', () => { applyExport(); window.print(); });
+  $('btn-print').addEventListener('click', () => { applyExport(); printSheet(); });
   $('btn-export-csv').addEventListener('click', exportCsv);
   $('btn-panel-noresult').addEventListener('click', () => setManagePanel('noresult'));
   $('btn-panel-pending').addEventListener('click', () => setManagePanel('pending'));

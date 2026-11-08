@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v52 và precache đúng URL ?v=52 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v53 và precache đúng URL ?v=53 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v52'"), 'sw.js phải gắn VERSION v52');
-    for (const a of ['styles.css?v=52', 'print.css?v=52', 'config.js?v=52', 'store.js?v=52', 'app.js?v=52', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v53'"), 'sw.js phải gắn VERSION v53');
+    for (const a of ['styles.css?v=53', 'print.css?v=53', 'config.js?v=53', 'store.js?v=53', 'app.js?v=53', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1705,6 +1705,36 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     delete w6.LabFileNative;
     assert.strictEqual(w6.eval("downloadTextFile('a.txt', 'x')"), 'download');
     w6.close();
+  });
+
+  test('in trong vỏ app: Xuất PDF và in bàn giao gọi cầu nối in native (v53 F29)', async () => {
+    const dom7 = new JSDOM(htmlText, {
+      url: 'file://' + htmlPath,
+      runScripts: 'dangerously',
+      resources: 'usable',
+      pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV In', salt: 's', pinHash: 'h' }]),
+          'labentry.operator.v1': 'KTV In',
+        });
+      },
+    });
+    const w7 = dom7.window;
+    const d7 = w7.document;
+    const $7 = (id) => d7.getElementById(id);
+    await new Promise((res) => w7.addEventListener('load', res));
+    w7.eval("store.add({ testId: 'XN-F29', typeId: 'mau-an', results: { ketQua: 'Âm tính' } })");
+    let prints = 0;
+    w7.LabFileNative = { saveFile() { return 'OK'; }, print() { prints++; } };
+    $7('btn-print').click();
+    assert.strictEqual(prints, 1, 'trong vỏ app, nút Xuất PDF phải gọi in native chứ window.print() của WebView là hàm rỗng');
+    assert.ok(d7.getElementById('print-area').innerHTML.includes('XN-F29'), 'trước khi in, tờ kết quả phải đã dựng vào #print-area');
+    w7.eval('printHandover()');
+    assert.strictEqual(prints, 2, 'in tờ bàn giao cũng phải đi qua cầu nối in');
+    delete w7.LabFileNative; /* ngoài vỏ app: rơi về window.print thường, không lỗi */
+    $7('btn-print').click();
+    w7.close();
   });
 
   await chain;
