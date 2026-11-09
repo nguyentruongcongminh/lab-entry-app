@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v64 và precache đúng URL ?v=64 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v65 và precache đúng URL ?v=65 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -601,8 +601,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v64'"), 'sw.js phải gắn VERSION v64');
-    for (const a of ['styles.css?v=64', 'print.css?v=64', 'config.js?v=64', 'store.js?v=64', 'mascot.js?v=64', 'app.js?v=64', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v65'"), 'sw.js phải gắn VERSION v65');
+    for (const a of ['styles.css?v=65', 'print.css?v=65', 'config.js?v=65', 'store.js?v=65', 'mascot.js?v=65', 'app.js?v=65', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1663,6 +1663,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const cardInp = d5.querySelector('#batch-card [data-bfield="ketQua"]');
     cardInp.value = 'Dương tính';
     cardInp.dispatchEvent(new w5.Event('input', { bubbles: true }));
+    /* v65: chuyển mẫu ở dạng thẻ có cơ chế tự cuộn lên đầu + đưa viên ID
+       vào tầm nhìn — chạy không lỗi cả trong jsdom (không có layout) */
+    w5.eval('batchScrollToCurrent()');
     $5('btn-batch-next').click();
     assert.strictEqual(w5.eval('store.statusOf(store.getByUid("' + u1 + '"))'), 'pending-release',
       'nút "mẫu tiếp theo" phải lưu mẫu vừa nhập');
@@ -1820,6 +1823,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(bubble.textContent.includes('XN-VAT1') && bubble.textContent.includes('Máu ẩn') && bubble.textContent.includes('còn 4 phút'), 'hurried: ID + loại + còn 4 phút. Thực tế: ' + bubble.textContent);
     assert.strictEqual(badge.textContent, '!');
 
+    /* v65: khoảng lặng lặp câu nói nới lên 3 phút; đổi số phút đếm ngược
+       KHÔNG tính là tình huống mới nên không bật lại bong bóng */
+    assert.strictEqual(w9.eval('MASCOT_RESHOW_MS'), 180000, 'khoảng lặng lặp câu nói là 3 phút');
+    w9.eval('mascotBubbleUntil = Date.now() - 1; mascotNextShowAt = Date.now() + 120000; updateMascot();');
+    assert.ok(bubble.classList.contains('hidden'), 'bong bóng đang trong khoảng lặng');
+    w9.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() + 3 * 60000).toISOString() })");
+    upd();
+    assert.strictEqual(state(), 'hurried');
+    assert.ok(bubble.textContent.includes('còn 3 phút'), 'nội dung vẫn cập nhật số phút mới');
+    assert.ok(bubble.classList.contains('hidden'), 'chỉ đổi số phút thì bong bóng KHÔNG bật lại');
+
     /* Quá giờ */
     w9.eval("store.update('" + uid + "', { timerEndsAt: new Date(Date.now() - 60000).toISOString() })");
     upd();
@@ -1845,7 +1859,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(!bubble.classList.contains('hidden'), 'bấm lần nữa thì hiện lại');
 
     /* Bong bóng tự tắt sau 5 giây (chỉ tắt khung thoại, linh vật vẫn ở lại),
-       tình huống còn đó thì sau 60 giây hiện lại (v56, góp ý của Minh) */
+       tình huống còn đó thì tới hẹn hiện lại (60 giây ở v56, nới lên 3 phút ở v65) */
     w9.eval('mascotBubbleUntil = Date.now() - 1; updateMascot();');
     assert.ok(bubble.classList.contains('hidden'), 'quá 5 giây thì bong bóng tự tắt');
     assert.ok(!box.classList.contains('hidden'), 'linh vật vẫn hiện sau khi bong bóng tắt');

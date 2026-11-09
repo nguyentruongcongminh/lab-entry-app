@@ -1621,6 +1621,20 @@ function loadBatchType(typeId) {
   batchState.work = {};
   recs.forEach((r) => { batchState.work[r.uid] = Object.assign({}, r.results || {}); });
   batchState.cur = 0;
+  batchShownCur = -1; /* mở lô / đổi loại: lần vẽ thẻ đầu tiên luôn cuộn lên đầu */
+}
+/* v65 (Minh góp ý): ở dạng thẻ, mỗi khi CHUYỂN sang mẫu khác (Lưu & mẫu
+   tiếp theo, Trước, bấm viên ID) thì tự cuộn trang lên đầu và đưa viên ID
+   đang nhập ra giữa dải ID — người dùng thấy ngay mẫu mới từ đầu thẻ.
+   Bấm chip/nhập nhanh trong cùng một mẫu KHÔNG cuộn (đang nhập dở). */
+let batchShownCur = -1;
+function batchScrollToCurrent() {
+  try { window.scrollTo(0, 0); } catch (e) { /* môi trường không cuộn được: bỏ qua */ }
+  const strip = $('batch-strip');
+  const pill = strip && strip.querySelector('.bpill.cur');
+  if (strip && pill) {
+    strip.scrollLeft = Math.max(0, pill.offsetLeft - Math.max(0, (strip.clientWidth - pill.offsetWidth) / 2));
+  }
 }
 function batchIsGrid() { return window.innerWidth >= 900; }
 function batchEntered(uid) {
@@ -1685,6 +1699,8 @@ function renderBatch() {
   if (empty) return;
   if (grid) renderBatchGrid(type); else renderBatchCard(type);
   refreshBatchCounts();
+  if (!grid && batchState.cur !== batchShownCur) batchScrollToCurrent();
+  batchShownCur = batchState.cur;
 }
 
 function refreshBatchCounts() {
@@ -3273,7 +3289,7 @@ let mascotSig = '';
    60 giây hiện lại 5 giây. Bấm vào linh vật: đang hiện thì tắt ngay, đang
    tắt thì hiện 5 giây. */
 const MASCOT_BUBBLE_MS = 5000;
-const MASCOT_RESHOW_MS = 60000;
+const MASCOT_RESHOW_MS = 180000;
 let mascotBubbleKey = '';
 let mascotBubbleUntil = 0;
 let mascotNextShowAt = 0;
@@ -3307,25 +3323,25 @@ function computeMascotState(now) {
     .sort((a, b) => a.at - b.at);
   const overdue = timed.filter((t) => t.at <= now);
   if (overdue.length) {
-    return { state: 'overdue', badge: String(overdue.length), text: 'Có mẫu quá giờ chưa nhập kết quả: ' + overdue.map((t) => t.r.testId).join(', ') + ' 😟' };
+    return { state: 'overdue', key: 'overdue|' + overdue.map((t) => t.r.uid).join(','), badge: String(overdue.length), text: 'Có mẫu quá giờ chưa nhập kết quả: ' + overdue.map((t) => t.r.testId).join(', ') + ' 😟' };
   }
   const next = timed[0];
   if (next && next.at - now <= 5 * 60000) {
     const t = getTestType(next.r.typeId);
-    return { state: 'hurried', badge: '!', text: '⏰ ' + next.r.testId + ' · ' + ((t && t.name) || next.r.typeId) + ' · ' + mascotRemainText(next.at - now) + ' tới giờ!' };
+    return { state: 'hurried', key: 'hurried|' + next.r.uid, badge: '!', text: '⏰ ' + next.r.testId + ' · ' + ((t && t.name) || next.r.typeId) + ' · ' + mascotRemainText(next.at - now) + ' tới giờ!' };
   }
   const stale = recs.filter((r) => now - new Date(r.createdAt).getTime() > 15 * 60000)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   if (stale.length >= 3) {
-    return { state: 'overload', badge: String(stale.length), text: stale.map((r) => r.testId).join(', ') + ' chờ quá 15 phút chưa nhập kết quả 🥵' };
+    return { state: 'overload', key: 'overload|' + stale.map((r) => r.uid).join(','), badge: String(stale.length), text: stale.map((r) => r.testId).join(', ') + ' chờ quá 15 phút chưa nhập kết quả 🥵' };
   }
   if (next) {
-    return { state: 'waiting', badge: '', text: 'Đang chờ ' + next.r.testId + ' tới giờ… ' + mascotRemainText(next.at - now) + ' ⏳' };
+    return { state: 'waiting', key: 'waiting|' + next.r.uid, badge: '', text: 'Đang chờ ' + next.r.testId + ' tới giờ… ' + mascotRemainText(next.at - now) + ' ⏳' };
   }
   if (recs.length) {
-    return { state: 'waiting', badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
+    return { state: 'waiting', key: 'waiting|n' + recs.length, badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
   }
-  return { state: 'calm', badge: '', text: 'Ca êm quá — không còn mẫu nào tồn! 🎉' };
+  return { state: 'calm', key: 'calm', badge: '', text: 'Ca êm quá — không còn mẫu nào tồn! 🎉' };
 }
 
 function mascotVisibleHere() {
@@ -3343,8 +3359,15 @@ function updateMascot() {
   const now = Date.now();
   const s = computeMascotState(now);
   const stateKey = s.state + '|' + s.text;
-  if (stateKey !== mascotBubbleKey) {
-    mascotBubbleKey = stateKey;
+  /* v65 (Minh góp ý "đừng lặp lại cùng một câu thường xuyên, giãn ra"):
+     khóa bong bóng theo TÌNH HUỐNG (loại + mẫu liên quan), không theo
+     nguyên văn câu nói — số phút đếm ngược thay đổi mỗi phút không còn
+     tính là tình huống mới để bật lại bong bóng; đồng thời khoảng lặng
+     giữa hai lần hiện cùng một câu nới từ 60 giây lên 3 phút (hằng số
+     MASCOT_RESHOW_MS). Nội dung hiển thị vẫn cập nhật theo stateKey. */
+  const bubbleKey = s.key || stateKey;
+  if (bubbleKey !== mascotBubbleKey) {
+    mascotBubbleKey = bubbleKey;
     mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
     mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
   } else if (now >= mascotNextShowAt) {
