@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v69 và precache đúng URL ?v=69 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v70 và precache đúng URL ?v=70 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v69'"), 'sw.js phải gắn VERSION v69');
-    for (const a of ['styles.css?v=69', 'print.css?v=69', 'config.js?v=69', 'store.js?v=69', 'mascot.js?v=69', 'app.js?v=69', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v70'"), 'sw.js phải gắn VERSION v70');
+    for (const a of ['styles.css?v=70', 'print.css?v=70', 'config.js?v=70', 'store.js?v=70', 'mascot.js?v=70', 'app.js?v=70', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2071,11 +2071,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(w11.eval("normalizePrintSettings({ sigsAlign: 'left' }).sigs[1].align"), 'left', 'bố cục v68 (sigsAlign toàn cục) được di trú sang align từng ô');
     assert.strictEqual(w11.eval("normalizePrintSettings({ sigs: [{ on: true, title: '', name: '', staff: '', align: 'right' }, { on: false, title: '', name: '' }, { on: false, title: '', name: '' }] }).sigs[0].align"), 'right', 'align riêng của ô được giữ');
     const htmlMix = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Trưởng khoa', name: 'BS Trưởng', staff: '', align: 'left' }; s.sigs[1] = { on: true, title: 'Người phát hành', name: 'KTV Ký', staff: 'KTV Ký', align: 'right' }; return renderSheet(s, [], {}); })()");
-    assert.ok(htmlMix.includes('sh-sig al-left'), 'ô Trưởng khoa canh trái mang class al-left');
-    assert.ok(htmlMix.includes('sh-sig al-right'), 'ô KTV canh phải mang class al-right');
+    assert.ok(htmlMix.indexOf('sh-sig-group g-left') > -1 && htmlMix.indexOf('sh-sig-group g-left') < htmlMix.indexOf('Trưởng khoa') && htmlMix.indexOf('Trưởng khoa') < htmlMix.indexOf('sh-sig-group g-center'), 'ô Trưởng khoa nằm trong vùng trái');
+    assert.ok(htmlMix.indexOf('sh-sig-group g-right') < htmlMix.indexOf('Người phát hành'), 'ô KTV nằm trong vùng phải');
     assert.ok(htmlMix.includes('sh-sig-img'), 'ô KTV có chữ ký vẫn in ảnh khi canh phải');
+    /* v70: đúng thứ tự lỗi của Minh — ô Phải khai báo TRƯỚC ô Trái vẫn vào đúng vùng */
+    const htmlRev = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người phát hành', name: 'KTV Ký', staff: 'KTV Ký', align: 'right' }; s.sigs[1] = { on: true, title: 'Trưởng khoa', name: 'BS Trưởng', staff: '', align: 'left' }; return renderSheet(s, [], {}); })()");
+    assert.ok(htmlRev.indexOf('sh-sig-group g-left') < htmlRev.indexOf('Trưởng khoa') && htmlRev.indexOf('Trưởng khoa') < htmlRev.indexOf('sh-sig-group g-center'), 'khai báo ngược: Trưởng khoa vẫn vào vùng trái');
+    assert.ok(htmlRev.indexOf('sh-sig-group g-right') < htmlRev.indexOf('Người phát hành'), 'khai báo ngược: ô phát hành vẫn vào vùng phải');
     const htmlC = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người lập bảng', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
-    assert.ok(htmlC.includes('sh-sig al-center'), 'ô không đặt vị trí thì mặc định al-center');
+    assert.ok(htmlC.indexOf('sh-sig-group g-center') < htmlC.indexOf('Người lập bảng') && htmlC.indexOf('Người lập bảng') < htmlC.indexOf('sh-sig-group g-right'), 'ô không đặt vị trí thì vào vùng giữa');
     w11.eval('fillPrintCfgControls()');
     const alignSelT = d11.getElementById('pcfg-sig1-align');
     assert.ok(alignSelT && alignSelT.options.length === 3, 'mỗi ô ký có ô chọn vị trí riêng 3 mức');

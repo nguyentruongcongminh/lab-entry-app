@@ -3132,15 +3132,25 @@ function renderSheet(s, recs, opts) {
       '<td style="text-align:' + c.align + '">' + (c.id === 'field' ? fieldCellValue(rec, c.fieldLabel) : printCellValue(c.id, rec, i)) + '</td>').join('') + '</tr>';
   }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
+  const sigBlockHtml = (g) => {
+    /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
+    const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
+    const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
+    return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+      '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
+      '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
+  };
+  /* v70: xếp các ô vào 3 vùng Trái/Giữa/Phải. Vùng giữa luôn hiện diện (kể cả
+     khi rỗng) với lề tự động hai bên, nên ô Trái luôn sát trái và ô Phải luôn
+     sát phải bất kể thứ tự khai báo. (v69 dùng lề tự động cho từng ô: khi ô
+     Phải đứng trước ô Trái, hai lề chia nhau khoảng trống và cả cụm bị kéo
+     vào giữa trang — lỗi Minh gặp 2026-11-09.) Nội dung trong ô (chức danh,
+     ghi chú, chữ ký, họ tên) luôn canh giữa theo ô. */
   const sigHtml = sigs.length
-    ? '<div class="sh-sigs">' + sigs.map((g) => {
-      /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
-      const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
-      const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
-      return '<div class="sh-sig al-' + (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') + '"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
-        '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
-        '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
-    }).join('') + '</div>'
+    ? '<div class="sh-sigs">' + ['left', 'center', 'right'].map((z) =>
+      '<div class="sh-sig-group g-' + z + '">' +
+      sigs.filter((g) => (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') === z).map(sigBlockHtml).join('') +
+      '</div>').join('') + '</div>'
     : '';
   const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
     ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +

@@ -580,11 +580,8 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet .sh-sig-img { max-height: 56px; max-width: 170px; object-fit: contain; }
 .sheet .sh-sigs { padding-left: 6px; padding-right: 6px; }
 .sheet .sh-sig { flex: 0 1 200px; }
-.sheet .sh-sig.al-left { margin-right: auto; text-align: left; }
-.sheet .sh-sig.al-left .sh-sig-space { justify-content: flex-start; }
-.sheet .sh-sig.al-center { margin-left: auto; margin-right: auto; }
-.sheet .sh-sig.al-right { margin-left: auto; text-align: right; }
-.sheet .sh-sig.al-right .sh-sig-space { justify-content: flex-end; }
+.sheet .sh-sig-group { display: flex; gap: 10px; }
+.sheet .sh-sig-group.g-center { margin-left: auto; margin-right: auto; }
 .sheet .sh-sig-name { font-weight: 700; }
 .sheet .sh-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 0.9em; font-style: italic; }
 
@@ -648,8 +645,8 @@ svg { width: 24px; height: 24px; display: block; }
 .pcfg-col .pc-width { flex: 0 0 58px; }
 .pcfg-col .pc-align { flex: 0 0 76px; }
 .pcfg-col .pc-moves { display: flex; gap: 4px; }
-.pcfg-sig-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-.pcfg-sig-row input[type="text"] { flex: 1 1 0; min-width: 0; }
+.pcfg-sig-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.pcfg-sig-row input[type="text"] { flex: 1 1 110px; min-width: 0; }
 .pcfg-sig-title { font-weight: 700; font-size: 14.5px; }
 
 /* ---------- Sửa lỗi ô nhập tên KTV bị bóp mất (v28) + đợt 2 bản in ---------- */
