@@ -592,14 +592,13 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet .sh-sig-note { font-style: italic; font-size: 0.9em; }
 .sheet .sh-sig-space { height: 64px; display: flex; align-items: center; justify-content: center; }
 .sheet .sh-sig-img { max-height: 56px; max-width: 170px; object-fit: contain; }
-.sheet .sh-sigs.align-left, .sheet .sh-sigs.align-right { padding-left: 6px; padding-right: 6px; }
-.sheet .sh-sigs.align-left { justify-content: flex-start; }
-.sheet .sh-sigs.align-right { justify-content: flex-end; }
-.sheet .sh-sigs.align-left .sh-sig, .sheet .sh-sigs.align-right .sh-sig { flex: 0 1 200px; }
-.sheet .sh-sigs.align-left .sh-sig { text-align: left; }
-.sheet .sh-sigs.align-right .sh-sig { text-align: right; }
-.sheet .sh-sigs.align-left .sh-sig-space { justify-content: flex-start; }
-.sheet .sh-sigs.align-right .sh-sig-space { justify-content: flex-end; }
+.sheet .sh-sigs { padding-left: 6px; padding-right: 6px; }
+.sheet .sh-sig { flex: 0 1 200px; }
+.sheet .sh-sig.al-left { margin-right: auto; text-align: left; }
+.sheet .sh-sig.al-left .sh-sig-space { justify-content: flex-start; }
+.sheet .sh-sig.al-center { margin-left: auto; margin-right: auto; }
+.sheet .sh-sig.al-right { margin-left: auto; text-align: right; }
+.sheet .sh-sig.al-right .sh-sig-space { justify-content: flex-end; }
 .sheet .sh-sig-name { font-weight: 700; }
 .sheet .sh-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 0.9em; font-style: italic; }
 
@@ -956,7 +955,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v68</span>
+    <span class="app-version">LabEntry v69</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1409,24 +1408,26 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <label class="pcfg-row check"><input id="pcfg-tat" type="checkbox"> <span>Đưa dòng thống kê thời gian trả kết quả (TAT) vào bản in</span></label>
       <div class="pcfg-sig-block">
         <div class="pcfg-sig-title">Khối chữ ký cuối bảng (tối đa 3 ô)</div>
-        <label class="pcfg-row"><span class="pcfg-label">Vị trí khối chữ ký</span><select id="pcfg-sigs-align"><option value="center">Giữa — trải đều cả trang</option><option value="left">Trái</option><option value="right">Phải</option></select></label>
         <div class="pcfg-sig-row">
           <label class="check"><input id="pcfg-sig1-on" type="checkbox"></label>
           <input id="pcfg-sig1-title" type="text" placeholder="Chức danh 1, vd: Người lập bảng">
           <input id="pcfg-sig1-name" type="text" placeholder="Họ tên 1">
           <select id="pcfg-sig1-staff" class="pcfg-sig-staff" title="Ảnh chữ ký của KTV"></select>
+          <select id="pcfg-sig1-align" class="pcfg-sig-align" title="Vị trí của ô ký này"><option value="left">← Trái</option><option value="center">Giữa</option><option value="right">Phải →</option></select>
         </div>
         <div class="pcfg-sig-row">
           <label class="check"><input id="pcfg-sig2-on" type="checkbox"></label>
           <input id="pcfg-sig2-title" type="text" placeholder="Chức danh 2, vd: Trưởng khoa">
           <input id="pcfg-sig2-name" type="text" placeholder="Họ tên 2">
           <select id="pcfg-sig2-staff" class="pcfg-sig-staff" title="Ảnh chữ ký của KTV"></select>
+          <select id="pcfg-sig2-align" class="pcfg-sig-align" title="Vị trí của ô ký này"><option value="left">← Trái</option><option value="center">Giữa</option><option value="right">Phải →</option></select>
         </div>
         <div class="pcfg-sig-row">
           <label class="check"><input id="pcfg-sig3-on" type="checkbox"></label>
           <input id="pcfg-sig3-title" type="text" placeholder="Chức danh 3">
           <input id="pcfg-sig3-name" type="text" placeholder="Họ tên 3">
           <select id="pcfg-sig3-staff" class="pcfg-sig-staff" title="Ảnh chữ ký của KTV"></select>
+          <select id="pcfg-sig3-align" class="pcfg-sig-align" title="Vị trí của ô ký này"><option value="left">← Trái</option><option value="center">Giữa</option><option value="right">Phải →</option></select>
         </div>
       </div>
     </div>
@@ -5004,11 +5005,11 @@ function defaultPrintSettings() {
     footnote: '', printDate: false, tat: false,
     resultsMode: 'grouped', groupBy: 'none', zebra: false, headerColor: '#e8e8e8',
     sigs: [
-      { on: false, title: 'Người lập bảng', name: '', staff: '' },
-      { on: false, title: 'Trưởng khoa', name: '', staff: '' },
-      { on: false, title: '', name: '', staff: '' },
+      { on: false, title: 'Người lập bảng', name: '', staff: '', align: 'center' },
+      { on: false, title: 'Trưởng khoa', name: '', staff: '', align: 'center' },
+      { on: false, title: '', name: '', staff: '', align: 'center' },
     ],
-    sigsAlign: 'center',
+    sigsAlign: 'center', /* legacy v68: chỉ còn dùng để di trú sang align từng ô */
   };
 }
 
@@ -5030,11 +5031,18 @@ function normalizePrintSettings(saved) {
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
   if (!['left', 'center', 'right'].includes(merged.sigsAlign)) merged.sigsAlign = 'center';
+  /* Vị trí riêng của ô (v69); file v68 chỉ có sigsAlign toàn cục -> di trú sang
+     align của từng ô, trừ khi ô đã có align riêng được lưu từ v69 trở đi */
+  const sigsWereSaved = !!(saved && Array.isArray(saved.sigs) && saved.sigs.length === 3);
+  const migAlign = ['left', 'right'].includes(merged.sigsAlign) ? merged.sigsAlign : null;
   merged.sigs = merged.sigs.map((g, i) => ({
     on: !!(g && g.on),
     title: g && typeof g.title === 'string' ? g.title : (def.sigs[i] ? def.sigs[i].title : ''),
     name: g && typeof g.name === 'string' ? g.name : '',
     staff: g && typeof g.staff === 'string' ? g.staff : '',
+    align: (g && ['left', 'center', 'right'].includes(g.align) && (sigsWereSaved || !migAlign))
+      ? g.align
+      : (migAlign || (g && ['left', 'center', 'right'].includes(g.align) ? g.align : 'center')),
   }));
   if (!['left', 'center', 'right', 'auto'].includes(merged.logoPos)) merged.logoPos = 'auto';
   if (!['side', 'center', 'grid3'].includes(merged.headerLayout)) merged.headerLayout = 'side';
@@ -5292,11 +5300,11 @@ function renderSheet(s, recs, opts) {
   }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
-    ? '<div class="sh-sigs' + (s.sigsAlign === 'left' ? ' align-left' : s.sigsAlign === 'right' ? ' align-right' : '') + '">' + sigs.map((g) => {
+    ? '<div class="sh-sigs">' + sigs.map((g) => {
       /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
       const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
       const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
-      return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+      return '<div class="sh-sig al-' + (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') + '"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
         '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
         '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
     }).join('') + '</div>'
@@ -5462,8 +5470,6 @@ function fillPrintCfgControls() {
   $('pcfg-logo2-size').value = s.logo2Size;
   syncRightZoneBlocks();
   renderPresetOptions();
-  const alignSel = $('pcfg-sigs-align');
-  if (alignSel) alignSel.value = s.sigsAlign || 'center';
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
@@ -5474,6 +5480,8 @@ function fillPrintCfgControls() {
         staffList.map((st) => '<option value="' + esc(st.name) + '"' + (st.sig ? '' : ' data-nosig="1"') + '>' + esc(st.name) + (st.sig ? ' ✍️' : ' (chưa có chữ ký)') + '</option>').join('');
       staffSel.value = g.staff && staffList.some((st) => st.name === g.staff) ? g.staff : '';
     }
+    const alignSel = $('pcfg-sig' + (i + 1) + '-align');
+    if (alignSel) alignSel.value = ['left', 'center', 'right'].includes(g.align) ? g.align : 'center';
   });
   renderPrintCfgColumns();
 }
@@ -5562,8 +5570,6 @@ function bindPrintCfg() {
   $('btn-preset-save').addEventListener('click', savePresetFromUI);
   $('btn-preset-apply').addEventListener('click', applyPresetFromUI);
   $('btn-preset-del').addEventListener('click', deletePresetFromUI);
-  const alignSelB = $('pcfg-sigs-align');
-  if (alignSelB) alignSelB.addEventListener('change', (e) => { printSettings.sigsAlign = e.target.value; upd(); });
   printSettings.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
@@ -5574,6 +5580,8 @@ function bindPrintCfg() {
       if (g.staff) { g.name = g.staff; $('pcfg-sig' + (i + 1) + '-name').value = g.name; }
       upd();
     });
+    const alignSel = $('pcfg-sig' + (i + 1) + '-align');
+    if (alignSel) alignSel.addEventListener('change', (e) => { g.align = e.target.value; upd(); });
   });
   $('btn-pcfg-logo').addEventListener('click', () => $('pcfg-logo-file').click());
   $('pcfg-logo-file').addEventListener('change', (e) => { handleLogoFile(e.target.files && e.target.files[0]); e.target.value = ''; });

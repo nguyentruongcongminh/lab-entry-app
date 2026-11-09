@@ -578,14 +578,13 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet .sh-sig-note { font-style: italic; font-size: 0.9em; }
 .sheet .sh-sig-space { height: 64px; display: flex; align-items: center; justify-content: center; }
 .sheet .sh-sig-img { max-height: 56px; max-width: 170px; object-fit: contain; }
-.sheet .sh-sigs.align-left, .sheet .sh-sigs.align-right { padding-left: 6px; padding-right: 6px; }
-.sheet .sh-sigs.align-left { justify-content: flex-start; }
-.sheet .sh-sigs.align-right { justify-content: flex-end; }
-.sheet .sh-sigs.align-left .sh-sig, .sheet .sh-sigs.align-right .sh-sig { flex: 0 1 200px; }
-.sheet .sh-sigs.align-left .sh-sig { text-align: left; }
-.sheet .sh-sigs.align-right .sh-sig { text-align: right; }
-.sheet .sh-sigs.align-left .sh-sig-space { justify-content: flex-start; }
-.sheet .sh-sigs.align-right .sh-sig-space { justify-content: flex-end; }
+.sheet .sh-sigs { padding-left: 6px; padding-right: 6px; }
+.sheet .sh-sig { flex: 0 1 200px; }
+.sheet .sh-sig.al-left { margin-right: auto; text-align: left; }
+.sheet .sh-sig.al-left .sh-sig-space { justify-content: flex-start; }
+.sheet .sh-sig.al-center { margin-left: auto; margin-right: auto; }
+.sheet .sh-sig.al-right { margin-left: auto; text-align: right; }
+.sheet .sh-sig.al-right .sh-sig-space { justify-content: flex-end; }
 .sheet .sh-sig-name { font-weight: 700; }
 .sheet .sh-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 0.9em; font-style: italic; }
 

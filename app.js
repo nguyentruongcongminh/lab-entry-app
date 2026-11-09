@@ -2838,11 +2838,11 @@ function defaultPrintSettings() {
     footnote: '', printDate: false, tat: false,
     resultsMode: 'grouped', groupBy: 'none', zebra: false, headerColor: '#e8e8e8',
     sigs: [
-      { on: false, title: 'Người lập bảng', name: '', staff: '' },
-      { on: false, title: 'Trưởng khoa', name: '', staff: '' },
-      { on: false, title: '', name: '', staff: '' },
+      { on: false, title: 'Người lập bảng', name: '', staff: '', align: 'center' },
+      { on: false, title: 'Trưởng khoa', name: '', staff: '', align: 'center' },
+      { on: false, title: '', name: '', staff: '', align: 'center' },
     ],
-    sigsAlign: 'center',
+    sigsAlign: 'center', /* legacy v68: chỉ còn dùng để di trú sang align từng ô */
   };
 }
 
@@ -2864,11 +2864,18 @@ function normalizePrintSettings(saved) {
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
   if (!['left', 'center', 'right'].includes(merged.sigsAlign)) merged.sigsAlign = 'center';
+  /* Vị trí riêng của ô (v69); file v68 chỉ có sigsAlign toàn cục -> di trú sang
+     align của từng ô, trừ khi ô đã có align riêng được lưu từ v69 trở đi */
+  const sigsWereSaved = !!(saved && Array.isArray(saved.sigs) && saved.sigs.length === 3);
+  const migAlign = ['left', 'right'].includes(merged.sigsAlign) ? merged.sigsAlign : null;
   merged.sigs = merged.sigs.map((g, i) => ({
     on: !!(g && g.on),
     title: g && typeof g.title === 'string' ? g.title : (def.sigs[i] ? def.sigs[i].title : ''),
     name: g && typeof g.name === 'string' ? g.name : '',
     staff: g && typeof g.staff === 'string' ? g.staff : '',
+    align: (g && ['left', 'center', 'right'].includes(g.align) && (sigsWereSaved || !migAlign))
+      ? g.align
+      : (migAlign || (g && ['left', 'center', 'right'].includes(g.align) ? g.align : 'center')),
   }));
   if (!['left', 'center', 'right', 'auto'].includes(merged.logoPos)) merged.logoPos = 'auto';
   if (!['side', 'center', 'grid3'].includes(merged.headerLayout)) merged.headerLayout = 'side';
@@ -3126,11 +3133,11 @@ function renderSheet(s, recs, opts) {
   }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
-    ? '<div class="sh-sigs' + (s.sigsAlign === 'left' ? ' align-left' : s.sigsAlign === 'right' ? ' align-right' : '') + '">' + sigs.map((g) => {
+    ? '<div class="sh-sigs">' + sigs.map((g) => {
       /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
       const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
       const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
-      return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+      return '<div class="sh-sig al-' + (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') + '"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
         '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
         '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
     }).join('') + '</div>'
@@ -3296,8 +3303,6 @@ function fillPrintCfgControls() {
   $('pcfg-logo2-size').value = s.logo2Size;
   syncRightZoneBlocks();
   renderPresetOptions();
-  const alignSel = $('pcfg-sigs-align');
-  if (alignSel) alignSel.value = s.sigsAlign || 'center';
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
@@ -3308,6 +3313,8 @@ function fillPrintCfgControls() {
         staffList.map((st) => '<option value="' + esc(st.name) + '"' + (st.sig ? '' : ' data-nosig="1"') + '>' + esc(st.name) + (st.sig ? ' ✍️' : ' (chưa có chữ ký)') + '</option>').join('');
       staffSel.value = g.staff && staffList.some((st) => st.name === g.staff) ? g.staff : '';
     }
+    const alignSel = $('pcfg-sig' + (i + 1) + '-align');
+    if (alignSel) alignSel.value = ['left', 'center', 'right'].includes(g.align) ? g.align : 'center';
   });
   renderPrintCfgColumns();
 }
@@ -3396,8 +3403,6 @@ function bindPrintCfg() {
   $('btn-preset-save').addEventListener('click', savePresetFromUI);
   $('btn-preset-apply').addEventListener('click', applyPresetFromUI);
   $('btn-preset-del').addEventListener('click', deletePresetFromUI);
-  const alignSelB = $('pcfg-sigs-align');
-  if (alignSelB) alignSelB.addEventListener('change', (e) => { printSettings.sigsAlign = e.target.value; upd(); });
   printSettings.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
@@ -3408,6 +3413,8 @@ function bindPrintCfg() {
       if (g.staff) { g.name = g.staff; $('pcfg-sig' + (i + 1) + '-name').value = g.name; }
       upd();
     });
+    const alignSel = $('pcfg-sig' + (i + 1) + '-align');
+    if (alignSel) alignSel.addEventListener('change', (e) => { g.align = e.target.value; upd(); });
   });
   $('btn-pcfg-logo').addEventListener('click', () => $('pcfg-logo-file').click());
   $('pcfg-logo-file').addEventListener('change', (e) => { handleLogoFile(e.target.files && e.target.files[0]); e.target.value = ''; });
