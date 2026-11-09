@@ -3810,6 +3810,7 @@ function init() {
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* linh vật đồng ca (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
+  initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
@@ -4095,6 +4096,43 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('sw.js')
     .then((reg) => { reg.update(); })
     .catch(() => {});
+}
+
+/* Chống bàn phím che ô nhập (v66, Minh góp ý 2026-11-09 — áp dụng cho
+ * form nhập thường + nhập theo lô, cả dạng thẻ và dạng bảng):
+ * 1) Chạm vào ô chữ trên thiết bị cảm ứng -> chờ ~350ms cho bàn phím mở
+ *    rồi tự cuộn ô vào giữa vùng còn thấy được, khỏi kéo tay.
+ * 2) visualViewport: bàn phím mở làm vùng hiển thị co > 150px -> gắn cờ
+ *    kb-open, CSS ẩn linh vật/thanh điều hướng dưới/nút nổi và thu gọn
+ *    thanh điều hướng lô cho thoáng (quy tắc ở styles.css).
+ * 3) Meta viewport interactive-widget=resizes-content (index.html) để
+ *    Chrome/WebView co vùng hiển thị đúng phần trên bàn phím.
+ * PC (chuột + màn hình lớn) giữ nguyên hành vi, không tự cuộn. */
+function kbFixApplies() {
+  if (window.innerWidth < 900) return true;
+  try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
+  catch (e) { return false; }
+}
+function initKeyboardFix() {
+  if (window.visualViewport) {
+    const onVv = () => {
+      const kb = kbFixApplies() && (window.innerHeight - window.visualViewport.height > 150);
+      document.body.classList.toggle('kb-open', !!kb);
+    };
+    window.visualViewport.addEventListener('resize', onVv);
+    onVv();
+  }
+  document.addEventListener('focusin', (e) => {
+    if (!kbFixApplies()) return;
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('input, textarea')) return;
+    if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return;
+    setTimeout(() => {
+      if (document.activeElement !== el) return;
+      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
+    }, 350);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

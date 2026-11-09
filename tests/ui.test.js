@@ -583,10 +583,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v65 và precache đúng URL ?v=65 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v66 và precache đúng URL ?v=66 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
+    const vp = document.querySelector('meta[name="viewport"]');
+    assert.ok(vp && vp.getAttribute('content').includes('interactive-widget=resizes-content'), 'viewport phải khai interactive-widget=resizes-content (v66: vùng hiển thị co theo bàn phím)');
     const theme = document.querySelector('meta[name="theme-color"]');
     assert.ok(theme && theme.getAttribute('content') === '#1e88e5', 'phải có theme-color #1e88e5');
     assert.ok(document.querySelector('link[rel="apple-touch-icon"]'), 'phải có apple-touch-icon cho iOS');
@@ -601,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v65'"), 'sw.js phải gắn VERSION v65');
-    for (const a of ['styles.css?v=65', 'print.css?v=65', 'config.js?v=65', 'store.js?v=65', 'mascot.js?v=65', 'app.js?v=65', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v66'"), 'sw.js phải gắn VERSION v66');
+    for (const a of ['styles.css?v=66', 'print.css?v=66', 'config.js?v=66', 'store.js?v=66', 'mascot.js?v=66', 'app.js?v=66', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1661,6 +1663,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       ['XN-L01', 'XN-L03'], 'thanh chọn mẫu phải giữ đúng thứ tự nhận');
     assert.ok($5('batch-card').textContent.includes('XN-L01'), 'thẻ phải mở ở mẫu đầu lô');
     const cardInp = d5.querySelector('#batch-card [data-bfield="ketQua"]');
+    /* v66: ở bề rộng điện thoại, focus vào ô chữ thì app tự cuộn ô vào tầm
+       nhìn (chống bàn phím che) — jsdom không có scrollIntoView nên thay
+       bằng hàm ghi nhận lời gọi */
+    let scrolledEl = null;
+    cardInp.scrollIntoView = function () { scrolledEl = this; };
+    cardInp.focus();
+    cardInp.dispatchEvent(new w5.Event('focusin', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(scrolledEl, cardInp, 'focus vào ô nhập ở dạng thẻ phải kích hoạt tự cuộn ô vào tầm nhìn');
     cardInp.value = 'Dương tính';
     cardInp.dispatchEvent(new w5.Event('input', { bubbles: true }));
     /* v65: chuyển mẫu ở dạng thẻ có cơ chế tự cuộn lên đầu + đưa viên ID

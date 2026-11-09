@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Nhập kết quả xét nghiệm</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1e88e5">
@@ -895,6 +895,16 @@ body.theme-nhagiao .theme-banner { background: linear-gradient(90deg, #573a82, #
 body.theme-qdnd { --blue: #59783f; --blue-dark: #476331; }
 body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476331); color: #ffffff; }
 
+/* ===== Bàn phím cảm ứng (v66): chống bàn phím che ô nhập =====
+   Ô nhập có đệm cuộn để scrollIntoView không dính sát mép; khi bàn phím
+   đang mở (cờ kb-open do visualViewport gắn) thì ẩn các phần tử nổi và
+   thu gọn thanh điều hướng của màn hình nhập lô cho thoáng vùng nhập. */
+input, textarea { scroll-margin-top: 76px; scroll-margin-bottom: 96px; }
+body.kb-open #mascot { display: none; }
+body.kb-open #bottom-nav { display: none; }
+body.kb-open .fab { display: none; }
+body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
+
 </style>
 <style>
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
@@ -931,7 +941,7 @@ body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v65</span>
+    <span class="app-version">LabEntry v66</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -5930,6 +5940,7 @@ function init() {
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* linh vật đồng ca (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
+  initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
@@ -6215,6 +6226,43 @@ function registerServiceWorker() {
   navigator.serviceWorker.register('sw.js')
     .then((reg) => { reg.update(); })
     .catch(() => {});
+}
+
+/* Chống bàn phím che ô nhập (v66, Minh góp ý 2026-11-09 — áp dụng cho
+ * form nhập thường + nhập theo lô, cả dạng thẻ và dạng bảng):
+ * 1) Chạm vào ô chữ trên thiết bị cảm ứng -> chờ ~350ms cho bàn phím mở
+ *    rồi tự cuộn ô vào giữa vùng còn thấy được, khỏi kéo tay.
+ * 2) visualViewport: bàn phím mở làm vùng hiển thị co > 150px -> gắn cờ
+ *    kb-open, CSS ẩn linh vật/thanh điều hướng dưới/nút nổi và thu gọn
+ *    thanh điều hướng lô cho thoáng (quy tắc ở styles.css).
+ * 3) Meta viewport interactive-widget=resizes-content (index.html) để
+ *    Chrome/WebView co vùng hiển thị đúng phần trên bàn phím.
+ * PC (chuột + màn hình lớn) giữ nguyên hành vi, không tự cuộn. */
+function kbFixApplies() {
+  if (window.innerWidth < 900) return true;
+  try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }
+  catch (e) { return false; }
+}
+function initKeyboardFix() {
+  if (window.visualViewport) {
+    const onVv = () => {
+      const kb = kbFixApplies() && (window.innerHeight - window.visualViewport.height > 150);
+      document.body.classList.toggle('kb-open', !!kb);
+    };
+    window.visualViewport.addEventListener('resize', onVv);
+    onVv();
+  }
+  document.addEventListener('focusin', (e) => {
+    if (!kbFixApplies()) return;
+    const el = e.target;
+    if (!el || !el.matches || !el.matches('input, textarea')) return;
+    if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return;
+    setTimeout(() => {
+      if (document.activeElement !== el) return;
+      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
+    }, 350);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

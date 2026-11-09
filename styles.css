@@ -880,3 +880,13 @@ body.theme-nhagiao { --blue: #6d4aa0; --blue-dark: #573a82; }
 body.theme-nhagiao .theme-banner { background: linear-gradient(90deg, #573a82, #6d4aa0); color: #ffffff; }
 body.theme-qdnd { --blue: #59783f; --blue-dark: #476331; }
 body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476331); color: #ffffff; }
+
+/* ===== Bàn phím cảm ứng (v66): chống bàn phím che ô nhập =====
+   Ô nhập có đệm cuộn để scrollIntoView không dính sát mép; khi bàn phím
+   đang mở (cờ kb-open do visualViewport gắn) thì ẩn các phần tử nổi và
+   thu gọn thanh điều hướng của màn hình nhập lô cho thoáng vùng nhập. */
+input, textarea { scroll-margin-top: 76px; scroll-margin-bottom: 96px; }
+body.kb-open #mascot { display: none; }
+body.kb-open #bottom-nav { display: none; }
+body.kb-open .fab { display: none; }
+body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }

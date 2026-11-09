@@ -388,3 +388,13 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 
 - Hai thẻ tùy chỉnh (Linh vật đồng ca + Chủ đề lễ hội) chuyển từ tab Quản lý sang **tab chính mới "Giao diện"** (`view-display`), nằm cạnh tab Quản lý ở thanh điều hướng dưới (thứ tự: Kết quả hôm nay · Quản lý · **Giao diện** · Lọc & Xuất kết quả PDF).
 - Tab Giao diện là tab chính (thanh điều hướng dưới vẫn hiện), nút **+ ẩn** ở tab này (như tab Lọc & Xuất). Linh vật vẫn hiện ở tab Giao diện để xem trước khi tùy chỉnh (`mascotVisibleHere` thêm `display`). Không thay đổi khóa lưu trữ hay hành vi nào khác.
+
+## F33 — Chống bàn phím che ô nhập (v66, 2026-11-09, Minh góp ý)
+
+- Vấn đề: ở form nhập thường và nhập theo lô, khi bấm vào ô chữ trên Android, bàn phím bật lên che ô đang nhập; có trường hợp phải kéo màn hình lên mới thấy rõ để nhập.
+- Cách xử lý (3 lớp, toàn bộ phía web — APK dùng chung lõi web nên hưởng theo, không cần cài lại):
+  1. **Tự cuộn theo ô đang nhập** (`initKeyboardFix` trong app.js): sự kiện `focusin` trên mọi `input`/`textarea` (trừ checkbox/radio/nút/file…) — chỉ trên thiết bị cảm ứng hoặc màn hình < 900px — chờ 350ms cho bàn phím mở rồi `scrollIntoView({block: 'center'})`; ô nhập có `scroll-margin` 76/96px trong CSS. PC giữ nguyên hành vi (không tự cuộn).
+  2. **Khai báo vùng hiển thị**: meta viewport thêm `interactive-widget=resizes-content` để Chrome/WebView (Chromium ≥108) co vùng hiển thị đúng phần phía trên bàn phím thay vì để bàn phím đè lên trang; trình duyệt không hỗ trợ thì bỏ qua êm.
+  3. **Dọn chỗ khi bàn phím mở**: `visualViewport` phát hiện vùng hiển thị co > 150px → gắn cờ `body.kb-open` → CSS ẩn linh vật (`#mascot`), thanh điều hướng dưới (`#bottom-nav`) và nút nổi (`.fab`), thu gọn `.batch-navbar`; bàn phím đóng thì mọi thứ trở lại.
+- Phạm vi: mọi ô nhập trong app (form đơn, lô thẻ, lô bảng, các cửa sổ tùy chỉnh) vì cơ chế gắn ở cấp document.
+- Kiểm chứng: jsdom (meta viewport; focus vào ô ở dạng thẻ kích hoạt tự cuộn) + Chromium thật giả lập điện thoại (focus ô cuối thẻ → ô được cuộn vào vùng giữa màn hình) và giả lập PC (focus không tự cuộn). Hành vi bàn phím thật (Samsung Keyboard/Gboard, chiều cao từng máy) cần Minh thử trên máy thật; nếu còn khuất sẽ chỉnh thêm độ trễ/đệm.
