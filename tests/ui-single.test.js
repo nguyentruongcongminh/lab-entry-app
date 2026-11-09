@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v67 và precache đúng URL ?v=67 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v68 và precache đúng URL ?v=68 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v67'"), 'sw.js phải gắn VERSION v67');
-    for (const a of ['styles.css?v=67', 'print.css?v=67', 'config.js?v=67', 'store.js?v=67', 'mascot.js?v=67', 'app.js?v=67', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v68'"), 'sw.js phải gắn VERSION v68');
+    for (const a of ['styles.css?v=68', 'print.css?v=68', 'config.js?v=68', 'store.js?v=68', 'mascot.js?v=68', 'app.js?v=68', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2065,6 +2065,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     selStaff.dispatchEvent(new w11.Event('change'));
     assert.strictEqual(w11.eval('printSettings.sigs[0].staff'), 'KTV Ký', 'chọn KTV thì lưu staff vào ô ký');
     assert.strictEqual(d11.getElementById('pcfg-sig1-name').value, 'KTV Ký', 'chọn KTV thì tự điền họ tên vào ô ký');
+
+    /* v68: vị trí khối chữ ký trái/giữa/phải */
+    assert.strictEqual(w11.eval("normalizePrintSettings({}).sigsAlign"), 'center', 'bố cục cũ không có sigsAlign -> mặc định giữa');
+    assert.strictEqual(w11.eval("normalizePrintSettings({ sigsAlign: 'left' }).sigsAlign"), 'left', 'sigsAlign trái được giữ');
+    const htmlL = w11.eval("(function () { const s = defaultPrintSettings(); s.sigsAlign = 'left'; s.sigs[0] = { on: true, title: 'Người lập bảng', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
+    assert.ok(htmlL.includes('sh-sigs align-left'), 'chọn Trái thì khối ký mang class align-left');
+    const htmlR = w11.eval("(function () { const s = defaultPrintSettings(); s.sigsAlign = 'right'; s.sigs[0] = { on: true, title: 'Người lập bảng', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
+    assert.ok(htmlR.includes('sh-sigs align-right'), 'chọn Phải thì khối ký mang class align-right');
+    const htmlC = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người lập bảng', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
+    assert.ok(htmlC.includes('class="sh-sigs"'), 'mặc định Giữa thì khối ký không có class align (trải đều như cũ)');
+    w11.eval('fillPrintCfgControls()');
+    const alignSelT = d11.getElementById('pcfg-sigs-align');
+    assert.ok(alignSelT && alignSelT.options.length === 3, 'ô chọn vị trí khối ký có 3 mức');
+    alignSelT.value = 'right';
+    alignSelT.dispatchEvent(new w11.Event('change'));
+    assert.strictEqual(w11.eval('printSettings.sigsAlign'), 'right', 'chọn Phải ở cấu hình thì lưu vào printSettings');
 
     /* Chữ ký đi theo file sao lưu (nằm trong hồ sơ KTV) */
     const bk = JSON.stringify(w11.eval("(function () { const o = JSON.parse(store.exportBackup()); o.staff = staffList.slice(); return o; })()"));

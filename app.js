@@ -2842,6 +2842,7 @@ function defaultPrintSettings() {
       { on: false, title: 'Trưởng khoa', name: '', staff: '' },
       { on: false, title: '', name: '', staff: '' },
     ],
+    sigsAlign: 'center',
   };
 }
 
@@ -2862,6 +2863,7 @@ function normalizePrintSettings(saved) {
     } : dc;
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+  if (!['left', 'center', 'right'].includes(merged.sigsAlign)) merged.sigsAlign = 'center';
   merged.sigs = merged.sigs.map((g, i) => ({
     on: !!(g && g.on),
     title: g && typeof g.title === 'string' ? g.title : (def.sigs[i] ? def.sigs[i].title : ''),
@@ -3124,7 +3126,7 @@ function renderSheet(s, recs, opts) {
   }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
-    ? '<div class="sh-sigs">' + sigs.map((g) => {
+    ? '<div class="sh-sigs' + (s.sigsAlign === 'left' ? ' align-left' : s.sigsAlign === 'right' ? ' align-right' : '') + '">' + sigs.map((g) => {
       /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
       const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
       const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
@@ -3294,6 +3296,8 @@ function fillPrintCfgControls() {
   $('pcfg-logo2-size').value = s.logo2Size;
   syncRightZoneBlocks();
   renderPresetOptions();
+  const alignSel = $('pcfg-sigs-align');
+  if (alignSel) alignSel.value = s.sigsAlign || 'center';
   s.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
@@ -3392,6 +3396,8 @@ function bindPrintCfg() {
   $('btn-preset-save').addEventListener('click', savePresetFromUI);
   $('btn-preset-apply').addEventListener('click', applyPresetFromUI);
   $('btn-preset-del').addEventListener('click', deletePresetFromUI);
+  const alignSelB = $('pcfg-sigs-align');
+  if (alignSelB) alignSelB.addEventListener('change', (e) => { printSettings.sigsAlign = e.target.value; upd(); });
   printSettings.sigs.forEach((g, i) => {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
