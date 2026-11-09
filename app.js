@@ -1995,6 +1995,53 @@ function acceptScanCode(rawCode) {
   return true;
 }
 
+/* F35 (v71): chụp ảnh đọc mã — cho lúc mã xấu, quét trực tiếp mãi không ra.
+   Ảnh chỉ được xử lý trong bộ nhớ rồi bỏ ngay: không lưu vào máy, không đính
+   vào bản ghi, không gửi đi đâu. Đọc được mã thì đi đúng đường acceptScanCode
+   như quét trực tiếp (tiếp nhận / tìm mẫu / điền form đều dùng chung). */
+async function scanPhotoFile(file) {
+  if (!file || !scannerState) return;
+  if (!('BarcodeDetector' in window) || typeof createImageBitmap !== 'function') {
+    setScanMsg('Trình duyệt này không đọc được mã từ ảnh — hãy mở app bằng Chrome trên điện thoại hoặc bản APK để chụp ảnh đọc mã.', 'err');
+    beepErr();
+    return;
+  }
+  setScanMsg('Đang đọc mã trong ảnh...');
+  try {
+    const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
+    const bmp = await createImageBitmap(file);
+    let codes = await detector.detect(bmp).catch(() => []);
+    if ((!codes || !codes.length) && bmp.width > 800 && bmp.height > 800) {
+      /* Chưa ra: thử lại trên vùng giữa ảnh (mã thường nằm ở đó, ít nhiễu hơn) */
+      const cw = Math.floor(bmp.width * 0.62);
+      const ch = Math.floor(bmp.height * 0.62);
+      const cv = document.createElement('canvas');
+      cv.width = cw;
+      cv.height = ch;
+      const ctx = cv.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, cw, ch);
+        const crop = await createImageBitmap(cv).catch(() => null);
+        if (crop) {
+          codes = await detector.detect(crop).catch(() => []);
+          if (crop.close) crop.close();
+        }
+      }
+    }
+    if (bmp.close) bmp.close();
+    const code = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
+    if (!code) {
+      setScanMsg('Chưa đọc được mã trong ảnh — chụp gần hơn, rõ nét, đủ sáng rồi thử lại.', 'err');
+      beepErr();
+      if (navigator.vibrate) navigator.vibrate(120);
+      return;
+    }
+    acceptScanCode(code);
+  } catch (e) {
+    setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
+  }
+}
+
 async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('scan-frame').classList.add('hidden');
@@ -4247,6 +4294,19 @@ function init() {
   });
   $('scanner-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); $('btn-scanner-add').click(); }
+  });
+  /* F35: chụp ảnh đọc mã — chọn/chụp xong là xử lý ngay; xóa trắng ô chọn file
+     liền tay, ảnh không được lưu ở bất cứ đâu trong app */
+  $('btn-scan-photo').addEventListener('click', () => {
+    const inp = $('scan-photo-input');
+    inp.value = '';
+    inp.click();
+  });
+  $('scan-photo-input').addEventListener('change', () => {
+    const inp = $('scan-photo-input');
+    const f = inp.files && inp.files[0];
+    inp.value = '';
+    if (f) scanPhotoFile(f);
   });
 
   switchView('today');

@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v70 và precache đúng URL ?v=70 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v71 và precache đúng URL ?v=71 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v70'"), 'sw.js phải gắn VERSION v70');
-    for (const a of ['styles.css?v=70', 'print.css?v=70', 'config.js?v=70', 'store.js?v=70', 'mascot.js?v=70', 'app.js?v=70', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v71'"), 'sw.js phải gắn VERSION v71');
+    for (const a of ['styles.css?v=71', 'print.css?v=71', 'config.js?v=71', 'store.js?v=71', 'mascot.js?v=71', 'app.js?v=71', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2019,7 +2019,43 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w10.close();
   });
 
-  test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, gắn vào ô ký của bản in', async () => {
+  test('F35 (v71): chụp ảnh đọc mã trong màn hình quét + khối chữ ký in không tách trang', async () => {
+  const dom12 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+    beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Ảnh', salt: 's12', pinHash: 'h12' }]), 'labentry.operator.v1': 'KTV Ảnh' }); } });
+  const w12 = dom12.window;
+  const d12 = w12.document;
+  await new Promise((res) => { if (d12.readyState === 'complete') res(); else w12.addEventListener('load', res); });
+  await new Promise((r) => setTimeout(r, 300));
+
+  assert.ok(d12.getElementById('btn-scan-photo'), 'màn hình quét có nút chụp ảnh đọc mã');
+  const inp = d12.getElementById('scan-photo-input');
+  assert.ok(inp && (inp.getAttribute('accept') || '').includes('image') && inp.getAttribute('capture') === 'environment', 'ô chọn ảnh mở camera sau và chỉ nhận ảnh');
+
+  /* Gia lap bo doc ma + giai ma anh (trinh duyet that dung BarcodeDetector cua may) */
+  w12.BarcodeDetector = class { async detect() { return [{ rawValue: 'XN-ANH-01' }]; } };
+  w12.createImageBitmap = async () => ({ width: 400, height: 300, close() {} });
+  w12.eval("currentOperator = 'KTV Ảnh'");
+  w12.eval("openScanner('today')");
+  await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); })()");
+  assert.ok(w12.eval("store.getAll().some((r) => r.testId === 'XN-ANH-01')"), 'đọc được mã trong ảnh thì tiếp nhận mẫu như quét trực tiếp');
+  assert.strictEqual(w12.eval('scannerState.count'), 1, 'phiên quét đếm mẫu nhận từ ảnh');
+  assert.strictEqual(inp.value, '', 'ô chọn file trống — ảnh không được giữ lại');
+
+  w12.BarcodeDetector = class { async detect() { return []; } };
+  await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'b.jpg', { type: 'image/jpeg' })); })()");
+  assert.ok(d12.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã trong ảnh'), 'ảnh không có mã thì báo rõ, không nhận bừa');
+  assert.strictEqual(w12.eval('store.getAll().length'), 1, 'không thêm mẫu khi không đọc được mã');
+
+  delete w12.BarcodeDetector;
+  await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'c.jpg', { type: 'image/jpeg' })); })()");
+  assert.ok(d12.getElementById('scanner-msg').textContent.includes('không đọc được mã từ ảnh'), 'thiếu BarcodeDetector thì báo trình duyệt không hỗ trợ');
+
+  /* v71: khối chữ ký không được tách đôi qua trang khi in */
+  const printCss = fs.readFileSync(path.join(__dirname, '..', 'print.css'), 'utf8');
+  assert.ok(printCss.includes('.sh-sigs') && printCss.includes('break-inside: avoid'), 'print.css giữ nguyên khối chữ ký khi ngắt trang');
+});
+
+test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, gắn vào ô ký của bản in', async () => {
     const dom11 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
       beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Ký', salt: 's11', pinHash: 'h11' }]), 'labentry.operator.v1': 'KTV Ký' }); } });
     const w11 = dom11.window;

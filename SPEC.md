@@ -405,3 +405,9 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
   3. **Dọn chỗ khi bàn phím mở**: `visualViewport` phát hiện vùng hiển thị co > 150px → gắn cờ `body.kb-open` → CSS ẩn linh vật (`#mascot`), thanh điều hướng dưới (`#bottom-nav`) và nút nổi (`.fab`), thu gọn `.batch-navbar`; bàn phím đóng thì mọi thứ trở lại.
 - Phạm vi: mọi ô nhập trong app (form đơn, lô thẻ, lô bảng, các cửa sổ tùy chỉnh) vì cơ chế gắn ở cấp document.
 - Kiểm chứng: jsdom (meta viewport; focus vào ô ở dạng thẻ kích hoạt tự cuộn) + Chromium thật giả lập điện thoại (focus ô cuối thẻ → ô được cuộn vào vùng giữa màn hình) và giả lập PC (focus không tự cuộn). Hành vi bàn phím thật (Samsung Keyboard/Gboard, chiều cao từng máy) cần Minh thử trên máy thật; nếu còn khuất sẽ chỉnh thêm độ trễ/đệm.
+
+## F35 — Chụp ảnh đọc mã trong màn hình quét + khối ký không tách trang (v71)
+
+- Trong modal quét có nút **📷 Chụp ảnh đọc mã** (kèm ô file ẩn `accept="image/*" capture="environment"`): dùng khi mã in xấu, quét trực tiếp không ra. Ảnh được giải mã bằng chính bộ `BarcodeDetector` của máy trên ảnh tĩnh (thử toàn ảnh, chưa ra thì thử vùng giữa ảnh), đọc được mã thì đi đúng đường `acceptScanCode` như quét trực tiếp (tiếp nhận liên tục / quét 1 mã / quét tìm đều dùng được).
+- **Ảnh không bao giờ được lưu**: chỉ xử lý trong bộ nhớ rồi bỏ, ô chọn file được xóa trắng ngay khi chọn xong; không ghi localStorage, không đính vào bản ghi, không tải lên đâu. Trình duyệt không có BarcodeDetector (vd Safari/iOS) thì báo rõ là không đọc được mã từ ảnh.
+- In ấn: khối chữ ký cuối phiếu (`.sh-sigs`) có `break-inside: avoid` trong print.css — không đủ chỗ ở cuối trang thì cả khối ngắt sang trang mới, không để chức danh ở một trang còn chữ ký/họ tên ở trang sau.

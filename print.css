@@ -5,4 +5,7 @@
   body { padding: 0; background: #fff; max-width: none; border: none; }
   body > *:not(#print-area) { display: none !important; }
   #print-area { display: block !important; }
+  /* Khối chữ ký: không đủ chỗ ở cuối trang thì ngắt sang trang mới nguyên
+     khối, không để chức danh một trang, chữ ký/họ tên trang sau (v71) */
+  .sh-sigs, .sh-sig { break-inside: avoid; page-break-inside: avoid; }
 }
