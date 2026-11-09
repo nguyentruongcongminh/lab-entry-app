@@ -28,7 +28,7 @@ function test(name, fn) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
+  const htmlPath = 'lab-entry-single.html';
   /* jsdom coi file:// là origin mờ nên localStorage gốc bị chặn (SecurityError) —
      thay bằng bản nhớ tạm trong bộ nhớ để app chạy đúng như trên trình duyệt thật,
      đồng thời gieo sẵn dữ liệu qua beforeParse */
@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v66 và precache đúng URL ?v=66 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v67 và precache đúng URL ?v=67 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v66'"), 'sw.js phải gắn VERSION v66');
-    for (const a of ['styles.css?v=66', 'print.css?v=66', 'config.js?v=66', 'store.js?v=66', 'mascot.js?v=66', 'app.js?v=66', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v67'"), 'sw.js phải gắn VERSION v67');
+    for (const a of ['styles.css?v=67', 'print.css?v=67', 'config.js?v=67', 'store.js?v=67', 'mascot.js?v=67', 'app.js?v=67', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -614,6 +614,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const micRule = css.match(/\.mic-wrap\s*\{[^}]*\}/);
     assert.ok(micRule && micRule[0].includes('flex: 1') && micRule[0].includes('min-width: 0'),
       'styles.css: .mic-wrap phải khai flex: 1 và min-width: 0 (v48)');
+    /* v67 F34: ảnh chữ ký trong ô ký tên phải bị giới hạn chiều cao */
+    const sigRule = css.match(/\.sh-sig-img\s*\{[^}]*\}/);
+    assert.ok(sigRule && sigRule[0].includes('max-height: 56px'), 'styles.css: .sh-sig-img phải có max-height 56px (F34)');
   });
 
   test('nút nhập kết quả nhanh: loại có mẫu thì hiện hàng nút gọn, bấm là điền cả bộ kết quả nhưng KHÔNG tự lưu; loại chưa có mẫu thì không hiện hàng nút (v25)', () => {
@@ -2014,6 +2017,59 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(d10.getElementById('fab-add').classList.contains('hidden'), 'nút + ẩn ở tab Giao diện');
     assert.strictEqual(w10.eval('mascotVisibleHere()'), true, 'linh vật vẫn hiện ở tab Giao diện để xem trước khi tùy chỉnh');
     w10.close();
+  });
+
+  test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, gắn vào ô ký của bản in', async () => {
+    const dom11 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Ký', salt: 's11', pinHash: 'h11' }]), 'labentry.operator.v1': 'KTV Ký' }); } });
+    const w11 = dom11.window;
+    await new Promise((res) => { if (w11.document.readyState === 'complete') res(); else w11.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const d11 = w11.document;
+    const SIG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    /* Hồ sơ cũ (chưa có trường sig) -> normalize cho sig rỗng; hàng KTV có nút + nhãn */
+    assert.strictEqual(w11.eval("staffList.find((x) => x.name === 'KTV Ký').sig"), '', 'KTV cũ chưa có chữ ký thì sig rỗng');
+    w11.eval('renderStaffList()');
+    assert.ok(d11.querySelector('[data-staff-sig="KTV Ký"]'), 'danh sách KTV có nút Chữ ký');
+    assert.ok(d11.getElementById('staff-list').textContent.includes('chưa ký'), 'nhãn chưa có chữ ký');
+
+    /* Đặt chữ ký -> persist + nạp lại vẫn còn */
+    w11.eval("staffList.find((x) => x.name === 'KTV Ký').sig = '" + SIG + "'; persistStaff();");
+    assert.strictEqual(JSON.parse(w11.localStorage.getItem('labentry.staff.v1'))[0].sig, SIG, 'chữ ký lưu trong labentry.staff.v1');
+    w11.eval('loadStaff()');
+    assert.strictEqual(w11.eval('staffList[0].sig'), SIG, 'nạp lại hồ sơ vẫn giữ chữ ký');
+    w11.eval('renderStaffList()');
+    assert.ok(d11.getElementById('staff-list').textContent.includes('✍️ đã ký'), 'nhãn có chữ ký sau khi đặt');
+
+    /* normalizePrintSettings: ô ký cũ không có staff -> rỗng, giữ nguyên tên */
+    const legacy = w11.eval("normalizePrintSettings({ sigs: [{ on: true, title: 'A', name: 'B' }, { on: false, title: '', name: '' }, { on: false, title: '', name: '' }] })");
+    assert.strictEqual(legacy.sigs[0].staff, '', 'ô ký cũ không có staff -> rỗng');
+    assert.strictEqual(legacy.sigs[0].name, 'B', 'tên ô ký cũ được giữ');
+
+    /* Render phiếu: gắn KTV có chữ ký -> in ảnh; không gắn / KTV chưa ký -> không ảnh */
+    const html1 = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người phát hành', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
+    assert.ok(html1.includes('sh-sig-img') && html1.includes(SIG), 'ô ký gắn KTV có chữ ký thì in ảnh chữ ký');
+    const html2 = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người phát hành', name: 'KTV Ký', staff: '' }; return renderSheet(s, [], {}); })()");
+    assert.ok(!html2.includes('sh-sig-img'), 'ô ký không gắn KTV thì không có ảnh');
+    w11.eval("staffList.find((x) => x.name === 'KTV Ký').sig = '';");
+    const html3 = w11.eval("(function () { const s = defaultPrintSettings(); s.sigs[0] = { on: true, title: 'Người phát hành', name: 'KTV Ký', staff: 'KTV Ký' }; return renderSheet(s, [], {}); })()");
+    assert.ok(!html3.includes('sh-sig-img'), 'gắn KTV nhưng KTV chưa có chữ ký thì không có ảnh');
+    w11.eval("staffList.find((x) => x.name === 'KTV Ký').sig = '" + SIG + "';");
+
+    /* Ô chọn KTV ở cấu hình in: liệt kê KTV; chọn thì lưu staff + tự điền họ tên */
+    w11.eval('fillPrintCfgControls()');
+    const selStaff = d11.getElementById('pcfg-sig1-staff');
+    assert.ok(selStaff && [...selStaff.options].some((o) => o.value === 'KTV Ký'), 'ô chọn chữ ký liệt kê KTV');
+    selStaff.value = 'KTV Ký';
+    selStaff.dispatchEvent(new w11.Event('change'));
+    assert.strictEqual(w11.eval('printSettings.sigs[0].staff'), 'KTV Ký', 'chọn KTV thì lưu staff vào ô ký');
+    assert.strictEqual(d11.getElementById('pcfg-sig1-name').value, 'KTV Ký', 'chọn KTV thì tự điền họ tên vào ô ký');
+
+    /* Chữ ký đi theo file sao lưu (nằm trong hồ sơ KTV) */
+    const bk = JSON.stringify(w11.eval("(function () { const o = JSON.parse(store.exportBackup()); o.staff = staffList.slice(); return o; })()"));
+    assert.ok(bk.includes(SIG), 'file sao lưu mang theo ảnh chữ ký trong hồ sơ KTV');
+    w11.close();
   });
 
   await chain;

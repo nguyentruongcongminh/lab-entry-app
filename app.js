@@ -2104,12 +2104,14 @@ let staffList = [];
 let currentOperator = '';
 
 function normalizeStaffEntry(x) {
-  if (typeof x === 'string' && x.trim()) return { name: x.trim(), salt: '', pinHash: null };
+  if (typeof x === 'string' && x.trim()) return { name: x.trim(), salt: '', pinHash: null, sig: '' };
   if (x && typeof x.name === 'string' && x.name.trim()) {
     return {
       name: x.name.trim(),
       salt: typeof x.salt === 'string' ? x.salt : '',
       pinHash: typeof x.pinHash === 'string' && x.pinHash ? x.pinHash : null,
+      /* Ảnh chữ ký (F34): data URL PNG đã thu nhỏ; file cũ không có -> '' */
+      sig: (typeof x.sig === 'string' && x.sig.indexOf('data:image/') === 0 && x.sig.length <= 300000) ? x.sig : '',
     };
   }
   return null;
@@ -2302,6 +2304,8 @@ function renderStaffList() {
     li.innerHTML = '<span class="staff-name">' + esc(st.name) + '</span>' +
       (st.name === currentOperator ? '<span class="staff-current">đang trực</span>' : '') +
       '<span class="staff-pin-state">' + (st.pinHash ? '🔒 có PIN' : 'chưa có PIN') + '</span>' +
+      '<span class="staff-pin-state">' + (st.sig ? '✍️ đã ký' : 'chưa ký') + '</span>' +
+      '<button type="button" class="mini-btn" data-staff-sig="' + esc(st.name) + '">Chữ ký</button>' +
       '<button type="button" class="mini-btn" data-staff-pin="' + esc(st.name) + '">' + (st.pinHash ? 'Đổi PIN' : 'Đặt PIN') + '</button>' +
       '<button type="button" class="mini-btn danger" data-staff-del="' + esc(st.name) + '">Xóa</button>';
     ul.appendChild(li);
@@ -2311,6 +2315,146 @@ function renderStaffList() {
 
 function openStaffDialog() { renderStaffList(); $('staff-modal').classList.remove('hidden'); }
 function closeStaffDialog() { $('staff-modal').classList.add('hidden'); }
+
+/* ================= Chữ ký KTV (F34, v67) =================
+ * Mỗi KTV lưu một ảnh chữ ký (data URL PNG đã cắt gọn + thu nhỏ, nằm
+ * trong hồ sơ KTV ở labentry.staff.v1 nên đi theo sao lưu như PIN băm).
+ * Vẽ trực tiếp trên khung vẽ hoặc tải ảnh; khi in, ô ký nào gắn với KTV
+ * này (ở cấu hình bản in) sẽ hiện ảnh chữ ký trong khoảng ký tên. */
+let sigTarget = '';
+let sigDrawn = false;
+let sigStroke = null;
+function sigStaff() { return staffList.find((x) => x.name === sigTarget) || null; }
+function clearSigPad() {
+  const c = $('sig-pad');
+  const g = c && c.getContext ? c.getContext('2d') : null;
+  if (g) g.clearRect(0, 0, c.width, c.height);
+  sigDrawn = false;
+  sigStroke = null;
+}
+function sigDrawImage(img) {
+  const c = $('sig-pad');
+  const g = c && c.getContext ? c.getContext('2d') : null;
+  if (!g) return;
+  g.clearRect(0, 0, c.width, c.height);
+  const sc = Math.min(c.width / img.width, c.height / img.height);
+  const w = img.width * sc;
+  const h = img.height * sc;
+  g.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+  sigDrawn = true;
+}
+function openSigDialog(name) {
+  sigTarget = name;
+  const st = staffList.find((x) => x.name === name);
+  $('sig-title').textContent = 'Chữ ký của ' + name;
+  $('btn-sig-remove').classList.toggle('hidden', !(st && st.sig));
+  clearSigPad();
+  $('sig-modal').classList.remove('hidden');
+  if (st && st.sig) {
+    const img = new Image();
+    img.onload = () => sigDrawImage(img);
+    img.src = st.sig;
+  }
+}
+function closeSigDialog() { $('sig-modal').classList.add('hidden'); sigTarget = ''; sigStroke = null; }
+function sigPadPos(e) {
+  const c = $('sig-pad');
+  const r = c.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
+}
+function initSigPad() {
+  const pad = $('sig-pad');
+  if (!pad) return;
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    try { pad.setPointerCapture(e.pointerId); } catch (err) { /* bỏ qua */ }
+    sigStroke = sigPadPos(e);
+    const g = pad.getContext('2d');
+    g.fillStyle = '#1a237e';
+    g.beginPath();
+    g.arc(sigStroke.x, sigStroke.y, 1.7, 0, 7);
+    g.fill();
+    sigDrawn = true;
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (!sigStroke) return;
+    const p = sigPadPos(e);
+    const g = pad.getContext('2d');
+    g.strokeStyle = '#1a237e';
+    g.lineWidth = 3.4;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.beginPath();
+    g.moveTo(sigStroke.x, sigStroke.y);
+    g.lineTo(p.x, p.y);
+    g.stroke();
+    sigStroke = p;
+  });
+  ['pointerup', 'pointercancel'].forEach((ev) => pad.addEventListener(ev, () => { sigStroke = null; }));
+}
+function sigPadExport() {
+  const c = $('sig-pad');
+  const g = c.getContext('2d');
+  let data;
+  try { data = g.getImageData(0, 0, c.width, c.height).data; } catch (e) { return ''; }
+  let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < c.height; y += 1) {
+    for (let x = 0; x < c.width; x += 1) {
+      if (data[(y * c.width + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return '';
+  const pad = 8;
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(c.width - 1, maxX + pad);
+  maxY = Math.min(c.height - 1, maxY + pad);
+  const w = maxX - minX + 1;
+  const h = maxY - minY + 1;
+  const out = document.createElement('canvas');
+  const scale = Math.min(1, 360 / w);
+  out.width = Math.max(1, Math.round(w * scale));
+  out.height = Math.max(1, Math.round(h * scale));
+  out.getContext('2d').drawImage(c, minX, minY, w, h, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
+function saveSigFromDialog() {
+  const st = sigStaff();
+  if (!st) { closeSigDialog(); return; }
+  const url = sigDrawn ? sigPadExport() : '';
+  if (!url) { toast('Chưa có chữ ký — hãy vẽ trong khung hoặc tải ảnh lên trước'); return; }
+  st.sig = url;
+  persistStaff();
+  audit('staff-sig', 'Cập nhật chữ ký cho KTV ' + st.name, null);
+  closeSigDialog();
+  renderStaffList();
+  if (typeof fillPrintCfgControls === 'function') fillPrintCfgControls();
+  toast('Đã lưu chữ ký cho ' + st.name);
+}
+function removeSigFromDialog() {
+  const st = sigStaff();
+  if (!st) { closeSigDialog(); return; }
+  st.sig = '';
+  persistStaff();
+  audit('staff-sig', 'Xóa chữ ký của KTV ' + st.name, null);
+  closeSigDialog();
+  renderStaffList();
+  if (typeof fillPrintCfgControls === 'function') fillPrintCfgControls();
+  toast('Đã xóa chữ ký của ' + st.name);
+}
+function sigFileToPad(file) {
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { sigDrawImage(img); URL.revokeObjectURL(url); };
+  img.onerror = () => { URL.revokeObjectURL(url); toast('Không đọc được file ảnh này'); };
+  img.src = url;
+}
 
 async function addStaffFromDialog() {
   const inp = $('input-staff-name');
@@ -2355,7 +2499,7 @@ const AUDIT_KEY = 'labentry.audit.v1';
 const AUDIT_CAP = 2000;
 const AUDIT_LABELS = {
   receive: 'Nhận mẫu', save: 'Nhập/sửa kết quả', release: 'Phát hành', unrelease: 'Hủy phát hành',
-  delete: 'Xóa mẫu', 'staff-add': 'Thêm KTV', 'staff-del': 'Xóa KTV', operator: 'Đổi người trực',
+  delete: 'Xóa mẫu', 'staff-add': 'Thêm KTV', 'staff-del': 'Xóa KTV', 'staff-sig': 'Chữ ký KTV', operator: 'Đổi người trực',
   restore: 'Phục hồi dữ liệu', merge: 'Gộp dữ liệu',
 };
 let auditLog = [];
@@ -2694,9 +2838,9 @@ function defaultPrintSettings() {
     footnote: '', printDate: false, tat: false,
     resultsMode: 'grouped', groupBy: 'none', zebra: false, headerColor: '#e8e8e8',
     sigs: [
-      { on: false, title: 'Người lập bảng', name: '' },
-      { on: false, title: 'Trưởng khoa', name: '' },
-      { on: false, title: '', name: '' },
+      { on: false, title: 'Người lập bảng', name: '', staff: '' },
+      { on: false, title: 'Trưởng khoa', name: '', staff: '' },
+      { on: false, title: '', name: '', staff: '' },
     ],
   };
 }
@@ -2718,6 +2862,12 @@ function normalizePrintSettings(saved) {
     } : dc;
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
+  merged.sigs = merged.sigs.map((g, i) => ({
+    on: !!(g && g.on),
+    title: g && typeof g.title === 'string' ? g.title : (def.sigs[i] ? def.sigs[i].title : ''),
+    name: g && typeof g.name === 'string' ? g.name : '',
+    staff: g && typeof g.staff === 'string' ? g.staff : '',
+  }));
   if (!['left', 'center', 'right', 'auto'].includes(merged.logoPos)) merged.logoPos = 'auto';
   if (!['side', 'center', 'grid3'].includes(merged.headerLayout)) merged.headerLayout = 'side';
   if (!['none', 'doc', 'image'].includes(merged.rightZone)) merged.rightZone = 'none';
@@ -2974,10 +3124,14 @@ function renderSheet(s, recs, opts) {
   }).join('');
   const sigs = (s.sigs || []).filter((g) => g && g.on);
   const sigHtml = sigs.length
-    ? '<div class="sh-sigs">' + sigs.map((g) =>
-      '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
-      '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space"></div>' +
-      '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>').join('') + '</div>'
+    ? '<div class="sh-sigs">' + sigs.map((g) => {
+      /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
+      const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
+      const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
+      return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+        '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
+        '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
+    }).join('') + '</div>'
     : '';
   const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
     ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
@@ -3144,6 +3298,12 @@ function fillPrintCfgControls() {
     $('pcfg-sig' + (i + 1) + '-on').checked = !!g.on;
     $('pcfg-sig' + (i + 1) + '-title').value = g.title || '';
     $('pcfg-sig' + (i + 1) + '-name').value = g.name || '';
+    const staffSel = $('pcfg-sig' + (i + 1) + '-staff');
+    if (staffSel) {
+      staffSel.innerHTML = '<option value="">— Không gắn ảnh chữ ký —</option>' +
+        staffList.map((st) => '<option value="' + esc(st.name) + '"' + (st.sig ? '' : ' data-nosig="1"') + '>' + esc(st.name) + (st.sig ? ' ✍️' : ' (chưa có chữ ký)') + '</option>').join('');
+      staffSel.value = g.staff && staffList.some((st) => st.name === g.staff) ? g.staff : '';
+    }
   });
   renderPrintCfgColumns();
 }
@@ -3236,6 +3396,12 @@ function bindPrintCfg() {
     $('pcfg-sig' + (i + 1) + '-on').addEventListener('change', (e) => { g.on = e.target.checked; upd(); });
     $('pcfg-sig' + (i + 1) + '-title').addEventListener('input', (e) => { g.title = e.target.value; upd(); });
     $('pcfg-sig' + (i + 1) + '-name').addEventListener('input', (e) => { g.name = e.target.value; upd(); });
+    const staffSel = $('pcfg-sig' + (i + 1) + '-staff');
+    if (staffSel) staffSel.addEventListener('change', (e) => {
+      g.staff = e.target.value;
+      if (g.staff) { g.name = g.staff; $('pcfg-sig' + (i + 1) + '-name').value = g.name; }
+      upd();
+    });
   });
   $('btn-pcfg-logo').addEventListener('click', () => $('pcfg-logo-file').click());
   $('pcfg-logo-file').addEventListener('change', (e) => { handleLogoFile(e.target.files && e.target.files[0]); e.target.value = ''; });
@@ -3954,11 +4120,20 @@ function init() {
   $('btn-staff-add').addEventListener('click', addStaffFromDialog);
   $('input-staff-name').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addStaffFromDialog(); } });
   $('staff-list').addEventListener('click', (e) => {
+    const sg = e.target.closest('[data-staff-sig]');
+    if (sg) { openSigDialog(sg.dataset.staffSig); return; }
     const pb = e.target.closest('[data-staff-pin]');
     if (pb) { changeStaffPin(pb.dataset.staffPin); return; }
     const b = e.target.closest('[data-staff-del]');
     if (b) deleteStaff(b.dataset.staffDel);
   });
+  initSigPad();
+  $('btn-sig-cancel').addEventListener('click', closeSigDialog);
+  $('btn-sig-save').addEventListener('click', saveSigFromDialog);
+  $('btn-sig-remove').addEventListener('click', removeSigFromDialog);
+  $('btn-sig-clear').addEventListener('click', clearSigPad);
+  $('btn-sig-upload').addEventListener('click', () => $('sig-file').click());
+  $('sig-file').addEventListener('change', (e) => { sigFileToPad(e.target.files && e.target.files[0]); e.target.value = ''; });
   $('btn-pin-ok').addEventListener('click', submitPinModal);
   $('btn-pin-cancel').addEventListener('click', () => closePinModal(false));
   ['pin-input', 'pin-input2'].forEach((id) => $(id).addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitPinModal(); } }));

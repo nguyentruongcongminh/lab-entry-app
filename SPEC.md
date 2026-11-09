@@ -389,6 +389,12 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 - Hai thẻ tùy chỉnh (Linh vật đồng ca + Chủ đề lễ hội) chuyển từ tab Quản lý sang **tab chính mới "Giao diện"** (`view-display`), nằm cạnh tab Quản lý ở thanh điều hướng dưới (thứ tự: Kết quả hôm nay · Quản lý · **Giao diện** · Lọc & Xuất kết quả PDF).
 - Tab Giao diện là tab chính (thanh điều hướng dưới vẫn hiện), nút **+ ẩn** ở tab này (như tab Lọc & Xuất). Linh vật vẫn hiện ở tab Giao diện để xem trước khi tùy chỉnh (`mascotVisibleHere` thêm `display`). Không thay đổi khóa lưu trữ hay hành vi nào khác.
 
+## F34 — Chữ ký của từng KTV trên bản in (v67, 2026-11-09, Minh chọn từ danh sách ý tưởng "pro")
+
+- Mỗi KTV lưu **một ảnh chữ ký** trong hồ sơ của mình (trường `sig` trong `labentry.staff.v1`, data URL PNG) — đi theo file sao lưu/gộp như mã băm PIN. Đặt/thay qua nút **Chữ ký** ở danh sách KTV (Quản lý → Danh sách KTV): hộp thoại có **khung vẽ** (vẽ bằng ngón tay/chuột, mực xanh đậm), **Tải ảnh chữ ký** có sẵn, **Xóa bản vẽ**, **Xóa chữ ký đã lưu**. Khi lưu, ảnh được **cắt gọn viền trong suốt + thu nhỏ bề ngang ≤ 360px**. Đặt/xóa chữ ký ghi nhật ký thao tác (`staff-sig`), nội dung ảnh không ghi log.
+- Ở **Cấu hình bản in**, mỗi ô ký (3 ô) có thêm ô chọn **Ảnh chữ ký của KTV**: chọn một KTV thì họ tên của ô ký tự điền theo tên KTV đó; khi in, nếu KTV được gắn **có** ảnh chữ ký, ảnh hiện trong khoảng ký tên (giới hạn cao 56px, rộng 170px, căn giữa). KTV chưa có chữ ký hoặc ô không gắn KTV → khoảng ký để trống như trước để ký tay.
+- Hồ sơ KTV cũ và bố cục bản in cũ (chưa có trường `sig`/`staff`) được normalize về giá trị rỗng — không mất dữ liệu, không đổi hành vi cũ.
+
 ## F33 — Chống bàn phím che ô nhập (v66, 2026-11-09, Minh góp ý)
 
 - Vấn đề: ở form nhập thường và nhập theo lô, khi bấm vào ô chữ trên Android, bàn phím bật lên che ô đang nhập; có trường hợp phải kéo màn hình lên mới thấy rõ để nhập.

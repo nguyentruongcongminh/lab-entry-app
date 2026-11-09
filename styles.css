@@ -576,7 +576,8 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet .sh-sig { flex: 1 1 0; text-align: center; }
 .sheet .sh-sig-title { font-weight: 700; text-transform: uppercase; }
 .sheet .sh-sig-note { font-style: italic; font-size: 0.9em; }
-.sheet .sh-sig-space { height: 64px; }
+.sheet .sh-sig-space { height: 64px; display: flex; align-items: center; justify-content: center; }
+.sheet .sh-sig-img { max-height: 56px; max-width: 170px; object-fit: contain; }
 .sheet .sh-sig-name { font-weight: 700; }
 .sheet .sh-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; font-size: 0.9em; font-style: italic; }
 
@@ -890,3 +891,9 @@ body.kb-open #mascot { display: none; }
 body.kb-open #bottom-nav { display: none; }
 body.kb-open .fab { display: none; }
 body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
+
+/* ===== Chữ ký KTV (v67 F34) ===== */
+#sig-pad { width: 100%; height: auto; border: 1.5px dashed #90a4ae; border-radius: 8px; background: #fff; touch-action: none; }
+.sig-hint { color: #546e7a; font-size: 13px; margin: 4px 0 10px; }
+.sig-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.pcfg-sig-row select { flex: 1 1 140px; min-width: 0; }
