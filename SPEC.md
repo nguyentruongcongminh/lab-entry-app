@@ -411,3 +411,9 @@ Mọi loại đều có thêm: Ghi chú chung, Ngày giờ phát hành, Ngày Gi
 - Trong modal quét có nút **📷 Chụp ảnh đọc mã** (kèm ô file ẩn `accept="image/*" capture="environment"`): dùng khi mã in xấu, quét trực tiếp không ra. Ảnh được giải mã bằng chính bộ `BarcodeDetector` của máy trên ảnh tĩnh (thử toàn ảnh, chưa ra thì thử vùng giữa ảnh), đọc được mã thì đi đúng đường `acceptScanCode` như quét trực tiếp (tiếp nhận liên tục / quét 1 mã / quét tìm đều dùng được).
 - **Ảnh không bao giờ được lưu**: chỉ xử lý trong bộ nhớ rồi bỏ, ô chọn file được xóa trắng ngay khi chọn xong; không ghi localStorage, không đính vào bản ghi, không tải lên đâu. Trình duyệt không có BarcodeDetector (vd Safari/iOS) thì báo rõ là không đọc được mã từ ảnh.
 - In ấn: khối chữ ký cuối phiếu (`.sh-sigs`) có `break-inside: avoid` trong print.css — không đủ chỗ ở cuối trang thì cả khối ngắt sang trang mới, không để chức danh ở một trang còn chữ ký/họ tên ở trang sau.
+
+## F36 — Linh vật báo mẫu quá 60 phút chưa phát hành + lời thoại ca êm mới (v72)
+
+- Theo yêu cầu của Minh (2026-11-10): thêm trạng thái linh vật **unreleased** — mẫu **đã có kết quả** (trạng thái chờ phát hành) mà **quá 60 phút tính từ lúc nhận mẫu** vẫn chưa phát hành thì linh vật nhắc riêng: bong bóng "Có mẫu quá 60 phút chưa phát hành: {ID…}" (liệt kê tối đa 6 ID, nhiều hơn thì ghi "+N mẫu nữa"), huy hiệu = số mẫu, ảnh dùng mặt lo lắng (worried, chung với quá tải), chuyển động lắc nhẹ như quá tải.
+- Thứ tự ưu tiên đầy đủ của `computeMascotState`: **quá giờ hẹn (overdue) > sắp tới giờ (hurried) > chưa phát hành quá 60 phút (unreleased) > quá tải (overload) > đang chờ (waiting) > ca êm (calm)**. Mẫu chưa có kết quả KHÔNG tính vào unreleased (chưa có gì để phát hành; nhóm đó thuộc overdue/overload).
+- Lời thoại ca êm đổi từ "Ca êm quá — không còn mẫu nào tồn! 🎉" thành **"Hết mẫu rồi!"** (nguyên văn Minh yêu cầu).

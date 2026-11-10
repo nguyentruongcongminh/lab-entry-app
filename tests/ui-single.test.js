@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v71 và precache đúng URL ?v=71 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v72 và precache đúng URL ?v=72 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v71'"), 'sw.js phải gắn VERSION v71');
-    for (const a of ['styles.css?v=71', 'print.css?v=71', 'config.js?v=71', 'store.js?v=71', 'mascot.js?v=71', 'app.js?v=71', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v72'"), 'sw.js phải gắn VERSION v72');
+    for (const a of ['styles.css?v=72', 'print.css?v=72', 'config.js?v=72', 'store.js?v=72', 'mascot.js?v=72', 'app.js?v=72', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1818,7 +1818,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     upd();
     assert.ok(!box.classList.contains('hidden'), 'linh vật hiện ở tab chính');
     assert.strictEqual(box.dataset.state, 'calm');
-    assert.ok(bubble.textContent.includes('Ca êm quá'), 'bong bóng ca êm');
+    assert.strictEqual(bubble.textContent.trim(), 'Hết mẫu rồi!', 'bong bóng ca êm: Hết mẫu rồi! (v72)');
     assert.strictEqual(box.parentElement, d9.body, 'linh vật là con trực tiếp của body nên print.css tự loại khỏi bản in');
     assert.ok(w9.eval("typeof LABENTRY_MASCOTS === 'object' && LABENTRY_MASCOTS.calm.indexOf('data:image/webp') === 0"), 'ảnh mặc định nhúng sẵn trong mascot.js');
     assert.ok((img.getAttribute('src') || '').indexOf('data:image/webp') === 0, 'đang hiển thị ảnh mặc định');
@@ -1865,6 +1865,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(state(), 'overload');
     assert.ok(bubble.textContent.includes('XN-VAT2') && bubble.textContent.includes('quá 15 phút'), 'overload: liệt kê ID + quá 15 phút. Thực tế: ' + bubble.textContent);
     assert.strictEqual(badge.textContent, '3');
+
+    /* F36 (v72): mẫu có kết quả quá 60 phút chưa phát hành -> trạng thái
+       unreleased, thắng quá tải; mẫu 59 phút thì chưa tính */
+    const uid5 = w9.eval("store.add({ testId: 'XN-VAT5', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } }, new Date(Date.now() - 61 * 60000)).record.uid");
+    const uid6 = w9.eval("store.add({ testId: 'XN-VAT6', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } }, new Date(Date.now() - 59 * 60000)).record.uid");
+    upd();
+    assert.strictEqual(state(), 'unreleased', 'quá 60 phút chưa phát hành thắng quá tải');
+    assert.strictEqual(badge.textContent, '1', 'chỉ đếm mẫu quá 60 phút (mẫu 59 phút chưa tính)');
+    assert.ok(bubble.textContent.includes('XN-VAT5') && bubble.textContent.includes('quá 60 phút chưa phát hành'), 'unreleased: nêu ID + quá 60 phút chưa phát hành. Thực tế: ' + bubble.textContent);
+    assert.ok(!bubble.textContent.includes('XN-VAT6'), 'mẫu 59 phút không bị nêu tên');
+    w9.eval("store.remove('" + uid5 + "'); store.remove('" + uid6 + "');");
+    upd();
+    assert.strictEqual(state(), 'overload', 'xóa mẫu chưa phát hành thì về quá tải');
 
     /* Bấm vào linh vật ẩn/hiện bong bóng */
     img.click();

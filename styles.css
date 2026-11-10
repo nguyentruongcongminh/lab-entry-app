@@ -821,6 +821,7 @@ svg { width: 24px; height: 24px; display: block; }
 .mascot[data-state='hurried'] img { animation: mascot-urgent .5s ease-in-out infinite; }
 .mascot[data-state='overdue'] img { animation: mascot-urgent .42s ease-in-out infinite; }
 .mascot[data-state='overload'] img { animation: mascot-sway 1.7s ease-in-out infinite; }
+.mascot[data-state='unreleased'] img { animation: mascot-sway 1.7s ease-in-out infinite; }
 @keyframes mascot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes mascot-urgent { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-1.5deg); } 75% { transform: translateX(2px) rotate(1.5deg); } }
 @keyframes mascot-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }

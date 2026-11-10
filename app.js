@@ -3517,7 +3517,7 @@ function bindPrintCfg() {
    Cài đặt lưu ở khóa riêng labentry.mascot.v1, KHÔNG vào file sao lưu:
    { on: bool, custom: dataURL|null } — ảnh riêng chỉ nằm trên máy này. */
 const MASCOT_KEY = 'labentry.mascot.v1';
-const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried' };
+const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried', unreleased: 'worried' };
 let mascotSettings = loadMascotSettings();
 let mascotSig = '';
 /* Vòng đời bong bóng (Minh góp ý 2026-11-08): mỗi tình huống mới hiện khung
@@ -3566,6 +3566,16 @@ function computeMascotState(now) {
     const t = getTestType(next.r.typeId);
     return { state: 'hurried', key: 'hurried|' + next.r.uid, badge: '!', text: '⏰ ' + next.r.testId + ' · ' + ((t && t.name) || next.r.typeId) + ' · ' + mascotRemainText(next.at - now) + ' tới giờ!' };
   }
+  /* F36 (v72, theo yêu cầu của Minh): mẫu ĐÃ có kết quả nhưng quá 60 phút
+     kể từ lúc nhận mẫu vẫn chưa phát hành -> linh vật nhắc riêng, thắng
+     trạng thái quá tải (việc tồn ở khâu phát hành gấp hơn tồn ở khâu nhập). */
+  const unrel = store.getAll().filter((r) => store.statusOf(r) === 'pending-release' && now - new Date(r.createdAt).getTime() > 60 * 60000)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+  if (unrel.length) {
+    const ids = unrel.map((r) => r.testId);
+    const shown = ids.slice(0, 6).join(', ') + (ids.length > 6 ? '… +' + (ids.length - 6) + ' mẫu nữa' : '');
+    return { state: 'unreleased', key: 'unreleased|' + unrel.map((r) => r.uid).join(','), badge: String(unrel.length), text: 'Có mẫu quá 60 phút chưa phát hành: ' + shown + ' 📋' };
+  }
   const stale = recs.filter((r) => now - new Date(r.createdAt).getTime() > 15 * 60000)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   if (stale.length >= 3) {
@@ -3577,7 +3587,7 @@ function computeMascotState(now) {
   if (recs.length) {
     return { state: 'waiting', key: 'waiting|n' + recs.length, badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
   }
-  return { state: 'calm', key: 'calm', badge: '', text: 'Ca êm quá — không còn mẫu nào tồn! 🎉' };
+  return { state: 'calm', key: 'calm', badge: '', text: 'Hết mẫu rồi!' };
 }
 
 function mascotVisibleHere() {
