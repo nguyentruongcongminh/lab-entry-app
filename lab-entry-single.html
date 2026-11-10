@@ -643,6 +643,10 @@ svg { width: 24px; height: 24px; display: block; }
 @keyframes alarm-pulse { 0%, 100% { background: #c62828; } 50% { background: #e53935; } }
 /* Nhật ký thao tác (F22) */
 .audit-open-btn { display: block; width: 100%; margin: 4px 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; color: var(--blue-dark); }
+/* v74 (Minh góp ý "hiện nằm dọc chiếm chỗ trang"): 4 nút chức năng của tab
+   Quản lý xếp lưới 2 cột gọn thay vì 4 hàng dọc */
+.manage-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.manage-actions .audit-open-btn { margin: 0; width: auto; padding: 10px 6px; font-size: 15px; }
 .audit-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 .audit-tools select { flex: 0 0 auto; }
 .audit-tools input { flex: 1 1 auto; min-width: 0; }
@@ -733,6 +737,7 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .3px;
 }
 .record-item.deferred { background: #fdf8ec; box-shadow: inset 4px 0 0 #b58900; }
+.icon-btn.defer-btn { color: #b58900; }
 .defer-reasons { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .defer-opt { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; padding: 7px 4px; }
 .defer-opt input[type="radio"] { width: 20px; height: 20px; accent-color: #b58900; }
@@ -970,7 +975,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v73</span>
+    <span class="app-version">LabEntry v74</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1046,10 +1051,12 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button type="button" id="btn-panel-pending" class="switch-btn">Chờ phát hành <span id="count-pending" class="switch-count">0</span></button>
   </div>
 
+  <div class="manage-actions">
   <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
   <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
   <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
   <button type="button" id="btn-deferred" class="audit-open-btn">⏸ Mẫu hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
+  </div>
 
 
   <div id="group-noresult">
@@ -1493,7 +1500,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <span class="toolbar-spacer"></span>
   </header>
 
-  <p class="types-note">Mẫu thiếu hụt, mẫu không đạt phải lấy lại, hoặc hẹn lại hôm sau vì lý do riêng. Các mẫu này KHÔNG tính là chưa kết quả hay chưa phát hành: không nằm trong danh sách chờ, không báo động hẹn giờ, không vào bàn giao ca chính — xử lý và bàn giao riêng tại đây. Đánh dấu hẹn lại ở trang Xem của từng mẫu.</p>
+  <p class="types-note">Mẫu hụt, không đạt hoặc hẹn lại hôm sau — xử lý và bàn giao riêng tại đây. Đánh dấu hẹn lại bằng nút ⏸ ngay trên từng mẫu.</p>
   <div id="deferred-counts" class="handover-counts"></div>
 
   <div class="manage-switch">
@@ -2395,13 +2402,20 @@ function recordItemHTML(rec, opts) {
     ? '<button class="view-btn" data-action="view" data-uid="' + rec.uid + '" title="Xem tóm tắt kết quả" aria-label="Xem tóm tắt kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Xem</button>'
     : '';
+  /* Nút Hẹn lại ngay trên dòng mẫu (v74 — Minh không tìm thấy khi nó chỉ nằm
+     trong trang Xem, mà mẫu chưa có kết quả thì không có nút Xem): hiện cho
+     mọi mẫu chưa phát hành ở danh sách thao tác, mở thẳng hộp thoại lý do. */
+  const deferBtn = (!o.readonly && status !== 'released' && !isDeferred(rec))
+    ? '<button class="icon-btn defer-btn" data-action="defer" data-uid="' + rec.uid + '" title="Hẹn lại mẫu này (hụt mẫu / không đạt / lý do khác)" aria-label="Hẹn lại mẫu này">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></svg></button>'
+    : '';
   const editDeleteBtns = o.readonly ? '' :
       '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
-    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + editDeleteBtns + '</div>';
+    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
   return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
@@ -2422,6 +2436,7 @@ function handleListClick(e) {
     if (btn.dataset.action === 'view') openSummary(uid);
     if (btn.dataset.action === 'timer') toggleTimer(uid);
     if (btn.dataset.action === 'calremind') downloadCalendarReminder(uid);
+    if (btn.dataset.action === 'defer') openDeferModal(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */

@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v73 và precache đúng URL ?v=73 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v74 và precache đúng URL ?v=74 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v73'"), 'sw.js phải gắn VERSION v73');
-    for (const a of ['styles.css?v=73', 'print.css?v=73', 'config.js?v=73', 'store.js?v=73', 'mascot.js?v=73', 'app.js?v=73', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v74'"), 'sw.js phải gắn VERSION v74');
+    for (const a of ['styles.css?v=74', 'print.css?v=74', 'config.js?v=74', 'store.js?v=74', 'mascot.js?v=74', 'app.js?v=74', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2177,8 +2177,21 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(recA.deferNote, 'Lấy lại sáng mai', 'ghi chú hẹn được lưu');
     assert.ok(recA.deferAt, 'có giờ đánh dấu hẹn');
 
-    /* Hẹn lại B (hụt mẫu): đồng hồ hẹn giờ bị tắt, báo động không còn B */
-    w13.eval("openDeferModal('" + uidB + "')");
+    /* v74: 4 nút chức năng của tab Quản lý nằm gọn trong một lưới; đoạn
+       giới thiệu trang Mẫu hẹn lại rút ngắn (Minh góp ý trên máy thật) */
+    const ma = d13.querySelector('.manage-actions');
+    assert.ok(ma && ma.querySelectorAll('button').length === 4, '4 nút chức năng Quản lý nằm gọn trong một lưới');
+    const intro = d13.querySelector('#view-deferred .types-note');
+    assert.ok(intro && intro.textContent.trim().length <= 160, 'giới thiệu trang Mẫu hẹn lại ngắn gọn, không dài dòng');
+
+    /* Hẹn lại B (hụt mẫu) bằng nút ⏸ NGAY TRÊN DÒNG mẫu ở panel Quản lý
+       (v74 — trước đây nút chỉ nằm trong trang Xem, mà mẫu chưa có kết quả
+       không có nút Xem nên không tìm thấy); hẹn xong đồng hồ bị tắt */
+    w13.eval("switchView('manage')");
+    const rowDeferBtn = d13.querySelector('#list-noresult [data-action="defer"][data-uid="' + uidB + '"]');
+    assert.ok(rowDeferBtn, 'dòng mẫu chưa kết quả có nút Hẹn lại riêng');
+    rowDeferBtn.click();
+    assert.ok(!d13.getElementById('defer-modal').classList.contains('hidden'), 'bấm nút Hẹn lại trên dòng mẫu mở hộp thoại lý do');
     d13.querySelector('input[name="defer-reason"][value="hut-mau"]').checked = true;
     d13.getElementById('defer-note').value = '';
     d13.getElementById('btn-defer-save').click();

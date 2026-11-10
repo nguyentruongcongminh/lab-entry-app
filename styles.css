@@ -629,6 +629,10 @@ svg { width: 24px; height: 24px; display: block; }
 @keyframes alarm-pulse { 0%, 100% { background: #c62828; } 50% { background: #e53935; } }
 /* Nhật ký thao tác (F22) */
 .audit-open-btn { display: block; width: 100%; margin: 4px 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; color: var(--blue-dark); }
+/* v74 (Minh góp ý "hiện nằm dọc chiếm chỗ trang"): 4 nút chức năng của tab
+   Quản lý xếp lưới 2 cột gọn thay vì 4 hàng dọc */
+.manage-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.manage-actions .audit-open-btn { margin: 0; width: auto; padding: 10px 6px; font-size: 15px; }
 .audit-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 .audit-tools select { flex: 0 0 auto; }
 .audit-tools input { flex: 1 1 auto; min-width: 0; }
@@ -719,6 +723,7 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .3px;
 }
 .record-item.deferred { background: #fdf8ec; box-shadow: inset 4px 0 0 #b58900; }
+.icon-btn.defer-btn { color: #b58900; }
 .defer-reasons { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .defer-opt { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; padding: 7px 4px; }
 .defer-opt input[type="radio"] { width: 20px; height: 20px; accent-color: #b58900; }

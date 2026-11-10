@@ -146,13 +146,20 @@ function recordItemHTML(rec, opts) {
     ? '<button class="view-btn" data-action="view" data-uid="' + rec.uid + '" title="Xem tóm tắt kết quả" aria-label="Xem tóm tắt kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Xem</button>'
     : '';
+  /* Nút Hẹn lại ngay trên dòng mẫu (v74 — Minh không tìm thấy khi nó chỉ nằm
+     trong trang Xem, mà mẫu chưa có kết quả thì không có nút Xem): hiện cho
+     mọi mẫu chưa phát hành ở danh sách thao tác, mở thẳng hộp thoại lý do. */
+  const deferBtn = (!o.readonly && status !== 'released' && !isDeferred(rec))
+    ? '<button class="icon-btn defer-btn" data-action="defer" data-uid="' + rec.uid + '" title="Hẹn lại mẫu này (hụt mẫu / không đạt / lý do khác)" aria-label="Hẹn lại mẫu này">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></svg></button>'
+    : '';
   const editDeleteBtns = o.readonly ? '' :
       '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>' +
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
-    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + editDeleteBtns + '</div>';
+    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
   return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
@@ -173,6 +180,7 @@ function handleListClick(e) {
     if (btn.dataset.action === 'view') openSummary(uid);
     if (btn.dataset.action === 'timer') toggleTimer(uid);
     if (btn.dataset.action === 'calremind') downloadCalendarReminder(uid);
+    if (btn.dataset.action === 'defer') openDeferModal(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */

@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=73">
-<link rel="stylesheet" href="print.css?v=73">
+<link rel="stylesheet" href="styles.css?v=74">
+<link rel="stylesheet" href="print.css?v=74">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -37,7 +37,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v73</span>
+    <span class="app-version">LabEntry v74</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -113,10 +113,12 @@
     <button type="button" id="btn-panel-pending" class="switch-btn">Chờ phát hành <span id="count-pending" class="switch-count">0</span></button>
   </div>
 
+  <div class="manage-actions">
   <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
   <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
   <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
   <button type="button" id="btn-deferred" class="audit-open-btn">⏸ Mẫu hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
+  </div>
 
 
   <div id="group-noresult">
@@ -560,7 +562,7 @@
     <span class="toolbar-spacer"></span>
   </header>
 
-  <p class="types-note">Mẫu thiếu hụt, mẫu không đạt phải lấy lại, hoặc hẹn lại hôm sau vì lý do riêng. Các mẫu này KHÔNG tính là chưa kết quả hay chưa phát hành: không nằm trong danh sách chờ, không báo động hẹn giờ, không vào bàn giao ca chính — xử lý và bàn giao riêng tại đây. Đánh dấu hẹn lại ở trang Xem của từng mẫu.</p>
+  <p class="types-note">Mẫu hụt, không đạt hoặc hẹn lại hôm sau — xử lý và bàn giao riêng tại đây. Đánh dấu hẹn lại bằng nút ⏸ ngay trên từng mẫu.</p>
   <div id="deferred-counts" class="handover-counts"></div>
 
   <div class="manage-switch">
@@ -853,9 +855,9 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=73"></script>
-<script src="store.js?v=73"></script>
-<script src="mascot.js?v=73"></script>
-<script src="app.js?v=73"></script>
+<script src="config.js?v=74"></script>
+<script src="store.js?v=74"></script>
+<script src="mascot.js?v=74"></script>
+<script src="app.js?v=74"></script>
 </body>
 </html>
