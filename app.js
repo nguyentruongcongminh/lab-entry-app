@@ -3713,6 +3713,9 @@ const MASCOT_RESHOW_MS = 180000;
 let mascotBubbleKey = '';
 let mascotBubbleUntil = 0;
 let mascotNextShowAt = 0;
+/* F37/v75: mốc giữ hiển thị báo cáo hẹn lại đầu ngày (đủ 5 giây bong bóng);
+   hết mốc này linh vật quay về tư thế bình thường, bỏ huy hiệu đếm mẫu */
+let mascotDeferredHoldUntil = 0;
 
 function loadMascotSettings() {
   try {
@@ -3773,9 +3776,10 @@ function computeMascotState(now) {
     return { state: 'waiting', key: 'waiting|n' + recs.length, badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
   }
   /* F37 (v73, theo yêu cầu của Minh): khi ca đã êm, linh vật báo cáo mẫu
-     hẹn lại tồn đọng — kèm ID, lý do và ngày tiếp nhận. Việc "chỉ báo 1 lần
-     vào đầu ngày, không lặp lại" nằm ở cơ chế bong bóng trong updateMascot
-     (cờ appMeta.deferDay), trạng thái này tự nó vẫn đúng cả ngày. */
+     hẹn lại tồn đọng — kèm ID, lý do và ngày tiếp nhận. Hàm này luôn trả
+     trạng thái deferred khi còn mẫu hẹn; việc HIỂN THỊ (chỉ 5 giây đầu
+     ngày rồi quay về tư thế bình thường, bỏ huy hiệu — v75) do updateMascot
+     quyết bằng cờ appMeta.deferDay + mascotDeferredHoldUntil. */
   const defs = deferredRecords();
   if (defs.length) {
     const items = defs.slice(0, 4).map((r) => r.testId + ' · ' + deferReasonLabel(r).toLowerCase() + ' · nhận ' + fmtList(r.createdAt).slice(0, 10));
@@ -3798,7 +3802,27 @@ function updateMascot() {
   if (!box) return;
   if (!mascotVisibleHere()) { box.classList.add('hidden'); mascotSig = ''; return; }
   const now = Date.now();
-  const s = computeMascotState(now);
+  let s = computeMascotState(now);
+  /* F37/v75 (Minh chốt): báo cáo mẫu hẹn lại là việc ĐẦU NGÀY và DUY NHẤT
+     1 lần — báo xong (đủ 5 giây bong bóng) linh vật QUAY VỀ tư thế bình
+     thường "Hết mẫu rồi!" và KHÔNG còn huy hiệu đỏ đếm số mẫu trên đầu.
+     Mở app lại trong cùng ngày: hiện ngay tư thế bình thường. */
+  if (s.state === 'deferred') {
+    if (appMeta.deferDay !== todayKey()) {
+      appMeta.deferDay = todayKey(); saveMeta();
+      mascotDeferredHoldUntil = now + MASCOT_BUBBLE_MS;
+    }
+    if (now >= mascotDeferredHoldUntil) {
+      if (mascotBubbleKey.indexOf('deferred|') === 0) {
+        /* vừa chuyển từ báo cáo sang bình thường: không bật thêm bong bóng
+           "Hết mẫu rồi!" nối tiếp ngay sau báo cáo */
+        mascotBubbleKey = 'calm';
+        mascotBubbleUntil = now;
+        mascotNextShowAt = now + MASCOT_RESHOW_MS;
+      }
+      s = { state: 'calm', key: 'calm', badge: '', text: 'Hết mẫu rồi!' };
+    }
+  }
   const stateKey = s.state + '|' + s.text;
   /* v65 (Minh góp ý "đừng lặp lại cùng một câu thường xuyên, giãn ra"):
      khóa bong bóng theo TÌNH HUỐNG (loại + mẫu liên quan), không theo
@@ -3807,29 +3831,13 @@ function updateMascot() {
      giữa hai lần hiện cùng một câu nới từ 60 giây lên 3 phút (hằng số
      MASCOT_RESHOW_MS). Nội dung hiển thị vẫn cập nhật theo stateKey. */
   const bubbleKey = s.key || stateKey;
-  /* F37: báo cáo mẫu hẹn lại chỉ bật bong bóng 1 lần vào đầu ngày (lời của
-     Minh: "chỉ báo vào đầu mỗi ngày nếu có") — cờ appMeta.deferDay nhớ ngày
-     đã báo; sau lần đầu, trạng thái vẫn giữ nhưng bong bóng không tự bật lại
-     trong ngày, kể cả khi danh sách hẹn lại thay đổi. Qua ngày mới, khóa
-     bong bóng đổi theo ngày trong key nên báo cáo bật lại bình thường. */
-  const isDefReport = s.state === 'deferred';
   if (bubbleKey !== mascotBubbleKey) {
     mascotBubbleKey = bubbleKey;
-    if (isDefReport && appMeta.deferDay === todayKey()) {
-      mascotBubbleUntil = now;
-      mascotNextShowAt = Number.MAX_SAFE_INTEGER;
-    } else {
-      if (isDefReport) { appMeta.deferDay = todayKey(); saveMeta(); }
-      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
-      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
-    }
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
   } else if (now >= mascotNextShowAt) {
-    if (isDefReport) {
-      mascotNextShowAt = Number.MAX_SAFE_INTEGER;
-    } else {
-      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
-      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
-    }
+    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
   }
   const bubbleShown = now < mascotBubbleUntil;
   const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (bubbleShown ? 'b1' : 'b0');

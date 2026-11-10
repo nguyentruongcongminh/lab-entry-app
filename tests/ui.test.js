@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v74 và precache đúng URL ?v=74 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v75 và precache đúng URL ?v=75 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v74'"), 'sw.js phải gắn VERSION v74');
-    for (const a of ['styles.css?v=74', 'print.css?v=74', 'config.js?v=74', 'store.js?v=74', 'mascot.js?v=74', 'app.js?v=74', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v75'"), 'sw.js phải gắn VERSION v75');
+    for (const a of ['styles.css?v=75', 'print.css?v=75', 'config.js?v=75', 'store.js?v=75', 'mascot.js?v=75', 'app.js?v=75', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2210,9 +2210,16 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(!bubble.classList.contains('hidden'), 'đầu ngày: bong bóng báo cáo hiện');
     assert.strictEqual(w13.eval('appMeta.deferDay === todayKey()'), true, 'cờ đã-báo-hôm-nay được ghi');
 
-    /* Trong ngày không lặp lại: hết 5 giây + qua mốc hiện lại vẫn tắt */
-    w13.eval('mascotBubbleUntil = Date.now() - 1; mascotNextShowAt = Date.now() - 1; updateMascot();');
-    assert.ok(bubble.classList.contains('hidden'), 'báo cáo hẹn lại không tự bật lại trong ngày');
+    /* v75 (Minh chốt): báo xong 1 lần thì linh vật QUAY VỀ tư thế bình
+       thường "hết mẫu" và KHÔNG còn huy hiệu đỏ đếm số mẫu trên đầu */
+    w13.eval('mascotDeferredHoldUntil = Date.now() - 1; updateMascot();');
+    assert.strictEqual(d13.getElementById('mascot').dataset.state, 'calm', 'báo cáo xong -> linh vật về tư thế bình thường');
+    assert.strictEqual(badge.textContent, '', 'không còn số đếm mẫu trên đầu linh vật');
+    assert.ok(badge.classList.contains('hidden'), 'huy hiệu ẩn hẳn sau báo cáo');
+    assert.ok(bubble.classList.contains('hidden'), 'không bật thêm bong bóng nối tiếp sau báo cáo');
+    assert.strictEqual(state(), 'deferred', 'dữ liệu hẹn lại vẫn còn — chỉ cách hiển thị đổi (compute vẫn trả deferred)');
+    w13.eval('updateMascot();');
+    assert.strictEqual(d13.getElementById('mascot').dataset.state, 'calm', 'các nhịp sau vẫn bình thường, không báo lại trong ngày');
 
     /* Hàng chờ sạch: panel Quản lý, danh sách Hôm nay, bàn giao ca chính */
     w13.eval('renderManage()');
