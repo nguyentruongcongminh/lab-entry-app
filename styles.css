@@ -713,6 +713,17 @@ svg { width: 24px; height: 24px; display: block; }
   padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .4px;
 }
 .record-item.urgent { background: #fff5f5; box-shadow: inset 4px 0 0 #c62828; }
+/* Mẫu hẹn lại (F37): nhãn hổ phách + nền ấm nhẹ, khác hẳn nhãn KHẨN đỏ */
+.defer-tag {
+  display: inline-block; background: #b58900; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .3px;
+}
+.record-item.deferred { background: #fdf8ec; box-shadow: inset 4px 0 0 #b58900; }
+.defer-reasons { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.defer-opt { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; padding: 7px 4px; }
+.defer-opt input[type="radio"] { width: 20px; height: 20px; accent-color: #b58900; }
+.defer-note-label { display: block; font-size: 13px; font-weight: 600; margin: 6px 0 4px; }
+.defer-note-input { width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 15px; border: 1px solid #c9d4dd; border-radius: 8px; }
 .check-row { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; }
 .check-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: #c62828; }
 
@@ -822,6 +833,7 @@ svg { width: 24px; height: 24px; display: block; }
 .mascot[data-state='overdue'] img { animation: mascot-urgent .42s ease-in-out infinite; }
 .mascot[data-state='overload'] img { animation: mascot-sway 1.7s ease-in-out infinite; }
 .mascot[data-state='unreleased'] img { animation: mascot-sway 1.7s ease-in-out infinite; }
+.mascot[data-state='deferred'] img { animation: mascot-bob 3.6s ease-in-out infinite; }
 @keyframes mascot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes mascot-urgent { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-1.5deg); } 75% { transform: translateX(2px) rotate(1.5deg); } }
 @keyframes mascot-sway { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }

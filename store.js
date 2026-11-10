@@ -105,6 +105,9 @@ const LabStore = (() => {
         performer: typeof input.performer === 'string' ? input.performer : '',
         releaser: typeof input.releaser === 'string' ? input.releaser : '',
         urgent: input.urgent === true, /* mẫu khẩn STAT (F24): ưu tiên xử lý */
+        deferReason: typeof input.deferReason === 'string' ? input.deferReason : '', /* F37: '' = không hẹn lại; 'hut-mau' | 'khong-dat' | 'khac' */
+        deferNote: typeof input.deferNote === 'string' ? input.deferNote : '',
+        deferAt: input.deferAt || null,
         timerEndsAt: input.timerEndsAt || null,
         createdAt: t.toISOString(),
         updatedAt: t.toISOString(),
@@ -130,6 +133,10 @@ const LabStore = (() => {
         performer: input.performer !== undefined ? input.performer : (records[idx].performer || ''),
         releaser: input.releaser !== undefined ? input.releaser : (records[idx].releaser || ''),
         urgent: input.urgent !== undefined ? !!input.urgent : !!records[idx].urgent,
+        /* F37: dấu hẹn lại — không truyền thì giữ nguyên, truyền thì thay */
+        deferReason: input.deferReason !== undefined ? input.deferReason : (records[idx].deferReason || ''),
+        deferNote: input.deferNote !== undefined ? input.deferNote : (records[idx].deferNote || ''),
+        deferAt: input.deferAt !== undefined ? input.deferAt : (records[idx].deferAt || null),
         timerEndsAt: input.timerEndsAt !== undefined ? input.timerEndsAt : (records[idx].timerEndsAt || null),
         updatedAt: t.toISOString(),
       });
@@ -200,6 +207,10 @@ const LabStore = (() => {
           performer: typeof raw.performer === 'string' ? raw.performer : '',
           releaser: typeof raw.releaser === 'string' ? raw.releaser : '',
           urgent: raw.urgent === true,
+          /* F37: dấu hẹn lại đi theo file sao lưu; lý do lạ -> coi như không hẹn */
+          deferReason: ['hut-mau', 'khong-dat', 'khac'].indexOf(raw.deferReason) >= 0 ? raw.deferReason : '',
+          deferNote: typeof raw.deferNote === 'string' ? raw.deferNote : '',
+          deferAt: okDate(raw.deferAt),
           releaseAt: okDate(raw.releaseAt),
           timerEndsAt: okDate(raw.timerEndsAt),
           createdAt,

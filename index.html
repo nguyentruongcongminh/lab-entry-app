@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=72">
-<link rel="stylesheet" href="print.css?v=72">
+<link rel="stylesheet" href="styles.css?v=73">
+<link rel="stylesheet" href="print.css?v=73">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -37,7 +37,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v72</span>
+    <span class="app-version">LabEntry v73</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -116,6 +116,7 @@
   <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
   <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
   <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
+  <button type="button" id="btn-deferred" class="audit-open-btn">⏸ Mẫu hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
 
 
   <div id="group-noresult">
@@ -550,6 +551,35 @@
   </div>
 </section>
 
+<section id="view-deferred" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-deferred-back" class="icon-btn" title="Quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Mẫu hẹn lại</span>
+    <span class="toolbar-spacer"></span>
+  </header>
+
+  <p class="types-note">Mẫu thiếu hụt, mẫu không đạt phải lấy lại, hoặc hẹn lại hôm sau vì lý do riêng. Các mẫu này KHÔNG tính là chưa kết quả hay chưa phát hành: không nằm trong danh sách chờ, không báo động hẹn giờ, không vào bàn giao ca chính — xử lý và bàn giao riêng tại đây. Đánh dấu hẹn lại ở trang Xem của từng mẫu.</p>
+  <div id="deferred-counts" class="handover-counts"></div>
+
+  <div class="manage-switch">
+    <button type="button" class="switch-btn" data-defer-filter="today">Hôm nay</button>
+    <button type="button" class="switch-btn" data-defer-filter="past">Các ngày trước</button>
+    <button type="button" class="switch-btn active" data-defer-filter="all">Tất cả</button>
+  </div>
+
+  <ul id="deferred-list" class="record-list"></ul>
+  <div id="deferred-empty" class="empty-msg hidden">Không có mẫu hẹn lại nào</div>
+
+  <h2 class="group-title">Nội dung bàn giao (mẫu đã tích chọn — hoặc tất cả mẫu đang hiển thị nếu chưa chọn mẫu nào)</h2>
+  <textarea id="deferred-text" class="handover-text" rows="10" readonly></textarea>
+  <div class="form-actions padded-actions">
+    <button type="button" id="btn-def-copy" class="primary-btn outline">📋 Sao chép danh sách</button>
+    <button type="button" id="btn-def-print" class="primary-btn">🖨 In bàn giao</button>
+  </div>
+</section>
+
 <section id="view-batch" class="view hidden">
   <header class="toolbar">
     <button id="btn-batch-back" class="icon-btn" title="Lưu thay đổi rồi quay lại" aria-label="Quay lại">
@@ -704,6 +734,7 @@
       <div>Nhận mẫu: <b id="sum-created"></b></div>
       <div>Phát hành: <b id="sum-release"></b></div>
     </div>
+    <div id="sum-defer" class="summary-note hidden"></div>
     <div id="sum-staff" class="summary-meta hidden">
       <div>KTV nhận: <b id="sum-receiver"></b></div>
       <div>KTV thực hiện: <b id="sum-performer"></b></div>
@@ -715,6 +746,7 @@
         Phát hành kết quả
       </button>
       <button id="btn-summary-unrelease" class="secondary-btn danger hidden">Hủy phát hành</button>
+      <button id="btn-summary-defer" class="secondary-btn hidden">⏸ Hẹn lại mẫu này</button>
       <button id="btn-summary-close" class="secondary-btn">Đóng</button>
     </div>
   </div>
@@ -736,6 +768,25 @@
     <p class="staff-note">Mỗi KTV có một mã PIN 6 ký tự (chữ/số/ký hiệu đều được): đổi sang tên KTV nào làm người trực cũng phải nhập đúng PIN của người đó. Tên KTV được dùng để đóng dấu KTV nhận / thực hiện / phát hành trên từng mẫu. Xóa một tên khỏi danh sách không làm đổi các mẫu đã đóng dấu.</p>
     <div class="summary-actions">
       <button id="btn-staff-close" class="secondary-btn">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<div id="defer-modal" class="modal hidden">
+  <div class="modal-box">
+    <h3 id="defer-title">Hẹn lại mẫu</h3>
+    <p class="sig-hint">Mẫu hẹn lại rời khỏi danh sách chờ: không tính là chưa kết quả / chưa phát hành, tắt báo động hẹn giờ, và nằm ở mục “Mẫu hẹn lại” trong tab Quản lý để xử lý, bàn giao riêng.</p>
+    <div class="defer-reasons">
+      <label class="defer-opt"><input type="radio" name="defer-reason" value="hut-mau"> Hụt mẫu (thiếu mẫu)</label>
+      <label class="defer-opt"><input type="radio" name="defer-reason" value="khong-dat"> Mẫu không đạt — phải lấy lại</label>
+      <label class="defer-opt"><input type="radio" name="defer-reason" value="khac"> Lý do khác — hẹn lại hôm sau</label>
+    </div>
+    <label class="defer-note-label" for="defer-note">Ghi chú thêm (không bắt buộc)</label>
+    <input type="text" id="defer-note" class="defer-note-input" placeholder="Ví dụ: hẹn bệnh nhân sáng mai lấy lại">
+    <div class="summary-actions">
+      <button type="button" id="btn-defer-save" class="primary-btn">Lưu hẹn lại</button>
+      <button type="button" id="btn-defer-clear" class="secondary-btn danger hidden">Bỏ hẹn lại</button>
+      <button type="button" id="btn-defer-close" class="secondary-btn">Đóng</button>
     </div>
   </div>
 </div>
@@ -802,9 +853,9 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=72"></script>
-<script src="store.js?v=72"></script>
-<script src="mascot.js?v=72"></script>
-<script src="app.js?v=72"></script>
+<script src="config.js?v=73"></script>
+<script src="store.js?v=73"></script>
+<script src="mascot.js?v=73"></script>
+<script src="app.js?v=73"></script>
 </body>
 </html>

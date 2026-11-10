@@ -37,6 +37,25 @@ function todayKey() { return LabStore.localDayKey(new Date()); }
 
 const STATUS_LABEL = { 'no-result': 'Chưa kết quả', 'pending-release': 'Chờ phát hành', 'released': 'Đã phát hành' };
 
+/* ================= Mẫu hẹn lại / ngoại lệ (F37, v73) =================
+ * Theo yêu cầu của Minh (2026-11-10): mẫu thiếu hụt, mẫu không đạt phải lấy
+ * lại, hoặc hẹn lại hôm sau vì lý do riêng KHÔNG tính là "chưa kết quả" hay
+ * "chưa phát hành": chúng rời khỏi mọi hàng chờ (danh sách Hôm nay, panel
+ * Quản lý, nhập theo lô, bàn giao ca chính, báo động hẹn giờ, linh vật nhắc
+ * việc) và nằm ở trang riêng "Mẫu hẹn lại" để xử lý/bàn giao riêng. Linh vật
+ * chỉ báo cáo nhóm này 1 lần vào đầu ngày. Phát hành mẫu = tự bỏ hẹn lại. */
+const DEFER_REASONS = { 'hut-mau': 'Hụt mẫu', 'khong-dat': 'Mẫu không đạt', 'khac': 'Lý do khác' };
+function isDeferred(rec) { return !!(rec && rec.deferReason); }
+function deferReasonLabel(rec) { return DEFER_REASONS[rec.deferReason] || ''; }
+function deferTagHTML(rec) {
+  if (!isDeferred(rec)) return '';
+  return '<span class="defer-tag">⏸ Hẹn lại · ' + esc(deferReasonLabel(rec)) + '</span>';
+}
+function deferredRecords() {
+  return store.getAll().filter(isDeferred)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
+}
+
 let toastTimer = null;
 function toast(msg) {
   const el = $('toast');
@@ -49,8 +68,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch';
+  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch', 'deferred'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch' || name === 'deferred';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export' || name === 'display');
@@ -63,6 +82,7 @@ function switchView(name) {
   if (name === 'audit') renderAuditLog();
   if (name === 'handover') renderHandover();
   if (name === 'batch') renderBatch();
+  if (name === 'deferred') renderDeferred();
   window.scrollTo(0, 0);
 }
 
@@ -88,8 +108,9 @@ function recordItemHTML(rec, opts) {
   const o = opts || {};
   const type = getTestType(rec.typeId);
   const status = store.statusOf(rec);
-  /* Mẫu đang chờ mà quá ngưỡng (mặc định 60 phút) -> cảnh báo để không sót mẫu */
-  const isOverdue = (status === 'no-result' || status === 'pending-release') &&
+  /* Mẫu đang chờ mà quá ngưỡng (mặc định 60 phút) -> cảnh báo để không sót mẫu.
+     Mẫu hẹn lại (F37) không tô quá hạn: nó đã có lịch xử lý riêng. */
+  const isOverdue = !isDeferred(rec) && (status === 'no-result' || status === 'pending-release') &&
     (Date.now() - new Date(rec.createdAt).getTime() > (LAB_CONFIG.overdueMinutes || 60) * 60000);
   const waitLine = isOverdue ? '<div class="record-wait">Đã chờ ' + esc(fmtWait(rec.createdAt)) + '</div>' : '';
   const checkbox = o.selectable
@@ -133,8 +154,8 @@ function recordItemHTML(rec, opts) {
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
     '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
-  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + '">' + checkbox +
-    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + '</div>' +
+  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
+    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
     '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' + actions + '</div></li>';
@@ -157,7 +178,7 @@ function handleListClick(e) {
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
       if (rec && store.statusOf(rec) === 'pending-release') {
         if (!requireOperator('phát hành kết quả')) return;
-        const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
+        const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null }); /* F37: phát hành = tự bỏ hẹn lại */
         if (res.ok) { audit('release', '', res.record); toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
         else toast(res.errors.join('. '));
       }
@@ -229,6 +250,20 @@ function openSummary(uid) {
     $('sum-releaser').textContent = rec.releaser || '—';
   }
   $('btn-summary-unrelease').classList.toggle('hidden', status !== 'released');
+  /* F37: khối hẹn lại trong trang Xem — hiện lý do/ghi chú nếu đang hẹn,
+     nút Hẹn lại chỉ có khi mẫu chưa phát hành */
+  const dEl = $('sum-defer');
+  if (isDeferred(rec)) {
+    dEl.innerHTML = '⏸ <b>Hẹn lại</b> · Lý do: <b>' + esc(deferReasonLabel(rec)) + '</b>' +
+      (rec.deferNote ? ' · ' + esc(rec.deferNote) : '') +
+      (rec.deferAt ? '<br>Hẹn lúc: ' + esc(fmtFull(rec.deferAt)) : '');
+    dEl.classList.remove('hidden');
+  } else {
+    dEl.classList.add('hidden');
+  }
+  const dBtn = $('btn-summary-defer');
+  dBtn.classList.toggle('hidden', status === 'released');
+  dBtn.textContent = isDeferred(rec) ? '⏸ Sửa / bỏ hẹn lại' : '⏸ Hẹn lại mẫu này';
   $('summary-modal').classList.remove('hidden');
 }
 
@@ -244,7 +279,7 @@ function releaseFromSummary() {
   const rec = store.getByUid(summaryUid);
   if (!rec || store.statusOf(rec) !== 'pending-release') return;
   if (!requireOperator('phát hành kết quả')) return;
-  const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator });
+  const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null }); /* F37: phát hành = tự bỏ hẹn lại */
   if (!res.ok) { toast(res.errors.join('. ')); return; }
   audit('release', '', res.record);
   toast('Đã phát hành kết quả ' + rec.testId);
@@ -303,7 +338,7 @@ let lastNagCheckAt = 0;
 function dueTimerRecords() {
   const now = Date.now();
   return store.getAll()
-    .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() <= now)
+    .filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() <= now)
     .sort((a, b) => (a.timerEndsAt < b.timerEndsAt ? -1 : 1));
 }
 
@@ -430,7 +465,7 @@ function syncNativeAlarms() {
     if (!bridge && !iosHandler) return;
     const now = Date.now();
     const want = store.getAll()
-      .filter((r) => store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
+      .filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
       .map((r) => {
         const t = getTestType(r.typeId);
         return { id: r.uid, at: new Date(r.timerEndsAt).getTime(), label: r.testId + ' — ' + (t ? t.name : r.typeId) };
@@ -571,6 +606,7 @@ function refreshCurrent() {
   if (!$('view-today').classList.contains('hidden')) renderToday();
   if (!$('view-manage').classList.contains('hidden')) renderManage();
   if (!$('view-export').classList.contains('hidden')) applyExport();
+  if (!$('view-deferred').classList.contains('hidden')) renderDeferred(); /* F37: bỏ hẹn ngay tại trang riêng thì danh sách cập nhật tại chỗ */
 }
 
 /* ================= Tab Kết quả hôm nay ================= */
@@ -580,6 +616,7 @@ const selectedUids = new Set();
 function renderToday() {
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
+  recs = recs.filter((r) => !isDeferred(r)); /* F37: mẫu hẹn lại nằm ở trang riêng */
   if (q) recs = store.filter(recs, { query: q });
   /* Thứ tự tiếp nhận (v50): giờ nhập tăng dần — nhập trước ở trên, mới nhất nằm
      cuối cùng; mẫu khẩn giữ nhãn/nền đỏ nhưng không nhảy lên đầu (trước v50 khẩn lên đầu theo F24) */
@@ -607,8 +644,8 @@ function renderStats(all) {
   let received = 0, released = 0, noresult = 0, pending = 0;
   all.forEach((r) => {
     const st = store.statusOf(r);
-    if (st === 'no-result') noresult += 1;
-    if (st === 'pending-release') pending += 1;
+    if (!isDeferred(r) && st === 'no-result') noresult += 1; /* F37: hẹn lại không tính vào hàng chờ */
+    if (!isDeferred(r) && st === 'pending-release') pending += 1;
     if (dayKey(r.createdAt) === today) received += 1;
     if (r.releaseAt && dayKey(r.releaseAt) === today) released += 1;
   });
@@ -632,9 +669,9 @@ function renderManage() {
   renderStats(all);
   /* Cả hai khung Quản lý theo thứ tự tiếp nhận (v50): giờ nhận tăng dần — nhận
      trước lên đầu, nhận sau xuống cuối; mẫu khẩn không còn nhảy lên đầu (F24 cũ) */
-  const pending = all.filter((r) => store.statusOf(r) === 'pending-release')
+  const pending = all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release')
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-  const noresult = all.filter((r) => store.statusOf(r) === 'no-result')
+  const noresult = all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result')
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
@@ -645,6 +682,7 @@ function renderManage() {
   $('btn-panel-pending').classList.toggle('active', managePanel === 'pending');
   $('count-noresult').textContent = noresult.length;
   $('count-pending').textContent = pending.length;
+  $('count-deferred').textContent = deferredRecords().length; /* F37 */
 }
 
 /* ================= Tab Lọc & Xuất PDF ================= */
@@ -1596,7 +1634,7 @@ let batchState = null;
 
 function batchPending(typeId) {
   return store.getAll()
-    .filter((r) => r.typeId === typeId && store.statusOf(r) === 'no-result')
+    .filter((r) => r.typeId === typeId && !isDeferred(r) && store.statusOf(r) === 'no-result')
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 function batchTypesWithPending() {
@@ -2547,6 +2585,7 @@ const AUDIT_CAP = 2000;
 const AUDIT_LABELS = {
   receive: 'Nhận mẫu', save: 'Nhập/sửa kết quả', release: 'Phát hành', unrelease: 'Hủy phát hành',
   delete: 'Xóa mẫu', 'staff-add': 'Thêm KTV', 'staff-del': 'Xóa KTV', 'staff-sig': 'Chữ ký KTV', operator: 'Đổi người trực',
+  defer: 'Hẹn lại mẫu', undefer: 'Bỏ hẹn lại',
   restore: 'Phục hồi dữ liệu', merge: 'Gộp dữ liệu',
 };
 let auditLog = [];
@@ -2684,7 +2723,7 @@ let printSettings = null;
  *    chưa có thì mở form nhập); không thấy thì báo ngay tại màn hình quét.
  * (Mục 2 trong danh sách đề xuất ban đầu — hoãn báo động — Minh không chọn.) */
 const META_KEY = 'labentry.meta.v1';
-let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '' };
+let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '' };
 
 function loadMeta() {
   try {
@@ -2694,6 +2733,7 @@ function loadMeta() {
       if ([0, 5, 10, 15, 30].indexOf(m.autoLockMin) >= 0) appMeta.autoLockMin = m.autoLockMin;
       appMeta.speakDue = m.speakDue === true;
       if (typeof m.backupNagUntil === 'string') appMeta.backupNagUntil = m.backupNagUntil;
+      if (typeof m.deferDay === 'string') appMeta.deferDay = m.deferDay; /* F37: ngày linh vật đã báo cáo mẫu hẹn lại */
     }
   } catch (e) { /* cấu hình hỏng -> dùng mặc định */ }
 }
@@ -2774,8 +2814,9 @@ function handoverRecords() {
   /* Thứ tự tiếp nhận (v50): nhận trước lên đầu cả hai nhóm; khẩn không nhảy đầu */
   const byIntake = (a, b) => (a.createdAt < b.createdAt ? -1 : 1);
   return {
-    noresult: all.filter((r) => store.statusOf(r) === 'no-result').sort(byIntake),
-    pending: all.filter((r) => store.statusOf(r) === 'pending-release').sort(byIntake),
+    /* F37: mẫu hẹn lại bàn giao ở trang riêng, không lẫn vào bàn giao ca chính */
+    noresult: all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result').sort(byIntake),
+    pending: all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release').sort(byIntake),
   };
 }
 
@@ -2857,6 +2898,141 @@ function printHandover() {
      printAreaKind đang là 'results'; trên trình duyệt, afterprint dựng lại
      tờ kết quả sau khi in bàn giao xong (xem listener ở phần khởi tạo). */
   printAreaKind = 'handover';
+  printSheet();
+}
+
+/* ================= Hẹn lại mẫu: hộp thoại + trang riêng (F37) ================= */
+let deferUid = null;
+function openDeferModal(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return;
+  if (!requireOperator('đánh dấu hẹn lại')) return;
+  deferUid = uid;
+  $('defer-title').textContent = 'Hẹn lại mẫu ' + rec.testId;
+  const cur = rec.deferReason || 'hut-mau';
+  document.querySelectorAll('input[name="defer-reason"]').forEach((el) => { el.checked = el.value === cur; });
+  $('defer-note').value = rec.deferNote || '';
+  $('btn-defer-clear').classList.toggle('hidden', !isDeferred(rec));
+  closeSummary();
+  $('defer-modal').classList.remove('hidden');
+}
+function closeDeferModal() { $('defer-modal').classList.add('hidden'); deferUid = null; }
+function saveDefer() {
+  if (!deferUid) return;
+  const rec = store.getByUid(deferUid);
+  if (!rec) { closeDeferModal(); return; }
+  const sel = document.querySelector('input[name="defer-reason"]:checked');
+  const reason = sel ? sel.value : 'hut-mau';
+  const note = $('defer-note').value.trim();
+  /* Hẹn lại thì tắt luôn đồng hồ đếm ngược: mẫu không còn "tới giờ nhập
+     kết quả" nữa, chuông native trên điện thoại cũng được gỡ (sync bên dưới) */
+  const res = store.update(deferUid, { deferReason: reason, deferNote: note, deferAt: new Date().toISOString(), timerEndsAt: null });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('defer', DEFER_REASONS[reason] + (note ? ' — ' + note : ''), res.record);
+  syncNativeAlarms();
+  closeDeferModal();
+  toast('Đã hẹn lại mẫu ' + rec.testId + ' — ' + DEFER_REASONS[reason]);
+  refreshCurrent();
+  updateMascot();
+}
+function clearDefer(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return;
+  if (!requireOperator('bỏ hẹn lại')) return;
+  const res = store.update(uid, { deferReason: '', deferNote: '', deferAt: null });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('undefer', '', res.record);
+  closeDeferModal();
+  toast('Đã bỏ hẹn lại mẫu ' + rec.testId + ' — mẫu quay lại danh sách chờ');
+  refreshCurrent();
+  updateMascot();
+}
+
+let deferredFilter = 'all'; /* 'today' | 'past' | 'all' */
+const deferredSel = new Set();
+function deferredFiltered() {
+  const all = deferredRecords();
+  const tk = todayKey();
+  if (deferredFilter === 'today') return all.filter((r) => LabStore.localDayKey(new Date(r.createdAt)) === tk);
+  if (deferredFilter === 'past') return all.filter((r) => LabStore.localDayKey(new Date(r.createdAt)) < tk);
+  return all;
+}
+function deferredHandoverSet() {
+  const list = deferredFiltered();
+  const picked = list.filter((r) => deferredSel.has(r.uid));
+  return picked.length ? picked : list;
+}
+function deferredLine(r) {
+  const type = getTestType(r.typeId);
+  return r.testId + ' — ' + (type ? type.name : r.typeId) +
+    ' — Lý do: ' + deferReasonLabel(r) + (r.deferNote ? ' (' + r.deferNote + ')' : '') +
+    ' — Nhận: ' + fmtList(r.createdAt) +
+    ' — Trạng thái gốc: ' + STATUS_LABEL[store.statusOf(r)];
+}
+function buildDeferredText(recs) {
+  const lines = [
+    'BÀN GIAO MẪU HẸN LẠI — LabEntry',
+    'Lập lúc: ' + fmtFull(new Date().toISOString()),
+    'KTV trực: ' + (currentOperator || '(chưa chọn)'),
+    'Số mẫu bàn giao: ' + recs.length,
+    '',
+  ];
+  recs.forEach((r, i) => lines.push((i + 1) + '. ' + deferredLine(r)));
+  if (!recs.length) lines.push('(không có mẫu nào)');
+  return lines.join('\n');
+}
+function renderDeferred() {
+  const all = deferredRecords();
+  const alive = new Set(all.map((r) => r.uid));
+  Array.from(deferredSel).forEach((u) => { if (!alive.has(u)) deferredSel.delete(u); });
+  const list = deferredFiltered();
+  $('deferred-counts').textContent = 'Đang hẹn lại: ' + all.length + ' mẫu · Đang hiển thị: ' + list.length + ' mẫu';
+  document.querySelectorAll('[data-defer-filter]').forEach((b) => b.classList.toggle('active', b.dataset.deferFilter === deferredFilter));
+  $('deferred-list').innerHTML = list.map((r) => {
+    const type = getTestType(r.typeId);
+    const status = store.statusOf(r);
+    return '<li class="record-item deferred">' +
+      '<input type="checkbox" data-defsel="' + r.uid + '"' + (deferredSel.has(r.uid) ? ' checked' : '') + '>' +
+      '<div class="record-main"><div class="record-id">' + esc(r.testId) + deferTagHTML(r) + '</div>' +
+      '<div class="record-type">' + esc(type ? type.name : r.typeId) + (r.deferNote ? ' · ' + esc(r.deferNote) : '') + '</div></div>' +
+      '<div class="record-side"><span class="record-time">Nhận ' + esc(fmtList(r.createdAt)) + '</span>' +
+      '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' +
+      '<div class="record-actions">' +
+      '<button class="view-btn" data-daction="view" data-uid="' + r.uid + '">Xem</button>' +
+      '<button class="view-btn" data-daction="edit" data-uid="' + r.uid + '">Nhập KQ</button>' +
+      '<button class="view-btn" data-daction="undefer" data-uid="' + r.uid + '">Bỏ hẹn</button>' +
+      '</div></div></li>';
+  }).join('');
+  $('deferred-empty').classList.toggle('hidden', list.length > 0);
+  $('deferred-text').value = buildDeferredText(deferredHandoverSet());
+}
+async function copyDeferred() {
+  const text = $('deferred-text').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Đã sao chép danh sách bàn giao mẫu hẹn lại');
+    return;
+  } catch (e) { /* clipboard không sẵn: dùng đường dự phòng */ }
+  $('deferred-text').select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* bỏ qua */ }
+  toast(ok ? 'Đã sao chép danh sách bàn giao mẫu hẹn lại' : 'Hãy bôi đen nội dung và sao chép thủ công');
+}
+function printDeferredHandover() {
+  const recs = deferredHandoverSet();
+  if (!recs.length) { toast('Chưa có mẫu hẹn lại nào để in'); return; }
+  const rows = recs.map((r, i) =>
+    '<tr><td>' + (i + 1) + '</td><td>' + esc(r.testId) + '</td><td>' +
+    esc((getTestType(r.typeId) || {}).name || r.typeId) + '</td><td>' +
+    esc(deferReasonLabel(r) + (r.deferNote ? ' — ' + r.deferNote : '')) + '</td><td>' +
+    STATUS_LABEL[store.statusOf(r)] + '</td><td>' + esc(fmtList(r.createdAt)) + '</td></tr>').join('');
+  const pa = $('print-area');
+  pa.innerHTML = '<div class="ho-sheet"><h1>DANH SÁCH BÀN GIAO MẪU HẸN LẠI</h1>' +
+    '<p>Lập lúc: ' + esc(fmtFull(new Date().toISOString())) + ' · KTV trực: ' + esc(currentOperator || '(chưa chọn)') +
+    ' · Số mẫu: ' + recs.length + '</p>' +
+    '<table><thead><tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Lý do hẹn lại</th><th>Trạng thái gốc</th><th>Nhận lúc</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+  printAreaKind = 'handover'; /* giữ nguyên cơ chế F30 của tờ bàn giao ca */
   printSheet();
 }
 
@@ -3517,7 +3693,7 @@ function bindPrintCfg() {
    Cài đặt lưu ở khóa riêng labentry.mascot.v1, KHÔNG vào file sao lưu:
    { on: bool, custom: dataURL|null } — ảnh riêng chỉ nằm trên máy này. */
 const MASCOT_KEY = 'labentry.mascot.v1';
-const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried', unreleased: 'worried' };
+const MASCOT_IMG_FOR = { calm: 'calm', waiting: 'waiting', hurried: 'hurried', overdue: 'hurried', overload: 'worried', unreleased: 'worried', deferred: 'waiting' };
 let mascotSettings = loadMascotSettings();
 let mascotSig = '';
 /* Vòng đời bong bóng (Minh góp ý 2026-11-08): mỗi tình huống mới hiện khung
@@ -3553,7 +3729,8 @@ function mascotRemainText(ms) {
 /* Trạng thái suy ra từ các mẫu CHƯA CÓ KẾT QUẢ — thứ tự ưu tiên:
    quá giờ > sắp tới giờ (≤5') > quá tải (≥3 mẫu chờ >15') > đang chờ > ca êm */
 function computeMascotState(now) {
-  const recs = store.getAll().filter((r) => store.statusOf(r) === 'no-result');
+  /* F37: mẫu hẹn lại KHÔNG nằm trong bất kỳ nhóm nhắc việc nào */
+  const recs = store.getAll().filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result');
   const timed = recs.filter((r) => r.timerEndsAt)
     .map((r) => ({ r, at: new Date(r.timerEndsAt).getTime() }))
     .sort((a, b) => a.at - b.at);
@@ -3569,7 +3746,7 @@ function computeMascotState(now) {
   /* F36 (v72, theo yêu cầu của Minh): mẫu ĐÃ có kết quả nhưng quá 60 phút
      kể từ lúc nhận mẫu vẫn chưa phát hành -> linh vật nhắc riêng, thắng
      trạng thái quá tải (việc tồn ở khâu phát hành gấp hơn tồn ở khâu nhập). */
-  const unrel = store.getAll().filter((r) => store.statusOf(r) === 'pending-release' && now - new Date(r.createdAt).getTime() > 60 * 60000)
+  const unrel = store.getAll().filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release' && now - new Date(r.createdAt).getTime() > 60 * 60000)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   if (unrel.length) {
     const ids = unrel.map((r) => r.testId);
@@ -3586,6 +3763,16 @@ function computeMascotState(now) {
   }
   if (recs.length) {
     return { state: 'waiting', key: 'waiting|n' + recs.length, badge: '', text: 'Còn ' + recs.length + ' mẫu chưa có kết quả — cố lên! 💪' };
+  }
+  /* F37 (v73, theo yêu cầu của Minh): khi ca đã êm, linh vật báo cáo mẫu
+     hẹn lại tồn đọng — kèm ID, lý do và ngày tiếp nhận. Việc "chỉ báo 1 lần
+     vào đầu ngày, không lặp lại" nằm ở cơ chế bong bóng trong updateMascot
+     (cờ appMeta.deferDay), trạng thái này tự nó vẫn đúng cả ngày. */
+  const defs = deferredRecords();
+  if (defs.length) {
+    const items = defs.slice(0, 4).map((r) => r.testId + ' · ' + deferReasonLabel(r).toLowerCase() + ' · nhận ' + fmtList(r.createdAt).slice(0, 10));
+    const more = defs.length > 4 ? '… +' + (defs.length - 4) + ' mẫu nữa' : '';
+    return { state: 'deferred', key: 'deferred|' + todayKey() + '|' + defs.map((r) => r.uid).join(','), badge: String(defs.length), text: 'Có mẫu xét nghiệm hẹn lại: ' + items.join('; ') + more + ' ⏸' };
   }
   return { state: 'calm', key: 'calm', badge: '', text: 'Hết mẫu rồi!' };
 }
@@ -3612,13 +3799,29 @@ function updateMascot() {
      giữa hai lần hiện cùng một câu nới từ 60 giây lên 3 phút (hằng số
      MASCOT_RESHOW_MS). Nội dung hiển thị vẫn cập nhật theo stateKey. */
   const bubbleKey = s.key || stateKey;
+  /* F37: báo cáo mẫu hẹn lại chỉ bật bong bóng 1 lần vào đầu ngày (lời của
+     Minh: "chỉ báo vào đầu mỗi ngày nếu có") — cờ appMeta.deferDay nhớ ngày
+     đã báo; sau lần đầu, trạng thái vẫn giữ nhưng bong bóng không tự bật lại
+     trong ngày, kể cả khi danh sách hẹn lại thay đổi. Qua ngày mới, khóa
+     bong bóng đổi theo ngày trong key nên báo cáo bật lại bình thường. */
+  const isDefReport = s.state === 'deferred';
   if (bubbleKey !== mascotBubbleKey) {
     mascotBubbleKey = bubbleKey;
-    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
-    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    if (isDefReport && appMeta.deferDay === todayKey()) {
+      mascotBubbleUntil = now;
+      mascotNextShowAt = Number.MAX_SAFE_INTEGER;
+    } else {
+      if (isDefReport) { appMeta.deferDay = todayKey(); saveMeta(); }
+      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    }
   } else if (now >= mascotNextShowAt) {
-    mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
-    mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    if (isDefReport) {
+      mascotNextShowAt = Number.MAX_SAFE_INTEGER;
+    } else {
+      mascotBubbleUntil = now + MASCOT_BUBBLE_MS;
+      mascotNextShowAt = mascotBubbleUntil + MASCOT_RESHOW_MS;
+    }
   }
   const bubbleShown = now < mascotBubbleUntil;
   const sig = stateKey + '|' + (mascotSettings.custom ? 'custom' : 'def') + '|' + (bubbleShown ? 'b1' : 'b0');
@@ -4123,6 +4326,32 @@ function init() {
   $('btn-handover-print').addEventListener('click', printHandover);
   /* F27: nhập kết quả theo lô */
   $('btn-batch').addEventListener('click', openBatch);
+  /* F37: trang Mẫu hẹn lại + hộp thoại hẹn lại */
+  $('btn-deferred').addEventListener('click', () => switchView('deferred'));
+  $('btn-deferred-back').addEventListener('click', () => switchView('manage'));
+  document.querySelectorAll('[data-defer-filter]').forEach((b) => b.addEventListener('click', () => {
+    deferredFilter = b.dataset.deferFilter;
+    renderDeferred();
+  }));
+  $('deferred-list').addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-defsel]');
+    if (!cb) return;
+    if (cb.checked) deferredSel.add(cb.dataset.defsel); else deferredSel.delete(cb.dataset.defsel);
+    $('deferred-text').value = buildDeferredText(deferredHandoverSet());
+  });
+  $('deferred-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-daction]');
+    if (!btn) return;
+    const uid = btn.dataset.uid;
+    if (btn.dataset.daction === 'view') openSummary(uid);
+    if (btn.dataset.daction === 'edit') openForm(uid);
+    if (btn.dataset.daction === 'undefer') clearDefer(uid);
+  });
+  $('btn-def-copy').addEventListener('click', copyDeferred);
+  $('btn-def-print').addEventListener('click', printDeferredHandover);
+  $('btn-defer-save').addEventListener('click', saveDefer);
+  $('btn-defer-close').addEventListener('click', closeDeferModal);
+  $('btn-defer-clear').addEventListener('click', () => { if (deferUid) clearDefer(deferUid); });
   $('btn-batch-back').addEventListener('click', () => {
     if (batchState) saveBatch();
     batchState = null;
@@ -4236,6 +4465,7 @@ function init() {
     });
   });
   $('btn-summary-release').addEventListener('click', releaseFromSummary);
+  $('btn-summary-defer').addEventListener('click', () => { if (summaryUid) openDeferModal(summaryUid); });
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 
   $('btn-apply-filter').addEventListener('click', applyExport);

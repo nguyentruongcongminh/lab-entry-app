@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v72 và precache đúng URL ?v=72 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v73 và precache đúng URL ?v=73 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v72'"), 'sw.js phải gắn VERSION v72');
-    for (const a of ['styles.css?v=72', 'print.css?v=72', 'config.js?v=72', 'store.js?v=72', 'mascot.js?v=72', 'app.js?v=72', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v73'"), 'sw.js phải gắn VERSION v73');
+    for (const a of ['styles.css?v=73', 'print.css?v=73', 'config.js?v=73', 'store.js?v=73', 'mascot.js?v=73', 'app.js?v=73', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2142,6 +2142,123 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     const bk = JSON.stringify(w11.eval("(function () { const o = JSON.parse(store.exportBackup()); o.staff = staffList.slice(); return o; })()"));
     assert.ok(bk.includes(SIG), 'file sao lưu mang theo ảnh chữ ký trong hồ sơ KTV');
     w11.close();
+  });
+
+  test('F37 (v73): mẫu hẹn lại — đánh dấu lý do, rời mọi hàng chờ, trang riêng + bàn giao riêng, linh vật chỉ báo 1 lần đầu ngày', async () => {
+    const dom13 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Hẹn', salt: 's13', pinHash: 'h13' }]), 'labentry.operator.v1': 'KTV Hẹn' }); } });
+    const w13 = dom13.window;
+    const d13 = w13.document;
+    await new Promise((res) => { if (d13.readyState === 'complete') res(); else w13.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const state = () => w13.eval('computeMascotState(Date.now()).state');
+    const upd = () => w13.eval('updateMascot()');
+    const bubble = d13.getElementById('mascot-bubble'), badge = d13.getElementById('mascot-badge');
+
+    /* A: có kết quả 61 phút chưa phát hành. B: chưa kết quả, hẹn giờ đã quá.
+       Chưa hẹn lại thì linh vật nhắc việc như thường (quá giờ thắng). */
+    const uidA = w13.eval("store.add({ testId: 'XN-HEN-A', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } }, new Date(Date.now() - 61 * 60000)).record.uid");
+    const uidB = w13.eval("store.add({ testId: 'XN-HEN-B', typeId: 'mau-an', results: {} }).record.uid");
+    w13.eval("store.update('" + uidB + "', { timerEndsAt: new Date(Date.now() - 60000).toISOString() })");
+    upd();
+    assert.strictEqual(state(), 'overdue', 'trước khi hẹn lại: mẫu quá giờ hẹn bị nhắc');
+    assert.strictEqual(w13.eval('dueTimerRecords().length'), 1, 'trước khi hẹn lại: B nằm trong danh sách báo động');
+
+    /* Hẹn lại A qua hộp thoại mở từ trang Xem: lý do "mẫu không đạt" + ghi chú */
+    w13.eval("openSummary('" + uidA + "')");
+    assert.ok(!d13.getElementById('btn-summary-defer').classList.contains('hidden'), 'trang Xem có nút Hẹn lại');
+    d13.getElementById('btn-summary-defer').click();
+    assert.ok(!d13.getElementById('defer-modal').classList.contains('hidden'), 'bấm Hẹn lại mở hộp thoại chọn lý do');
+    d13.querySelector('input[name="defer-reason"][value="khong-dat"]').checked = true;
+    d13.getElementById('defer-note').value = 'Lấy lại sáng mai';
+    d13.getElementById('btn-defer-save').click();
+    const recA = JSON.parse(w13.eval("JSON.stringify(store.getByUid('" + uidA + "'))"));
+    assert.strictEqual(recA.deferReason, 'khong-dat', 'lý do hẹn được lưu');
+    assert.strictEqual(recA.deferNote, 'Lấy lại sáng mai', 'ghi chú hẹn được lưu');
+    assert.ok(recA.deferAt, 'có giờ đánh dấu hẹn');
+
+    /* Hẹn lại B (hụt mẫu): đồng hồ hẹn giờ bị tắt, báo động không còn B */
+    w13.eval("openDeferModal('" + uidB + "')");
+    d13.querySelector('input[name="defer-reason"][value="hut-mau"]').checked = true;
+    d13.getElementById('defer-note').value = '';
+    d13.getElementById('btn-defer-save').click();
+    const recB = JSON.parse(w13.eval("JSON.stringify(store.getByUid('" + uidB + "'))"));
+    assert.strictEqual(recB.deferReason, 'hut-mau');
+    assert.strictEqual(recB.timerEndsAt, null, 'hẹn lại thì tắt đồng hồ đếm ngược');
+    assert.strictEqual(w13.eval('dueTimerRecords().length'), 0, 'mẫu hẹn lại không còn trong danh sách báo động');
+
+    /* Cả hai rời hàng chờ: linh vật chuyển sang báo cáo hẹn lại đầu ngày */
+    upd();
+    assert.strictEqual(state(), 'deferred', 'mẫu hẹn lại không tính quá giờ/chưa phát hành — linh vật chỉ còn báo cáo hẹn lại');
+    assert.strictEqual(badge.textContent, '2', 'huy hiệu = số mẫu hẹn lại');
+    assert.ok(bubble.textContent.includes('XN-HEN-A') && bubble.textContent.includes('mẫu không đạt'), 'báo cáo nêu ID + lý do. Thực tế: ' + bubble.textContent);
+    assert.ok(bubble.textContent.includes('XN-HEN-B') && bubble.textContent.includes('hụt mẫu'), 'báo cáo nêu mẫu hụt');
+    assert.ok(bubble.textContent.includes('nhận '), 'báo cáo nêu ngày tiếp nhận');
+    assert.ok(!bubble.classList.contains('hidden'), 'đầu ngày: bong bóng báo cáo hiện');
+    assert.strictEqual(w13.eval('appMeta.deferDay === todayKey()'), true, 'cờ đã-báo-hôm-nay được ghi');
+
+    /* Trong ngày không lặp lại: hết 5 giây + qua mốc hiện lại vẫn tắt */
+    w13.eval('mascotBubbleUntil = Date.now() - 1; mascotNextShowAt = Date.now() - 1; updateMascot();');
+    assert.ok(bubble.classList.contains('hidden'), 'báo cáo hẹn lại không tự bật lại trong ngày');
+
+    /* Hàng chờ sạch: panel Quản lý, danh sách Hôm nay, bàn giao ca chính */
+    w13.eval('renderManage()');
+    assert.ok(!d13.getElementById('list-pending').textContent.includes('XN-HEN-A'), 'A không còn ở panel Chờ phát hành');
+    assert.ok(!d13.getElementById('list-noresult').textContent.includes('XN-HEN-B'), 'B không còn ở panel Chưa kết quả');
+    assert.strictEqual(d13.getElementById('count-deferred').textContent, '2', 'nút Mẫu hẹn lại hiện số đếm 2');
+    w13.eval('renderToday()');
+    assert.ok(!d13.getElementById('list-today').textContent.includes('XN-HEN-A'), 'A không còn ở danh sách Hôm nay');
+    assert.strictEqual(w13.eval('handoverRecords().noresult.length + handoverRecords().pending.length'), 0, 'bàn giao ca chính không lẫn mẫu hẹn lại');
+
+    /* C: mẫu hẹn lại từ hôm qua (lý do khác) */
+    const uidC = w13.eval("store.add({ testId: 'XN-HEN-C', typeId: 'cao-tim-nam', results: {} }, new Date(Date.now() - 26 * 3600000)).record.uid");
+    w13.eval("store.update('" + uidC + "', { deferReason: 'khac', deferNote: 'BN về quê', deferAt: new Date().toISOString() })");
+
+    /* Trang riêng: lọc ngày + bàn giao chọn lọc */
+    w13.eval("switchView('deferred')");
+    assert.ok(d13.getElementById('deferred-list').textContent.includes('XN-HEN-C'), 'lọc Tất cả thấy mẫu hôm qua');
+    assert.ok(d13.getElementById('deferred-text').value.includes('BÀN GIAO MẪU HẸN LẠI'), 'nội dung bàn giao có tiêu đề riêng');
+    assert.ok(d13.getElementById('deferred-text').value.includes('Số mẫu bàn giao: 3'), 'chưa chọn mẫu nào -> bàn giao tất cả đang hiển thị');
+    d13.querySelector('[data-defer-filter="past"]').click();
+    assert.ok(!d13.getElementById('deferred-list').textContent.includes('XN-HEN-A'), 'lọc Ngày trước không thấy mẫu hôm nay');
+    assert.ok(d13.getElementById('deferred-list').textContent.includes('XN-HEN-C'), 'lọc Ngày trước thấy mẫu hôm qua');
+    d13.querySelector('[data-defer-filter="today"]').click();
+    assert.ok(d13.getElementById('deferred-list').textContent.includes('XN-HEN-A'), 'lọc Hôm nay thấy mẫu hôm nay');
+    assert.ok(!d13.getElementById('deferred-list').textContent.includes('XN-HEN-C'), 'lọc Hôm nay không thấy mẫu hôm qua');
+    d13.querySelector('[data-defer-filter="all"]').click();
+    const cbC = d13.querySelector('input[data-defsel="' + uidC + '"]');
+    assert.ok(cbC, 'mỗi dòng có ô tích chọn bàn giao');
+    cbC.click();
+    assert.ok(d13.getElementById('deferred-text').value.includes('Số mẫu bàn giao: 1'), 'tích chọn 1 mẫu -> bàn giao chỉ mẫu đó');
+    assert.ok(d13.getElementById('deferred-text').value.includes('XN-HEN-C') && !d13.getElementById('deferred-text').value.includes('XN-HEN-A'), 'nội dung bàn giao khớp lựa chọn');
+
+    /* In bàn giao hẹn lại ra đúng tờ riêng, có cột lý do */
+    w13.eval('printDeferredHandover()');
+    const paHtml = d13.getElementById('print-area').innerHTML;
+    assert.ok(paHtml.includes('DANH SÁCH BÀN GIAO MẪU HẸN LẠI') && paHtml.includes('Lý do khác') && paHtml.includes('XN-HEN-C'), 'tờ in bàn giao hẹn lại đúng mẫu đã chọn + lý do');
+
+    /* Bỏ hẹn ngay tại trang riêng: A quay lại panel Chờ phát hành */
+    d13.querySelector('[data-daction="undefer"][data-uid="' + uidA + '"]').click();
+    assert.strictEqual(JSON.parse(w13.eval("JSON.stringify(store.getByUid('" + uidA + "'))")).deferReason, '', 'bỏ hẹn xóa dấu hẹn');
+    assert.ok(!d13.getElementById('deferred-list').textContent.includes('XN-HEN-A'), 'danh sách hẹn lại cập nhật tại chỗ sau khi bỏ hẹn');
+    w13.eval('renderManage()');
+    assert.ok(d13.getElementById('list-pending').textContent.includes('XN-HEN-A'), 'A quay lại panel Chờ phát hành');
+    upd();
+    assert.strictEqual(state(), 'unreleased', 'A lại bị nhắc chưa phát hành quá 60 phút như thường');
+
+    /* Phát hành mẫu đang hẹn = tự bỏ hẹn */
+    w13.eval("store.update('" + uidA + "', { deferReason: 'hut-mau', deferAt: new Date().toISOString() })");
+    w13.eval("openSummary('" + uidA + "')");
+    assert.ok(d13.getElementById('sum-defer').textContent.includes('Hụt mẫu'), 'trang Xem hiện khối lý do hẹn');
+    d13.getElementById('btn-summary-release').click();
+    const recA2 = JSON.parse(w13.eval("JSON.stringify(store.getByUid('" + uidA + "'))"));
+    assert.ok(recA2.releaseAt, 'đã phát hành');
+    assert.strictEqual(recA2.deferReason, '', 'phát hành tự bỏ hẹn lại');
+
+    /* Nhật ký có ghi hành động hẹn/bỏ hẹn */
+    assert.ok(w13.eval("auditLog.some((e) => e.action === 'defer')"), 'nhật ký ghi hành động hẹn lại');
+    assert.ok(w13.eval("auditLog.some((e) => e.action === 'undefer')"), 'nhật ký ghi hành động bỏ hẹn');
+    w13.close();
   });
 
   await chain;

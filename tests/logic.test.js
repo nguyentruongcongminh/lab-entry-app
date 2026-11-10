@@ -308,4 +308,29 @@ test('mẫu khẩn STAT (F24): add lưu cờ urgent; update không truyền thì
   assert.strictEqual(s.parseBackup(oldFile).records[0].urgent, false, 'file cũ thiếu cờ -> urgent=false, không lỗi');
 });
 
+test('mẫu hẹn lại (F37): add mặc định không hẹn; update đặt/giữ dấu hẹn; sao lưu mang theo, lý do lạ -> rỗng, file cũ -> không hẹn', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r1 = s.add({ testId: 'HEN1', typeId: 'sp', results: {} });
+  assert.strictEqual(r1.record.deferReason, '', 'không truyền -> mặc định không hẹn lại');
+  assert.strictEqual(r1.record.deferNote, '');
+  assert.strictEqual(r1.record.deferAt, null);
+  const at = new Date().toISOString();
+  const u1 = s.update(r1.record.uid, { deferReason: 'hut-mau', deferNote: 'thiếu mẫu', deferAt: at });
+  assert.strictEqual(u1.record.deferReason, 'hut-mau', 'update đặt được lý do hẹn');
+  assert.strictEqual(u1.record.deferNote, 'thiếu mẫu');
+  assert.strictEqual(u1.record.deferAt, at);
+  const u2 = s.update(r1.record.uid, { note: 'sửa ghi chú khác' });
+  assert.strictEqual(u2.record.deferReason, 'hut-mau', 'update không truyền thì giữ nguyên dấu hẹn');
+  const u3 = s.update(r1.record.uid, { deferReason: '', deferNote: '', deferAt: null });
+  assert.strictEqual(u3.record.deferReason, '', 'truyền rỗng thì bỏ hẹn');
+  s.update(r1.record.uid, { deferReason: 'khong-dat', deferNote: 'lấy lại', deferAt: at });
+  const parsed = s.parseBackup(s.exportBackup());
+  assert.strictEqual(parsed.records[0].deferReason, 'khong-dat', 'dấu hẹn đi theo file sao lưu');
+  assert.strictEqual(parsed.records[0].deferNote, 'lấy lại');
+  const badFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x7', testId: 'HENX', typeId: 'sp', results: {}, deferReason: 'ly-do-la', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
+  assert.strictEqual(s.parseBackup(badFile).records[0].deferReason, '', 'lý do lạ trong file -> coi như không hẹn, không lỗi');
+  const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x8', testId: 'HENOLD', typeId: 'sp', results: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
+  assert.strictEqual(s.parseBackup(oldFile).records[0].deferReason, '', 'file cũ không có trường hẹn -> không hẹn');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');
