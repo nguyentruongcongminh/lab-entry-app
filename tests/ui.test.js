@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v82 và precache đúng URL ?v=82 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v83 và precache đúng URL ?v=83 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v82'"), 'sw.js phải gắn VERSION v82');
-    for (const a of ['styles.css?v=82', 'print.css?v=82', 'config.js?v=82', 'store.js?v=82', 'mascot.js?v=82', 'app.js?v=82', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v83'"), 'sw.js phải gắn VERSION v83');
+    for (const a of ['styles.css?v=83', 'print.css?v=83', 'config.js?v=83', 'store.js?v=83', 'mascot.js?v=83', 'app.js?v=83', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2323,6 +2323,15 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(html.includes('09:20'), 'giờ nhập = giờ phát hành');
     assert.ok((html.match(/KTV Sổ/g) || []).length >= 3, 'NV thực hiện/đọc/nhập lấy từ dấu KTV');
     assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'việc dựng phiếu không đổi dữ liệu');
+
+    /* v83: sổ phải tôn trọng tùy chọn người dùng như phiếu Danh sách —
+       phân nhóm theo loại, kẻ sọc, ghi chú chân trang, in ngày giờ */
+    const htmlG = w14.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', groupBy: 'type', zebra: true, footnote: 'Chân trang kiểm chứng', printDate: true })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.strictEqual((htmlG.match(/sh-group/g) || []).length, 2, 'sổ phân nhóm theo loại: đủ 2 dòng tiêu đề nhóm cho 2 loại');
+    assert.ok(htmlG.indexOf('Soi tươi huyết trắng') < htmlG.indexOf('Cạo tìm nấm'), 'các nhóm xếp theo thứ tự xuất hiện đầu tiên trong ngày');
+    assert.ok(htmlG.includes('class="alt"'), 'sổ kẻ sọc theo khối mẫu khi bật zebra');
+    assert.ok(htmlG.includes('Chân trang kiểm chứng'), 'sổ in ghi chú chân trang khi có');
+    assert.ok(htmlG.includes('In lúc:'), 'sổ in ngày giờ in khi bật printDate');
 
     /* Xuất file mẫu: chỉ chứa cài đặt in; nhập mẫu đổi bố cục, KHÔNG đụng bản ghi */
     const exported = JSON.parse(w14.eval('JSON.stringify(exportPrintLayout())'));

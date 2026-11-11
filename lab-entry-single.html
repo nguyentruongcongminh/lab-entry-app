@@ -1001,7 +1001,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v82</span>
+    <span class="app-version">LabEntry v83</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1397,7 +1397,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <label class="pcfg-row"><span class="pcfg-label">Mã biểu mẫu (góc phải)</span><input id="pcfg-formcode" type="text" placeholder="vd: BM.../QTSXN-..."></label>
       <label class="pcfg-row check"><input id="pcfg-centerdept" type="checkbox"> <span>Canh giữa dòng Khoa/Phòng theo dòng Đơn vị (phiếu Sổ theo dõi)</span></label>
       <label class="pcfg-row check"><input id="pcfg-metacenter" type="checkbox"> <span>Dòng Bộ phận / Ngày gom gần nhau, canh giữa trang (phiếu Sổ theo dõi)</span></label>
-      <p class="pcfg-hint">Kiểu Sổ theo dõi dùng bố cục cố định dạng BM04. Mục "Cột bảng kết quả" và "Chân trang &amp; chữ ký" bên dưới chỉ áp dụng cho kiểu Danh sách kết quả. Khi chọn một mẫu bố cục đã lưu hoặc nhập file mẫu, toàn bộ tùy chọn bên dưới đều đổi theo mẫu đó.</p>
+      <p class="pcfg-hint">Kiểu Sổ theo dõi giữ khung cố định dạng BM04 (cột, đầu trang, chữ ký, màu tiêu đề) — các mục đó chỉ áp dụng cho kiểu Danh sách kết quả. Riêng phân nhóm theo loại xét nghiệm, kẻ sọc, ghi chú chân trang và in ngày giờ áp dụng cho cả hai kiểu. Khi chọn mẫu đã lưu hoặc nhập file mẫu, toàn bộ tùy chọn đổi theo mẫu; sau đó cứ thay đổi tiếp, bản in sẽ theo tùy chọn hiện tại.</p>
     </div>
   </details>
 
@@ -5665,13 +5665,30 @@ function renderLedgerSheet(s, recs) {
   if (!days.length) days.push([todayKey(), []]);
   const daySheet = (entry) => {
     const key = entry[0];
-    const list = entry[1];
+    /* v83 (Minh góp ý): sổ phải tôn trọng tùy chọn của người dùng như phiếu
+       Danh sách — phân nhóm theo loại (gom cụm + dòng tiêu đề nhóm), kẻ sọc
+       theo khối mẫu, ghi chú chân trang và ngày giờ in. Trước v83 sổ bỏ qua
+       hết các tùy chọn này nên chọn mà bản in không đổi. Phân nhóm theo
+       ngày là cấu trúc sẵn của sổ (mỗi ngày một tờ) nên không thêm dòng. */
+    const list = s.groupBy === 'type' ? groupRecords(s, entry[1]) : entry[1];
+    let lastGroup = null;
+    let blockIdx = 0;
     const rows = list.map((rec) => {
+      let groupRow = '';
+      if (s.groupBy === 'type') {
+        const gk = sheetGroupKey(s, rec);
+        if (gk !== lastGroup) {
+          lastGroup = gk;
+          groupRow = '<tr class="sh-group"><td colspan="12">' + esc(gk) + '</td></tr>';
+        }
+      }
+      const alt = s.zebra && blockIdx % 2 === 1 ? ' class="alt"' : '';
+      blockIdx += 1;
       const type = getTestType(rec.typeId);
       const fields = type ? type.fields : [];
       const n = Math.max(1, fields.length);
       const span = ' rowspan="' + n + '"';
-      let html = '<tr>' +
+      let html = '<tr' + alt + '>' +
         '<td' + span + ' class="lg-c">' + esc(rec.testId) + '</td>' +
         '<td' + span + '>' + esc(type ? type.name : rec.typeId) +
           (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>' +
@@ -5683,10 +5700,14 @@ function renderLedgerSheet(s, recs) {
         '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.releaseAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.releaser || '') + '</td><td' + span + '></td></tr>';
       for (let i = 1; i < n; i++) {
-        html += '<tr><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
+        html += '<tr' + alt + '><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
       }
-      return html;
+      return groupRow + html;
     }).join('');
+    const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
+      ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
+        (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
+      : '';
     return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
       '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
       '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div></div>' +
@@ -5700,7 +5721,7 @@ function renderLedgerSheet(s, recs) {
       '<thead><tr><th rowspan="2">SID</th><th rowspan="2">XÉT NGHIỆM</th><th rowspan="2">KẾT QUẢ</th>' +
       '<th colspan="3">Thực hiện XN</th><th colspan="3">Đọc kết quả</th><th colspan="3">Nhập kết quả</th></tr>' +
       '<tr><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
+      '<tbody>' + rows + '</tbody></table>' + footHtml + '</div>';
   };
   return days.map(daySheet).join('');
 }

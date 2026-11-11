@@ -3360,13 +3360,30 @@ function renderLedgerSheet(s, recs) {
   if (!days.length) days.push([todayKey(), []]);
   const daySheet = (entry) => {
     const key = entry[0];
-    const list = entry[1];
+    /* v83 (Minh góp ý): sổ phải tôn trọng tùy chọn của người dùng như phiếu
+       Danh sách — phân nhóm theo loại (gom cụm + dòng tiêu đề nhóm), kẻ sọc
+       theo khối mẫu, ghi chú chân trang và ngày giờ in. Trước v83 sổ bỏ qua
+       hết các tùy chọn này nên chọn mà bản in không đổi. Phân nhóm theo
+       ngày là cấu trúc sẵn của sổ (mỗi ngày một tờ) nên không thêm dòng. */
+    const list = s.groupBy === 'type' ? groupRecords(s, entry[1]) : entry[1];
+    let lastGroup = null;
+    let blockIdx = 0;
     const rows = list.map((rec) => {
+      let groupRow = '';
+      if (s.groupBy === 'type') {
+        const gk = sheetGroupKey(s, rec);
+        if (gk !== lastGroup) {
+          lastGroup = gk;
+          groupRow = '<tr class="sh-group"><td colspan="12">' + esc(gk) + '</td></tr>';
+        }
+      }
+      const alt = s.zebra && blockIdx % 2 === 1 ? ' class="alt"' : '';
+      blockIdx += 1;
       const type = getTestType(rec.typeId);
       const fields = type ? type.fields : [];
       const n = Math.max(1, fields.length);
       const span = ' rowspan="' + n + '"';
-      let html = '<tr>' +
+      let html = '<tr' + alt + '>' +
         '<td' + span + ' class="lg-c">' + esc(rec.testId) + '</td>' +
         '<td' + span + '>' + esc(type ? type.name : rec.typeId) +
           (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>' +
@@ -3378,10 +3395,14 @@ function renderLedgerSheet(s, recs) {
         '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.releaseAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.releaser || '') + '</td><td' + span + '></td></tr>';
       for (let i = 1; i < n; i++) {
-        html += '<tr><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
+        html += '<tr' + alt + '><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
       }
-      return html;
+      return groupRow + html;
     }).join('');
+    const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
+      ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
+        (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
+      : '';
     return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
       '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
       '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div></div>' +
@@ -3395,7 +3416,7 @@ function renderLedgerSheet(s, recs) {
       '<thead><tr><th rowspan="2">SID</th><th rowspan="2">XÉT NGHIỆM</th><th rowspan="2">KẾT QUẢ</th>' +
       '<th colspan="3">Thực hiện XN</th><th colspan="3">Đọc kết quả</th><th colspan="3">Nhập kết quả</th></tr>' +
       '<tr><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table></div>';
+      '<tbody>' + rows + '</tbody></table>' + footHtml + '</div>';
   };
   return days.map(daySheet).join('');
 }
