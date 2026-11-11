@@ -2695,6 +2695,7 @@ const PRINT_COLUMNS = [
   { id: 'results', label: 'Kết quả' },
   { id: 'note', label: 'Ghi chú' },
   { id: 'created', label: 'Ngày giờ nhập' },
+  { id: 'result', label: 'Ngày giờ có kết quả' },
   { id: 'released', label: 'Ngày giờ phát hành' },
   { id: 'status', label: 'Trạng thái' },
   { id: 'wait', label: 'Thời gian chờ' },
@@ -3064,6 +3065,9 @@ function defaultPrintSettings() {
        dòng "Bộ phận", formCode = mã biểu mẫu góc phải. Mặc định trung tính,
        KHÔNG chứa tên đơn vị cụ thể nào. */
     style: 'list', section: '', formCode: '',
+    /* v77 (Minh góp ý trên máy thật): đầu sổ — canh giữa dòng Khoa/Phòng
+       theo dòng Đơn vị; dòng Bộ phận/Ngày gom lại canh giữa như form BV */
+    centerDept: false, metaCenter: false,
     columns: PRINT_COLUMNS.map((c) => ({
       id: c.id, label: c.label,
       visible: PRINT_DEFAULT_VISIBLE.includes(c.id),
@@ -3118,6 +3122,8 @@ function normalizePrintSettings(saved) {
   if (!['list', 'ledger'].includes(merged.style)) merged.style = 'list';
   if (typeof merged.section !== 'string') merged.section = '';
   if (typeof merged.formCode !== 'string') merged.formCode = '';
+  merged.centerDept = !!merged.centerDept;
+  merged.metaCenter = !!merged.metaCenter;
   if (!['none', 'doc', 'image'].includes(merged.rightZone)) merged.rightZone = 'none';
   if (!['box', 'plain'].includes(merged.docBoxStyle)) merged.docBoxStyle = 'box';
   merged.docBarcode = !!merged.docBarcode;
@@ -3159,6 +3165,7 @@ function printCellValue(colId, rec, idx) {
     case 'results': return resultSummary(rec);
     case 'note': return esc(rec.note || '');
     case 'created': return esc(fmtList(rec.createdAt));
+    case 'result': return esc(rec.resultAt ? fmtList(rec.resultAt) : '—'); /* F38/v77: giờ lưu kết quả */
     case 'released': return esc(rec.releaseAt ? fmtList(rec.releaseAt) : '—');
     case 'status': return esc(STATUS_LABEL[store.statusOf(rec)]);
     case 'wait': {
@@ -3347,10 +3354,10 @@ function renderLedgerSheet(s, recs) {
     }).join('');
     return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
       '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
-      '<div class="lg-dept">' + esc(s.dept || '') + '</div></div>' +
+      '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div></div>' +
       '<div class="lg-code">' + esc(s.formCode || '') + '</div></div>' +
       '<h1 class="lg-title">' + esc(s.title || 'Sổ theo dõi kết quả xét nghiệm thủ công') + '</h1>' +
-      '<div class="lg-meta"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
+      '<div class="lg-meta' + (s.metaCenter ? ' center' : '') + '"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
       '<table><colgroup><col style="width:11%"><col style="width:10%"><col style="width:16%">' +
       '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
       '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
@@ -3620,6 +3627,7 @@ function fillPrintCfgControls() {
   $('pcfg-title').value = s.title;
   $('pcfg-subtitle').checked = !!s.subtitle;
   $('pcfg-style').value = s.style; $('pcfg-section').value = s.section; $('pcfg-formcode').value = s.formCode;
+  $('pcfg-centerdept').checked = !!s.centerDept; $('pcfg-metacenter').checked = !!s.metaCenter;
   $('pcfg-pagesize').value = s.pageSize;
   $('pcfg-orient').value = s.orient;
   $('pcfg-margin').value = s.margin;
@@ -3741,6 +3749,7 @@ function bindPrintCfg() {
   txt('pcfg-org', 'org'); txt('pcfg-dept', 'dept'); txt('pcfg-address', 'address');
   txt('pcfg-phone', 'phone'); txt('pcfg-email', 'email'); txt('pcfg-title', 'title');
   sel('pcfg-style', 'style'); txt('pcfg-section', 'section'); txt('pcfg-formcode', 'formCode');
+  chk('pcfg-centerdept', 'centerDept'); chk('pcfg-metacenter', 'metaCenter');
   $('btn-layout-export').addEventListener('click', downloadPrintLayout);
   $('btn-layout-import').addEventListener('click', () => $('pcfg-layout-file').click());
   $('pcfg-layout-file').addEventListener('change', (e) => {

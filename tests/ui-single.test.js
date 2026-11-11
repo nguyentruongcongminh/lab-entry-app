@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v76 và precache đúng URL ?v=76 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v77 và precache đúng URL ?v=77 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v76'"), 'sw.js phải gắn VERSION v76');
-    for (const a of ['styles.css?v=76', 'print.css?v=76', 'config.js?v=76', 'store.js?v=76', 'mascot.js?v=76', 'app.js?v=76', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v77'"), 'sw.js phải gắn VERSION v77');
+    for (const a of ['styles.css?v=77', 'print.css?v=77', 'config.js?v=77', 'store.js?v=77', 'mascot.js?v=77', 'app.js?v=77', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -949,12 +949,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-printcfg')));
     assert.ok($('pcfg-preview').textContent.includes('2611050001'), 'xem trước phải có dữ liệu mẫu');
     assert.ok(!$('pcfg-preview').textContent.includes('KTV nhận'), 'cột KTV mặc định tắt nên chưa hiện');
-    /* Bật 3 cột KTV (hàng theo thứ tự registry: receiver/performer/releaser ở cuối) */
+    /* Bật 3 cột KTV (hàng theo thứ tự registry: receiver/performer/releaser ở cuối;
+       v77 chèn cột "Ngày giờ có kết quả" sau cột nhập nên registry có 13 cột) */
     const colRows = $('pcfg-columns').children;
-    assert.strictEqual(colRows.length, 12, 'phải có đủ 12 cột để tùy chỉnh');
-    colRows[9].querySelector('.pc-visible').click();
+    assert.strictEqual(colRows.length, 13, 'phải có đủ 13 cột để tùy chỉnh');
     colRows[10].querySelector('.pc-visible').click();
     colRows[11].querySelector('.pc-visible').click();
+    colRows[12].querySelector('.pc-visible').click();
     assert.ok($('pcfg-preview').textContent.includes('KTV nhận'), 'xem trước phải hiện cột KTV sau khi bật');
     assert.ok($('pcfg-preview').textContent.includes('Trần Văn An'), 'xem trước phải hiện tên KTV mẫu ở cột KTV');
     setInput($('pcfg-org'), 'TRUNG TÂM XÉT NGHIỆM MẪU');
@@ -2325,6 +2326,51 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(w14.eval("importPrintLayout('{\"app\":\"LabEntry\",\"kind\":\"labentry-backup\",\"records\":[]}')"), false, 'file sao lưu dữ liệu bị từ chối ở đường nhập mẫu');
     assert.strictEqual(w14.eval("importPrintLayout('không phải json')"), false, 'file rác bị từ chối');
     w14.close();
+  });
+
+  test('F38b (v77): cột in "Ngày giờ có kết quả" + đầu sổ canh giữa theo tùy chọn + nhập mẫu đồng bộ toàn bộ tùy chọn bên dưới (cột, chữ ký)', async () => {
+    const dom15 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Sổ 2', salt: 's15', pinHash: 'h15' }]), 'labentry.operator.v1': 'KTV Sổ 2' }); } });
+    const w15 = dom15.window;
+    const d15 = w15.document;
+    await new Promise((res) => { if (d15.readyState === 'complete') res(); else w15.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    const uid = w15.eval("store.add({ testId: 'SO-101', typeId: 'sp', results: { hongCau: '1+' }, performer: 'KTV Sổ 2' }).record.uid");
+    w15.eval("store.update('" + uid + "', { resultAt: '2026-11-11T08:15:00.000+07:00' })");
+
+    /* Cột "Ngày giờ có kết quả" trên phiếu Danh sách */
+    assert.ok(w15.eval("PRINT_COLUMNS.some((c) => c.id === 'result')"), 'danh sách cột có cột result (ngày giờ có kết quả)');
+    const listHtml = w15.eval("(function(){ printSettings = normalizePrintSettings(Object.assign({}, printSettings, { style: 'list', columns: printSettings.columns.map((c) => Object.assign({}, c, { visible: ['stt', 'testId', 'result'].indexOf(c.id) >= 0 })) })); return renderSheet(printSettings, store.getAll(), {}); })()");
+    assert.ok(listHtml.includes('Ngày giờ có kết quả'), 'tiêu đề cột hiện trên phiếu danh sách');
+    assert.ok(listHtml.includes('08:15'), 'giá trị giờ lưu kết quả được in');
+
+    /* Đầu sổ: hai tùy chọn canh giữa */
+    const ledHtml = w15.eval("(function(){ printSettings = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', centerDept: true, metaCenter: true })); return renderSheet(printSettings, store.getAll(), {}); })()");
+    assert.ok(ledHtml.includes('lg-dept lg-c'), 'bật centerDept -> dòng Khoa canh giữa theo dòng Đơn vị');
+    assert.ok(ledHtml.includes('lg-meta center'), 'bật metaCenter -> dòng Bộ phận/Ngày gom giữa');
+    const ledHtml2 = w15.eval("(function(){ printSettings = normalizePrintSettings(Object.assign({}, printSettings, { centerDept: false, metaCenter: false })); return renderSheet(printSettings, store.getAll(), {}); })()");
+    assert.ok(!ledHtml2.includes('lg-dept lg-c') && !ledHtml2.includes('lg-meta center'), 'tắt tùy chọn -> đầu sổ về dạng trái/phải như cũ');
+
+    /* Nhập file mẫu: MỌI tùy chọn bên dưới (cột + khối chữ ký + tiêu đề) đồng bộ theo file */
+    const fileObj = { app: 'LabEntry', kind: 'labentry-print-layout', version: 1, settings: {
+      style: 'list', title: 'Mẫu đồng bộ kiểm tra',
+      columns: [{ id: 'status', label: 'TT riêng', visible: true, width: 10, align: 'right' }, { id: 'stt', label: 'STT', visible: false, width: 0, align: 'center' }],
+      sigs: [
+        { on: true, title: 'Người duyệt riêng', name: 'Tên Riêng Một', staff: '', align: 'left' },
+        { on: false, title: 'Ô hai', name: '', staff: '', align: 'center' },
+        { on: false, title: 'Ô ba', name: '', staff: '', align: 'right' }] } };
+    assert.strictEqual(w15.eval('importPrintLayout(' + JSON.stringify(JSON.stringify(fileObj)) + ')'), true, 'nhập mẫu hợp lệ');
+    assert.strictEqual(d15.getElementById('pcfg-title').value, 'Mẫu đồng bộ kiểm tra', 'ô tiêu đề đổi theo mẫu');
+    const colRows = Array.from(d15.querySelectorAll('#pcfg-columns .pcfg-col'));
+    const byLabel = {};
+    colRows.forEach((r) => { byLabel[r.querySelector('.pc-label').value] = r.querySelector('.pc-visible').checked; });
+    assert.strictEqual(byLabel['TT riêng'], true, 'cột Trạng thái trong file được tick đúng trong giao diện');
+    assert.strictEqual(byLabel['STT'], false, 'cột STT trong file bỏ tick -> giao diện bỏ tick theo');
+    assert.strictEqual(d15.getElementById('pcfg-sig1-on').checked, true, 'ô chữ ký 1 bật theo file');
+    assert.strictEqual(d15.getElementById('pcfg-sig1-title').value, 'Người duyệt riêng', 'chức danh ô ký đổi theo file');
+    assert.strictEqual(d15.getElementById('pcfg-sig1-name').value, 'Tên Riêng Một', 'họ tên ô ký đổi theo file');
+    w15.close();
   });
 
   await chain;
