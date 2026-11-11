@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v79 và precache đúng URL ?v=79 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v80 và precache đúng URL ?v=80 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v79'"), 'sw.js phải gắn VERSION v79');
-    for (const a of ['styles.css?v=79', 'print.css?v=79', 'config.js?v=79', 'store.js?v=79', 'mascot.js?v=79', 'app.js?v=79', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v80'"), 'sw.js phải gắn VERSION v80');
+    for (const a of ['styles.css?v=80', 'print.css?v=80', 'config.js?v=80', 'store.js?v=80', 'mascot.js?v=80', 'app.js?v=80', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2310,6 +2310,7 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(html.includes('<b>Hồng cầu</b> 0'), 'chỉ số chip đã chọn in đúng mức đã chọn');
     assert.ok(html.includes('<b>Nấm</b> Âm tính'), 'chỉ số chip chưa chọn in "Âm tính"');
     assert.ok(html.includes('08:15'), 'giờ thực hiện = giờ lưu kết quả');
+    assert.strictEqual((html.match(/08:15/g) || []).length, 2, 'giờ ĐỌC kết quả cũng = giờ lưu kết quả (v80: soi và đọc là một công đoạn)');
     assert.ok(html.includes('09:20'), 'giờ nhập = giờ phát hành');
     assert.ok((html.match(/KTV Sổ/g) || []).length >= 3, 'NV thực hiện/đọc/nhập lấy từ dấu KTV');
     assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'việc dựng phiếu không đổi dữ liệu');

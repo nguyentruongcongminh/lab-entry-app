@@ -3315,8 +3315,11 @@ function drawSheetBarcodes(root) {
  * Giờ + NV thực hiện + NV kiểm tra. Người lấy từ dấu KTV trong app (thực
  * hiện & đọc = performer, nhập = releaser); cột NV kiểm tra ĐỂ TRỐNG để
  * người kiểm tra tự ghi tay lên bản in (Minh chốt 2026-11-11). Giờ thực
- * hiện = resultAt (ngày giờ lưu kết quả); giờ nhập = releaseAt; giờ đọc
- * chưa có mốc riêng trong app nên để trống. Mỗi ngày một tờ, ngắt trang. */
+ * hiện = resultAt (ngày giờ lưu kết quả); giờ nhập = releaseAt. Từ v80:
+ * giờ ĐỌC kết quả cũng = resultAt — soi và đọc là một công đoạn tại kính,
+ * khoảnh khắc lưu kết quả chính là lúc đọc xong (Minh góp ý 2026-11-11:
+ * trang Xem có giờ này mà cột Đọc kết quả trên sổ để trống là thiếu).
+ * Mỗi ngày một tờ, ngắt trang. */
 function fmtClock(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -3346,7 +3349,7 @@ function renderLedgerSheet(s, recs) {
         '<td>' + (fields.length ? '<b>' + esc(fields[0].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[0])) : '') + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
-        '<td' + span + ' class="lg-c"></td>' +
+        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
         '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.releaseAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.releaser || '') + '</td><td' + span + '></td></tr>';
