@@ -2735,7 +2735,7 @@ let printSettings = null;
  *    chưa có thì mở form nhập); không thấy thì báo ngay tại màn hình quét.
  * (Mục 2 trong danh sách đề xuất ban đầu — hoãn báo động — Minh không chọn.) */
 const META_KEY = 'labentry.meta.v1';
-let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '' };
+let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '', lastActAt: 0 };
 
 function loadMeta() {
   try {
@@ -2746,6 +2746,7 @@ function loadMeta() {
       appMeta.speakDue = m.speakDue === true;
       if (typeof m.backupNagUntil === 'string') appMeta.backupNagUntil = m.backupNagUntil;
       if (typeof m.deferDay === 'string') appMeta.deferDay = m.deferDay; /* F37: ngày linh vật đã báo cáo mẫu hẹn lại */
+      if (typeof m.lastActAt === 'number' && m.lastActAt > 0) appMeta.lastActAt = m.lastActAt; /* v82: mốc thao tác thật gần nhất (cho tự khóa qua lần mở app) */
     }
   } catch (e) { /* cấu hình hỏng -> dùng mặc định */ }
 }
@@ -2786,7 +2787,19 @@ function renderBackupLast() {
 
 /* ---- 5) Tự khóa KTV trực ---- */
 let lastActivityAt = Date.now();
-function noteActivity() { lastActivityAt = Date.now(); }
+let lastActPersistedAt = 0;
+function noteActivity() {
+  lastActivityAt = Date.now();
+  /* v82: lưu mốc thao tác THẬT xuống máy (tối đa 2 giây/lần) để đồng hồ
+     không-thao-tác sống qua việc trình duyệt đóng/nạp lại trang. Trước
+     v82 mốc chỉ nằm trong bộ nhớ trang: đi vắng lâu, trang bị nạp lại là
+     đồng hồ về 0 và người trực không bao giờ bị khóa (Minh báo lỗi). */
+  if (lastActivityAt - lastActPersistedAt >= 2000) {
+    lastActPersistedAt = lastActivityAt;
+    appMeta.lastActAt = lastActivityAt;
+    saveMeta();
+  }
+}
 
 function anyModalOpen() {
   return !!document.querySelector('.modal:not(.hidden)');
@@ -2800,6 +2813,14 @@ function checkAutoLock(now) {
   audit('operator', 'Tự khóa người trực sau ' + appMeta.autoLockMin + ' phút không thao tác (' + name + ')', null);
   setOperator('');
   toast('Đã tự khóa KTV trực do không thao tác — hãy chọn lại người trực để tiếp tục');
+}
+
+/* v82: lúc mở app — khôi phục mốc thao tác đã lưu; nếu đã quá hạn tự khóa
+   (đi vắng lâu, trang bị trình duyệt nạp lại trong lúc vắng) thì khóa
+   ngay, không chờ nhịp 1 giây. Cũng chạy khi quay lại app. */
+function restoreActivityClock() {
+  if (appMeta.lastActAt > 0) lastActivityAt = appMeta.lastActAt;
+  checkAutoLock(Date.now());
 }
 
 /* ---- 6) Đọc to mã mẫu khi tới giờ ---- */
@@ -4403,6 +4424,7 @@ function init() {
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadAuditLog(); /* nhật ký kiểm toán (F22) */
   loadMeta(); /* cấu hình ca trực: lần sao lưu gần nhất, tự khóa, đọc to (F24) */
+  restoreActivityClock(); /* v82: khóa ngay khi mở app nếu mốc thao tác đã lưu quá hạn */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
   loadPresets(); /* các mẫu bố cục đã lưu */
   renderOperatorControls();
@@ -4720,7 +4742,7 @@ function init() {
   syncNativeAlarms();
   setTimeout(syncNativeAlarms, 1500);
   setTimeout(syncNativeAlarms, 4000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNativeAlarms(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { syncNativeAlarms(); checkAutoLock(Date.now()); } }); /* v82: quay lại app sau thời gian vắng -> xét tự khóa ngay */
 }
 
 /* ---------- PWA: đăng ký Service Worker ----------

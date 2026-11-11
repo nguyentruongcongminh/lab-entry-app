@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v81 và precache đúng URL ?v=81 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v82 và precache đúng URL ?v=82 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v81'"), 'sw.js phải gắn VERSION v81');
-    for (const a of ['styles.css?v=81', 'print.css?v=81', 'config.js?v=81', 'store.js?v=81', 'mascot.js?v=81', 'app.js?v=81', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v82'"), 'sw.js phải gắn VERSION v82');
+    for (const a of ['styles.css?v=82', 'print.css?v=82', 'config.js?v=82', 'store.js?v=82', 'mascot.js?v=82', 'app.js?v=82', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1431,6 +1431,15 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w3.eval("setOperator('KTV V43'); openSummary(store.getAll().find((r) => r.testId === 'V43-KHAN').uid); lastActivityAt = Date.now() - 2 * 60000; timerTick();");
     assert.strictEqual($3('operator-select').value, 'KTV V43', 'đang mở hộp thoại Xem thì không được tự khóa giữa chừng');
     w3.eval('closeSummary(); appMeta.autoLockMin = 10; saveMeta(); lastActivityAt = Date.now();');
+
+    /* --- 5b) v82: mốc thao tác được LƯU xuống máy + khóa ngay khi mở lại app nếu mốc đã quá hạn --- */
+    const persistedAct = w3.eval('lastActPersistedAt = 0; noteActivity(); JSON.parse(localStorage.getItem("labentry.meta.v1")).lastActAt');
+    assert.ok(typeof persistedAct === 'number' && Math.abs(Date.now() - persistedAct) < 5000, 'noteActivity phải lưu mốc thao tác xuống localStorage (meta.lastActAt)');
+    w3.eval("setOperator('KTV V43'); appMeta.autoLockMin = 10; appMeta.lastActAt = Date.now() - 11 * 60000; saveMeta(); restoreActivityClock();");
+    assert.strictEqual($3('operator-select').value, '', 'mở lại app với mốc thao tác quá hạn (11 phút > ngưỡng 10) thì phải khóa ngay');
+    w3.eval("setOperator('KTV V43'); appMeta.lastActAt = Date.now(); restoreActivityClock();");
+    assert.strictEqual($3('operator-select').value, 'KTV V43', 'mốc thao tác còn tươi thì mở app không khóa');
+    w3.eval('lastActivityAt = Date.now();');
 
     /* --- 6) Đọc to mã mẫu khi tới giờ --- */
     const spoken = [];
