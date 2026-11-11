@@ -567,6 +567,7 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet.ledger th { background: #fff; text-align: center; vertical-align: middle; }
 .sheet.ledger td { vertical-align: middle; }
 .sheet.ledger td.lg-c { text-align: center; }
+.sheet.ledger .lg-dept.lg-c { text-align: center; } /* v79: bản v77 gắn lớp lg-c cho dòng Khoa nhưng quy tắc cũ chỉ áp cho ô bảng (td) nên dòng Khoa không canh giữa thật — Minh phát hiện trên máy thật */
 .sheet.ledger .lg-meta.center { justify-content: center; gap: 56px; }
 /* Đầu trang 3 vùng + khối tài liệu + mã vạch (F21) */
 .sheet .sh-header.grid3 { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; }
