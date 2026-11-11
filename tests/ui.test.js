@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v80 và precache đúng URL ?v=80 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v81 và precache đúng URL ?v=81 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v80'"), 'sw.js phải gắn VERSION v80');
-    for (const a of ['styles.css?v=80', 'print.css?v=80', 'config.js?v=80', 'store.js?v=80', 'mascot.js?v=80', 'app.js?v=80', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v81'"), 'sw.js phải gắn VERSION v81');
+    for (const a of ['styles.css?v=81', 'print.css?v=81', 'config.js?v=81', 'store.js?v=81', 'mascot.js?v=81', 'app.js?v=81', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2292,7 +2292,7 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
 
     /* Mẫu 1: soi tươi 9 chỉ số (khối 9 dòng), có kết quả, đã phát hành,
        giờ lưu kết quả và giờ phát hành đặt cố định để kiểm tra in giờ. */
-    const uid1 = w14.eval("store.add({ testId: 'SO-001', typeId: 'soi-tuoi-huyet-trang', results: { bachCau: '2+', hongCau: '0' }, performer: 'KTV Sổ', receiver: 'KTV Sổ' }).record.uid");
+    const uid1 = w14.eval("store.add({ testId: 'SO-001', typeId: 'soi-tuoi-huyet-trang', results: { bachCau: '2+', hongCau: '0' }, performer: 'KTV Sổ', receiver: 'KTV Sổ' }, new Date('2026-11-11T07:50:00.000+07:00')).record.uid");
     w14.eval("store.update('" + uid1 + "', { resultAt: '2026-11-11T08:15:00.000+07:00', releaseAt: '2026-11-11T09:20:00.000+07:00', releaser: 'KTV Sổ' })");
     /* Mẫu 2: cạo tìm nấm 1 chỉ số, chưa phát hành */
     w14.eval("store.add({ testId: 'SO-002', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' }, performer: 'KTV Sổ' })");
@@ -2309,8 +2309,8 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(html.includes('<b>Bạch cầu</b> 2+'), 'dòng chỉ số Bạch cầu kèm giá trị');
     assert.ok(html.includes('<b>Hồng cầu</b> 0'), 'chỉ số chip đã chọn in đúng mức đã chọn');
     assert.ok(html.includes('<b>Nấm</b> Âm tính'), 'chỉ số chip chưa chọn in "Âm tính"');
-    assert.ok(html.includes('08:15'), 'giờ thực hiện = giờ lưu kết quả');
-    assert.strictEqual((html.match(/08:15/g) || []).length, 2, 'giờ ĐỌC kết quả cũng = giờ lưu kết quả (v80: soi và đọc là một công đoạn)');
+    assert.strictEqual((html.match(/07:50/g) || []).length, 1, 'giờ THỰC HIỆN = giờ nhập đầu vào/nhận mẫu createdAt (v81, Minh chốt)');
+    assert.strictEqual((html.match(/08:15/g) || []).length, 1, 'giờ ĐỌC kết quả = giờ lưu kết quả resultAt (v80/v81)');
     assert.ok(html.includes('09:20'), 'giờ nhập = giờ phát hành');
     assert.ok((html.match(/KTV Sổ/g) || []).length >= 3, 'NV thực hiện/đọc/nhập lấy từ dấu KTV');
     assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'việc dựng phiếu không đổi dữ liệu');

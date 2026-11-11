@@ -59,6 +59,7 @@
 ## Cập nhật gần đây / Recent updates
 
 - **Android (APK) v1.0.0-trial3** — **Có bản Android chính thức** (xem mục Tải ứng dụng ở đầu trang): báo thức tới giờ do hệ điều hành phụ trách — kêu + rung ngay cả khi app đã đóng hẳn, quét mã vạch bằng camera trong app. · *Official Android app: OS-level due-time alarms (ring + vibrate even when fully closed) and in-app camera scanning.*
+- **v81** — **Giờ Thực hiện XN trên sổ = giờ nhập đầu vào**: cột giờ "Thực hiện XN" nay lấy giờ nhận mẫu (lúc nhập xét nghiệm đầu vào), "Đọc kết quả" lấy giờ lưu kết quả, "Nhập kết quả" lấy giờ phát hành — mẫu cũ chưa có giờ lưu vẫn có giờ thực hiện. · *The ledger's Perform-stage time is now the intake time; Read = result-saved time; Enter = release time.*
 - **v80** — **Giờ đọc kết quả trên Sổ theo dõi**: giờ lưu kết quả nay in ở cả hai cột Giờ "Thực hiện XN" và "Đọc kết quả" (soi và đọc là một công đoạn tại kính). · *The result-saved time now prints in both the Perform and Read stage time columns of the tracking ledger.*
 - **v79** — **Sửa lỗi canh giữa dòng Khoa trên phiếu Sổ theo dõi**: bản v77 gắn lớp canh giữa nhưng quy tắc CSS chỉ áp cho ô bảng nên dòng Khoa chưa canh giữa thật; nay đã sửa và kiểm chứng bằng vị trí chữ thật trên tờ in. · *Fixed the department-line centering on the ledger sheet (the v77 CSS rule missed the header element).*
 - **v78** — **Trang Xem hiện giờ có kết quả**: dòng "Có kết quả" (giờ lưu kết quả) nằm giữa Nhận mẫu và Phát hành trong trang chi tiết mẫu. · *The sample summary view now shows the result-saved time between receipt and release.*

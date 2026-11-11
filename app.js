@@ -3319,7 +3319,10 @@ function drawSheetBarcodes(root) {
  * giờ ĐỌC kết quả cũng = resultAt — soi và đọc là một công đoạn tại kính,
  * khoảnh khắc lưu kết quả chính là lúc đọc xong (Minh góp ý 2026-11-11:
  * trang Xem có giờ này mà cột Đọc kết quả trên sổ để trống là thiếu).
- * Mỗi ngày một tờ, ngắt trang. */
+ * Từ v81: giờ THỰC HIỆN = createdAt — "giờ nhập xét nghiệm đầu vào"
+ * (Minh chốt 2026-11-11: mẫu cũ chưa có resultAt vẫn phải có giờ thực
+ * hiện từ giờ nhận mẫu; trang Xem đã có giờ này). Mỗi ngày một tờ,
+ * ngắt trang. */
 function fmtClock(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -3347,7 +3350,7 @@ function renderLedgerSheet(s, recs) {
         '<td' + span + '>' + esc(type ? type.name : rec.typeId) +
           (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>' +
         '<td>' + (fields.length ? '<b>' + esc(fields[0].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[0])) : '') + '</td>' +
-        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
+        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.createdAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
         '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
         '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
