@@ -3059,6 +3059,11 @@ function defaultPrintSettings() {
     ],
     logo2: '', logo2Size: 'm',
     title: 'Danh sách kết quả xét nghiệm', subtitle: true,
+    /* F38: kiểu phiếu — 'list' danh sách kết quả hiện tại; 'ledger' sổ theo
+       dõi thủ công dạng BM04 (mỗi chỉ số một dòng, 3 giai đoạn). section =
+       dòng "Bộ phận", formCode = mã biểu mẫu góc phải. Mặc định trung tính,
+       KHÔNG chứa tên đơn vị cụ thể nào. */
+    style: 'list', section: '', formCode: '',
     columns: PRINT_COLUMNS.map((c) => ({
       id: c.id, label: c.label,
       visible: PRINT_DEFAULT_VISIBLE.includes(c.id),
@@ -3110,6 +3115,9 @@ function normalizePrintSettings(saved) {
   }));
   if (!['left', 'center', 'right', 'auto'].includes(merged.logoPos)) merged.logoPos = 'auto';
   if (!['side', 'center', 'grid3'].includes(merged.headerLayout)) merged.headerLayout = 'side';
+  if (!['list', 'ledger'].includes(merged.style)) merged.style = 'list';
+  if (typeof merged.section !== 'string') merged.section = '';
+  if (typeof merged.formCode !== 'string') merged.formCode = '';
   if (!['none', 'doc', 'image'].includes(merged.rightZone)) merged.rightZone = 'none';
   if (!['box', 'plain'].includes(merged.docBoxStyle)) merged.docBoxStyle = 'box';
   merged.docBarcode = !!merged.docBarcode;
@@ -3290,7 +3298,73 @@ function drawSheetBarcodes(root) {
   });
 }
 
+/* ---------- Phiếu Sổ theo dõi thủ công (F38, dạng BM04) ----------
+ * Theo mẫu sổ giấy: mỗi mẫu một khối — mỗi chỉ số kết quả nằm trên một
+ * dòng riêng; SID / loại XN / các ô giai đoạn gộp dọc (rowspan) theo khối.
+ * Ba giai đoạn Thực hiện XN / Đọc kết quả / Nhập kết quả, mỗi giai đoạn có
+ * Giờ + NV thực hiện + NV kiểm tra. Người lấy từ dấu KTV trong app (thực
+ * hiện & đọc = performer, nhập = releaser); cột NV kiểm tra ĐỂ TRỐNG để
+ * người kiểm tra tự ghi tay lên bản in (Minh chốt 2026-11-11). Giờ thực
+ * hiện = resultAt (ngày giờ lưu kết quả); giờ nhập = releaseAt; giờ đọc
+ * chưa có mốc riêng trong app nên để trống. Mỗi ngày một tờ, ngắt trang. */
+function fmtClock(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+function renderLedgerSheet(s, recs) {
+  const byDay = new Map();
+  recs.forEach((r) => {
+    const k = LabStore.localDayKey(new Date(r.createdAt));
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(r);
+  });
+  const days = Array.from(byDay.entries()).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  if (!days.length) days.push([todayKey(), []]);
+  const daySheet = (entry) => {
+    const key = entry[0];
+    const list = entry[1];
+    const rows = list.map((rec) => {
+      const type = getTestType(rec.typeId);
+      const fields = type ? type.fields : [];
+      const n = Math.max(1, fields.length);
+      const span = ' rowspan="' + n + '"';
+      let html = '<tr>' +
+        '<td' + span + ' class="lg-c">' + esc(rec.testId) + '</td>' +
+        '<td' + span + '>' + esc(type ? type.name : rec.typeId) +
+          (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>' +
+        '<td>' + (fields.length ? '<b>' + esc(fields[0].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[0])) : '') + '</td>' +
+        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
+        '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
+        '<td' + span + ' class="lg-c"></td>' +
+        '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
+        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.releaseAt)) + '</td>' +
+        '<td' + span + ' class="lg-c">' + esc(rec.releaser || '') + '</td><td' + span + '></td></tr>';
+      for (let i = 1; i < n; i++) {
+        html += '<tr><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
+      }
+      return html;
+    }).join('');
+    return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
+      '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
+      '<div class="lg-dept">' + esc(s.dept || '') + '</div></div>' +
+      '<div class="lg-code">' + esc(s.formCode || '') + '</div></div>' +
+      '<h1 class="lg-title">' + esc(s.title || 'Sổ theo dõi kết quả xét nghiệm thủ công') + '</h1>' +
+      '<div class="lg-meta"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
+      '<table><colgroup><col style="width:11%"><col style="width:10%"><col style="width:16%">' +
+      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
+      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
+      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%"></colgroup>' +
+      '<thead><tr><th rowspan="2">SID</th><th rowspan="2">XÉT NGHIỆM</th><th rowspan="2">KẾT QUẢ</th>' +
+      '<th colspan="3">Thực hiện XN</th><th colspan="3">Đọc kết quả</th><th colspan="3">Nhập kết quả</th></tr>' +
+      '<tr><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+  };
+  return days.map(daySheet).join('');
+}
+
 function renderSheet(s, recs, opts) {
+  if (s.style === 'ledger') return renderLedgerSheet(s, recs); /* F38 */
   const o = opts || {};
   const logoHtml = s.logo
     ? '<img class="sh-logo sz-' + s.logoSize + '" src="' + s.logo + '" alt="">'
@@ -3502,6 +3576,36 @@ function syncRightZoneBlocks() {
   $('pcfg-logo2-block').classList.toggle('hidden', v !== 'image');
 }
 
+/* ---------- Xuất / nhập FILE mẫu bố cục in (F38) ----------
+ * File mẫu CHỈ chứa cài đặt in (kind 'labentry-print-layout') — khác hẳn
+ * file sao lưu dữ liệu: nhập một mẫu KHÔNG đụng tới bất kỳ bản ghi nào.
+ * Dùng để mang một bố cục (vd mẫu sổ theo dõi riêng của một đơn vị) từ
+ * máy này sang máy khác, hoặc nhận file mẫu làm sẵn rồi áp dụng ngay. */
+function exportPrintLayout() {
+  return { app: 'LabEntry', kind: 'labentry-print-layout', version: 1, exportedAt: new Date().toISOString(), settings: printSettings };
+}
+function downloadPrintLayout() {
+  const delivered = downloadTextFile(stampName('mau-bo-cuc-in', '.json'), JSON.stringify(exportPrintLayout(), null, 2), 'application/json');
+  const done = (how) => toast(how === 'fail' ? 'Không xuất được file mẫu trên thiết bị này' : 'Đã xuất file mẫu bố cục in');
+  if (delivered && typeof delivered.then === 'function') delivered.then(done);
+  else done(delivered);
+}
+function importPrintLayout(text) {
+  let data = null;
+  try { data = JSON.parse(text); } catch (e) { /* báo lỗi bên dưới */ }
+  if (!data || data.app !== 'LabEntry' || data.kind !== 'labentry-print-layout' || !data.settings || typeof data.settings !== 'object') {
+    toast('File không phải mẫu bố cục in của LabEntry');
+    return false;
+  }
+  printSettings = normalizePrintSettings(data.settings);
+  savePrintSettings();
+  fillPrintCfgControls();
+  renderPrintPreview();
+  updatePrintPageStyle();
+  toast('Đã áp dụng mẫu bố cục in từ file');
+  return true;
+}
+
 function fillPrintCfgControls() {
   const s = printSettings;
   $('pcfg-logo-thumb').src = s.logo || '';
@@ -3515,6 +3619,7 @@ function fillPrintCfgControls() {
   $('pcfg-divider').checked = !!s.divider;
   $('pcfg-title').value = s.title;
   $('pcfg-subtitle').checked = !!s.subtitle;
+  $('pcfg-style').value = s.style; $('pcfg-section').value = s.section; $('pcfg-formcode').value = s.formCode;
   $('pcfg-pagesize').value = s.pageSize;
   $('pcfg-orient').value = s.orient;
   $('pcfg-margin').value = s.margin;
@@ -3635,6 +3740,18 @@ function bindPrintCfg() {
   sel('pcfg-logo-pos', 'logoPos'); sel('pcfg-logo-size', 'logoSize');
   txt('pcfg-org', 'org'); txt('pcfg-dept', 'dept'); txt('pcfg-address', 'address');
   txt('pcfg-phone', 'phone'); txt('pcfg-email', 'email'); txt('pcfg-title', 'title');
+  sel('pcfg-style', 'style'); txt('pcfg-section', 'section'); txt('pcfg-formcode', 'formCode');
+  $('btn-layout-export').addEventListener('click', downloadPrintLayout);
+  $('btn-layout-import').addEventListener('click', () => $('pcfg-layout-file').click());
+  $('pcfg-layout-file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => importPrintLayout(String(reader.result || ''));
+    reader.onerror = () => toast('Không đọc được file mẫu');
+    reader.readAsText(f);
+  });
   sel('pcfg-header-layout', 'headerLayout'); chk('pcfg-divider', 'divider'); chk('pcfg-subtitle', 'subtitle');
   sel('pcfg-pagesize', 'pageSize'); sel('pcfg-orient', 'orient'); sel('pcfg-margin', 'margin');
   sel('pcfg-font', 'font'); sel('pcfg-fontsize', 'fontSize'); sel('pcfg-density', 'density'); sel('pcfg-borders', 'borders');

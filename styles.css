@@ -556,6 +556,17 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet .sh-dept { font-weight: 700; }
 .sheet .sh-contact { font-size: 0.92em; }
 .sheet .sh-divider { border: none; border-top: 1.6px solid #000; margin: 4px 0 10px; }
+/* Sổ theo dõi thủ công (F38, dạng BM04): đầu sổ trái/phải, tiêu đề giữa,
+   bảng 2 tầng tiêu đề, ô giai đoạn canh giữa */
+.sheet.ledger .lg-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.sheet.ledger .lg-org { font-weight: 700; text-transform: uppercase; font-size: 1.08em; }
+.sheet.ledger .lg-dept { font-weight: 700; text-transform: uppercase; }
+.sheet.ledger .lg-code { white-space: nowrap; font-size: 0.95em; padding-top: 2px; }
+.sheet.ledger .lg-title { text-align: center; font-size: 1.32em; font-weight: 700; text-transform: uppercase; margin: 10px 0 2px; }
+.sheet.ledger .lg-meta { display: flex; justify-content: space-between; gap: 14px; margin: 2px 0 8px; font-size: 1.02em; }
+.sheet.ledger th { background: #fff; text-align: center; vertical-align: middle; }
+.sheet.ledger td { vertical-align: middle; }
+.sheet.ledger td.lg-c { text-align: center; }
 /* Đầu trang 3 vùng + khối tài liệu + mã vạch (F21) */
 .sheet .sh-header.grid3 { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; }
 .sheet .sh-header.grid3 .sh-left { justify-self: start; }

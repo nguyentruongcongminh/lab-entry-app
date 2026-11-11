@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v75 và precache đúng URL ?v=75 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v76 và precache đúng URL ?v=76 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v75'"), 'sw.js phải gắn VERSION v75');
-    for (const a of ['styles.css?v=75', 'print.css?v=75', 'config.js?v=75', 'store.js?v=75', 'mascot.js?v=75', 'app.js?v=75', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v76'"), 'sw.js phải gắn VERSION v76');
+    for (const a of ['styles.css?v=76', 'print.css?v=76', 'config.js?v=76', 'store.js?v=76', 'mascot.js?v=76', 'app.js?v=76', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2279,6 +2279,52 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(w13.eval("auditLog.some((e) => e.action === 'defer')"), 'nhật ký ghi hành động hẹn lại');
     assert.ok(w13.eval("auditLog.some((e) => e.action === 'undefer')"), 'nhật ký ghi hành động bỏ hẹn');
     w13.close();
+  });
+
+  test('F38 (v76): giờ lưu kết quả + phiếu Sổ theo dõi dạng BM04 (mỗi chỉ số một dòng, 3 giai đoạn, cột kiểm tra trống) + xuất/nhập file mẫu bố cục chỉ chứa cài đặt', async () => {
+    const dom14 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Sổ', salt: 's14', pinHash: 'h14' }]), 'labentry.operator.v1': 'KTV Sổ' }); } });
+    const w14 = dom14.window;
+    const d14 = w14.document;
+    await new Promise((res) => { if (d14.readyState === 'complete') res(); else w14.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    /* Mẫu 1: soi tươi 9 chỉ số (khối 9 dòng), có kết quả, đã phát hành,
+       giờ lưu kết quả và giờ phát hành đặt cố định để kiểm tra in giờ. */
+    const uid1 = w14.eval("store.add({ testId: 'SO-001', typeId: 'soi-tuoi-huyet-trang', results: { bachCau: '2+', hongCau: '0' }, performer: 'KTV Sổ', receiver: 'KTV Sổ' }).record.uid");
+    w14.eval("store.update('" + uid1 + "', { resultAt: '2026-11-11T08:15:00.000+07:00', releaseAt: '2026-11-11T09:20:00.000+07:00', releaser: 'KTV Sổ' })");
+    /* Mẫu 2: cạo tìm nấm 1 chỉ số, chưa phát hành */
+    w14.eval("store.add({ testId: 'SO-002', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' }, performer: 'KTV Sổ' })");
+
+    const countBefore = w14.eval('store.getAll().length');
+    const html = w14.eval("(function(){ printSettings = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', org: 'TRUNG TÂM XÉT NGHIỆM MẪU', dept: 'Khoa Xét nghiệm', title: 'Sổ theo dõi kết quả xét nghiệm thủ công', section: 'soi', formCode: 'BM04-QLCL/QTSXN-01/01.23' })); return renderSheet(printSettings, store.getAll(), {}); })()");
+    assert.ok(html.includes('sheet ledger'), 'kiểu phiếu ledger dựng tờ sổ');
+    assert.ok(html.includes('BM04-QLCL/QTSXN-01/01.23'), 'in mã biểu mẫu góc phải');
+    assert.ok(html.includes('BỘ PHẬN: soi'), 'dòng Bộ phận có tên bộ phận');
+    assert.ok(html.includes('NGÀY: '), 'dòng NGÀY theo ngày nhận mẫu');
+    for (const g of ['Thực hiện XN', 'Đọc kết quả', 'Nhập kết quả']) assert.ok(html.includes(g), 'có nhóm giai đoạn ' + g);
+    assert.strictEqual((html.match(/NV kiểm tra/g) || []).length, 3, 'đủ 3 cột NV kiểm tra (để trống ghi tay)');
+    assert.ok(html.includes('rowspan="9"'), 'khối soi tươi gộp dọc 9 dòng (mỗi chỉ số một dòng)');
+    assert.ok(html.includes('<b>Bạch cầu</b> 2+'), 'dòng chỉ số Bạch cầu kèm giá trị');
+    assert.ok(html.includes('<b>Hồng cầu</b> 0'), 'chỉ số chip đã chọn in đúng mức đã chọn');
+    assert.ok(html.includes('<b>Nấm</b> Âm tính'), 'chỉ số chip chưa chọn in "Âm tính"');
+    assert.ok(html.includes('08:15'), 'giờ thực hiện = giờ lưu kết quả');
+    assert.ok(html.includes('09:20'), 'giờ nhập = giờ phát hành');
+    assert.ok((html.match(/KTV Sổ/g) || []).length >= 3, 'NV thực hiện/đọc/nhập lấy từ dấu KTV');
+    assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'việc dựng phiếu không đổi dữ liệu');
+
+    /* Xuất file mẫu: chỉ chứa cài đặt in; nhập mẫu đổi bố cục, KHÔNG đụng bản ghi */
+    const exported = JSON.parse(w14.eval('JSON.stringify(exportPrintLayout())'));
+    assert.strictEqual(exported.kind, 'labentry-print-layout', 'file mẫu đúng loại labentry-print-layout');
+    assert.ok(!('records' in exported), 'file mẫu không chứa dữ liệu mẫu');
+    assert.strictEqual(exported.settings.style, 'ledger');
+    const mod = JSON.stringify({ app: 'LabEntry', kind: 'labentry-print-layout', version: 1, settings: Object.assign({}, exported.settings, { title: 'Sổ mẫu nhập từ file' }) });
+    assert.strictEqual(w14.eval('importPrintLayout(' + JSON.stringify(mod) + ')'), true, 'nhập file mẫu hợp lệ thành công');
+    assert.strictEqual(w14.eval('printSettings.title'), 'Sổ mẫu nhập từ file', 'bố cục được áp dụng từ file');
+    assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'nhập mẫu KHÔNG đụng tới bản ghi');
+    assert.strictEqual(w14.eval("importPrintLayout('{\"app\":\"LabEntry\",\"kind\":\"labentry-backup\",\"records\":[]}')"), false, 'file sao lưu dữ liệu bị từ chối ở đường nhập mẫu');
+    assert.strictEqual(w14.eval("importPrintLayout('không phải json')"), false, 'file rác bị từ chối');
+    w14.close();
   });
 
   await chain;

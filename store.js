@@ -108,6 +108,9 @@ const LabStore = (() => {
         deferReason: typeof input.deferReason === 'string' ? input.deferReason : '', /* F37: '' = không hẹn lại; 'hut-mau' | 'khong-dat' | 'khac' */
         deferNote: typeof input.deferNote === 'string' ? input.deferNote : '',
         deferAt: input.deferAt || null,
+        /* F38: ngày giờ lưu kết quả (= giờ thực hiện XN trên sổ theo dõi);
+           tạo mới đã có kết quả thì đóng dấu ngay */
+        resultAt: input.resultAt || (hasResult({ typeId: input.typeId, results: input.results || {} }) ? t.toISOString() : null),
         timerEndsAt: input.timerEndsAt || null,
         createdAt: t.toISOString(),
         updatedAt: t.toISOString(),
@@ -137,6 +140,12 @@ const LabStore = (() => {
         deferReason: input.deferReason !== undefined ? input.deferReason : (records[idx].deferReason || ''),
         deferNote: input.deferNote !== undefined ? input.deferNote : (records[idx].deferNote || ''),
         deferAt: input.deferAt !== undefined ? input.deferAt : (records[idx].deferAt || null),
+        /* F38: mỗi lần lưu CÓ kết quả -> cập nhật giờ lưu kết quả; lưu mà
+           xóa hết kết quả -> xóa dấu giờ; không đụng kết quả -> giữ nguyên */
+        resultAt: input.resultAt !== undefined ? input.resultAt
+          : (input.results !== undefined
+            ? (hasResult({ typeId: input.typeId !== undefined ? input.typeId : records[idx].typeId, results: input.results }) ? t.toISOString() : null)
+            : (records[idx].resultAt || null)),
         timerEndsAt: input.timerEndsAt !== undefined ? input.timerEndsAt : (records[idx].timerEndsAt || null),
         updatedAt: t.toISOString(),
       });
@@ -211,6 +220,7 @@ const LabStore = (() => {
           deferReason: ['hut-mau', 'khong-dat', 'khac'].indexOf(raw.deferReason) >= 0 ? raw.deferReason : '',
           deferNote: typeof raw.deferNote === 'string' ? raw.deferNote : '',
           deferAt: okDate(raw.deferAt),
+          resultAt: okDate(raw.resultAt),
           releaseAt: okDate(raw.releaseAt),
           timerEndsAt: okDate(raw.timerEndsAt),
           createdAt,

@@ -333,4 +333,26 @@ test('mẫu hẹn lại (F37): add mặc định không hẹn; update đặt/gi�
   assert.strictEqual(s.parseBackup(oldFile).records[0].deferReason, '', 'file cũ không có trường hẹn -> không hẹn');
 });
 
+test('giờ lưu kết quả (F38): add có kết quả thì đóng dấu, chưa có thì null; update có kết quả cập nhật dấu, xóa hết kết quả thì xóa dấu, không đụng kết quả thì giữ; sao lưu mang theo, file cũ -> null', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r0 = s.add({ testId: 'KQ0', typeId: 'sp', results: {} });
+  assert.strictEqual(r0.record.resultAt, null, 'tạo mới chưa có kết quả -> resultAt null');
+  const r1 = s.add({ testId: 'KQ1', typeId: 'sp', results: { hongCau: '1+' } });
+  assert.ok(r1.record.resultAt, 'tạo mới đã có kết quả -> đóng dấu giờ lưu');
+  const stamp1 = r1.record.resultAt;
+  const u1 = s.update(r1.record.uid, { note: 'sửa ghi chú, không đụng kết quả' });
+  assert.strictEqual(u1.record.resultAt, stamp1, 'update không truyền results -> giữ nguyên dấu giờ');
+  const u2 = s.update(r1.record.uid, { results: { hongCau: '2+' } });
+  assert.ok(u2.record.resultAt >= stamp1, 'update CÓ kết quả -> dấu giờ được cập nhật');
+  const u3 = s.update(r1.record.uid, { results: {} });
+  assert.strictEqual(u3.record.resultAt, null, 'xóa hết kết quả -> xóa dấu giờ');
+  s.update(r1.record.uid, { results: { bachCau: '3+' } });
+  const parsed = s.parseBackup(s.exportBackup());
+  const rec = parsed.records.find((r) => r.testId === 'KQ1');
+  assert.ok(rec.resultAt, 'dấu giờ lưu kết quả đi theo file sao lưu');
+  assert.strictEqual(rec.resultAt, s.getByUid(r1.record.uid).resultAt);
+  const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x9', testId: 'KQOLD', typeId: 'sp', results: { hongCau: '1+' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
+  assert.strictEqual(s.parseBackup(oldFile).records[0].resultAt, null, 'file cũ không có trường -> resultAt null (in sổ để trống giờ thực hiện)');
+});
+
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

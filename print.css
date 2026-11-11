@@ -8,4 +8,6 @@
   /* Khối chữ ký: không đủ chỗ ở cuối trang thì ngắt sang trang mới nguyên
      khối, không để chức danh một trang, chữ ký/họ tên trang sau (v71) */
   .sh-sigs, .sh-sig { break-inside: avoid; page-break-inside: avoid; }
+  /* Sổ theo dõi (F38): mỗi ngày một tờ riêng */
+  .sheet.ledger + .sheet.ledger { break-before: page; page-break-before: always; }
 }
