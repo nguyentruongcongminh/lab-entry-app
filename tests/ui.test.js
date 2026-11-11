@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v77 và precache đúng URL ?v=77 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v78 và precache đúng URL ?v=78 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v77'"), 'sw.js phải gắn VERSION v77');
-    for (const a of ['styles.css?v=77', 'print.css?v=77', 'config.js?v=77', 'store.js?v=77', 'mascot.js?v=77', 'app.js?v=77', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v78'"), 'sw.js phải gắn VERSION v78');
+    for (const a of ['styles.css?v=78', 'print.css?v=78', 'config.js?v=78', 'store.js?v=78', 'mascot.js?v=78', 'app.js?v=78', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2325,6 +2325,16 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(w14.eval('store.getAll().length'), countBefore, 'nhập mẫu KHÔNG đụng tới bản ghi');
     assert.strictEqual(w14.eval("importPrintLayout('{\"app\":\"LabEntry\",\"kind\":\"labentry-backup\",\"records\":[]}')"), false, 'file sao lưu dữ liệu bị từ chối ở đường nhập mẫu');
     assert.strictEqual(w14.eval("importPrintLayout('không phải json')"), false, 'file rác bị từ chối');
+
+    /* v78: trang Xem hiện dòng "Có kết quả" (giờ lưu kết quả) giữa Nhận mẫu và Phát hành */
+    w14.eval("openSummary('" + uid1 + "')");
+    assert.ok(d14.getElementById('sum-result').textContent.includes('08:15'), 'trang Xem hiện giờ có kết quả của mẫu');
+    w14.eval("store.update('" + uid1 + "', { resultAt: null })");
+    w14.eval("openSummary('" + uid1 + "')");
+    assert.strictEqual(d14.getElementById('sum-result').textContent, '—', 'mẫu có kết quả nhưng chưa có dấu giờ (nhập trước v76) -> hiện —');
+    const uidNoRes = w14.eval("store.add({ testId: 'SO-003', typeId: 'mau-an', results: {} }).record.uid");
+    w14.eval("openSummary('" + uidNoRes + "')");
+    assert.strictEqual(d14.getElementById('sum-result').textContent, 'Chưa có kết quả', 'mẫu chưa có kết quả -> ghi rõ chưa có');
     w14.close();
   });
 

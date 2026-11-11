@@ -248,6 +248,9 @@ function openSummary(uid) {
     noteEl.classList.add('hidden');
   }
   $('sum-created').textContent = fmtFull(rec.createdAt);
+  /* v78: dòng "Có kết quả" = giờ lưu kết quả (resultAt, F38). Mẫu nhập
+     trước v76 chưa có dấu giờ này -> hiện '—'; chưa có kết quả -> ghi rõ */
+  $('sum-result').textContent = rec.resultAt ? fmtFull(rec.resultAt) : (store.hasResult(rec) ? '—' : 'Chưa có kết quả');
   $('sum-release').textContent = rec.releaseAt ? fmtFull(rec.releaseAt) : 'Chưa phát hành';
   /* Dấu KTV (v27): chỉ hiện khối khi có ít nhất một dấu */
   const hasStaff = !!(rec.receiver || rec.performer || rec.releaser);
