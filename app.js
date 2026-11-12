@@ -2949,7 +2949,7 @@ let printSettings = null;
  *    chưa có thì mở form nhập); không thấy thì báo ngay tại màn hình quét.
  * (Mục 2 trong danh sách đề xuất ban đầu — hoãn báo động — Minh không chọn.) */
 const META_KEY = 'labentry.meta.v1';
-let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '', lastActAt: 0, scanVerify: true };
+let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '', lastActAt: 0, scanVerify: false };
 
 function loadMeta() {
   try {
@@ -2961,7 +2961,7 @@ function loadMeta() {
       if (typeof m.backupNagUntil === 'string') appMeta.backupNagUntil = m.backupNagUntil;
       if (typeof m.deferDay === 'string') appMeta.deferDay = m.deferDay; /* F37: ngày linh vật đã báo cáo mẫu hẹn lại */
       if (typeof m.lastActAt === 'number' && m.lastActAt > 0) appMeta.lastActAt = m.lastActAt; /* v82: mốc thao tác thật gần nhất (cho tự khóa qua lần mở app) */
-      appMeta.scanVerify = m.scanVerify !== false; /* F39: đối chiếu ID quét bằng OCR — mặc định BẬT */
+      appMeta.scanVerify = m.scanVerify === true; /* F39: đối chiếu ID quét bằng OCR — mặc định TẮT (Minh chốt 12/11/2026), bật thủ công khi cần */
     }
   } catch (e) { /* cấu hình hỏng -> dùng mặc định */ }
 }

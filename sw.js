@@ -15,19 +15,19 @@
  *   nên người dùng mở app là gặp bản mới nhất, dữ liệu localStorage không
  *   bị đụng tới (cache này chỉ chứa file chương trình).
  */
-const VERSION = 'v84';
+const VERSION = 'v85';
 const CACHE = 'labentry-' + VERSION;
 const OCR_CACHE = 'labentry-ocr-v1';
 
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=84',
-  './print.css?v=84',
-  './config.js?v=84',
-  './store.js?v=84',
-  './mascot.js?v=84',
-  './app.js?v=84',
+  './styles.css?v=85',
+  './print.css?v=85',
+  './config.js?v=85',
+  './store.js?v=85',
+  './mascot.js?v=85',
+  './app.js?v=85',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',

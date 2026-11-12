@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v84 và precache đúng URL ?v=84 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v85 và precache đúng URL ?v=85 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v84'"), 'sw.js phải gắn VERSION v84');
-    for (const a of ['styles.css?v=84', 'print.css?v=84', 'config.js?v=84', 'store.js?v=84', 'mascot.js?v=84', 'app.js?v=84', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v85'"), 'sw.js phải gắn VERSION v85');
+    for (const a of ['styles.css?v=85', 'print.css?v=85', 'config.js?v=85', 'store.js?v=85', 'mascot.js?v=85', 'app.js?v=85', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2414,7 +2414,7 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
 
     /* Giao diện + cache: có ô tick đối chiếu (mặc định bật); sw.js giữ cache OCR riêng */
     assert.ok(htmlText.includes('chk-scan-verify'), 'có ô tick Đối chiếu ID bằng ảnh');
-    assert.strictEqual(d16.getElementById('chk-scan-verify').checked, true, 'đối chiếu mặc định BẬT');
+    assert.strictEqual(d16.getElementById('chk-scan-verify').checked, false, 'đối chiếu mặc định TẮT (Minh chốt 12/11/2026)');
     const swText = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
     assert.ok(swText.includes('labentry-ocr-v1') && swText.includes('ocr/eng.traineddata.gz') && swText.includes('tesseract-core-simd-lstm.wasm.js'), 'sw.js: cache OCR bền vững + precache tài sản ocr/');
 
@@ -2424,7 +2424,7 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.deepStrictEqual(JSON.parse(w16.eval("JSON.stringify(extractIdCandidates('khong co gi ca'))")), [], 'không có chuỗi giống ID -> rỗng');
 
     /* Engine giả lập: hàng đợi văn bản OCR cho từng lần thử; bỏ độ trễ thử lại */
-    w16.eval("VERIFY_RETRY_DELAY_MS = 0; VERIFY_COOLDOWN_MS = 60000;");
+    w16.eval("VERIFY_RETRY_DELAY_MS = 0; VERIFY_COOLDOWN_MS = 60000; appMeta.scanVerify = true;");
     w16.eval("ocrWorker = { recognize: async () => ({ data: { text: (window.__ocrQueue && window.__ocrQueue.length ? window.__ocrQueue.shift() : '') } }) }");
     w16.eval("openScanner('today')");
     const countOf = (id) => w16.eval("store.getAll().filter((r) => r.testId === '" + id + "').length");
