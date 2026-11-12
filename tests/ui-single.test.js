@@ -28,7 +28,7 @@ function test(name, fn) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const htmlPath = 'lab-entry-single.html';
+  const htmlPath = path.join(__dirname, '..', 'lab-entry-single.html');
   /* jsdom coi file:// là origin mờ nên localStorage gốc bị chặn (SecurityError) —
      thay bằng bản nhớ tạm trong bộ nhớ để app chạy đúng như trên trình duyệt thật,
      đồng thời gieo sẵn dữ liệu qua beforeParse */
@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v86 và precache đúng URL ?v=86 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v87 và precache đúng URL ?v=87 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v86'"), 'sw.js phải gắn VERSION v86');
-    for (const a of ['styles.css?v=86', 'print.css?v=86', 'config.js?v=86', 'store.js?v=86', 'mascot.js?v=86', 'app.js?v=86', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v87'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=87', 'print.css?v=87', 'config.js?v=87', 'store.js?v=87', 'mascot.js?v=87', 'app.js?v=87', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2402,6 +2402,116 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(d15.getElementById('pcfg-sig1-title').value, 'Người duyệt riêng', 'chức danh ô ký đổi theo file');
     assert.strictEqual(d15.getElementById('pcfg-sig1-name').value, 'Tên Riêng Một', 'họ tên ô ký đổi theo file');
     w15.close();
+  });
+
+  /* F40 (v87): đồng bộ LAN — thẻ cài đặt mặc định tắt; bật lên thì đăng nhập
+     bằng mã băm PIN, đẩy mẫu mới lên máy chủ, nhận thay đổi từ máy khác,
+     nhận tombstone xóa; tắt thì không gửi gì nữa. Máy chủ ở đây là bản giả
+     trong bộ nhớ (đấu server.py thật được kiểm riêng bằng rig Chromium). */
+  test('F40 (v87): đồng bộ LAN — mặc định tắt; vòng đẩy/kéo/tombstone qua máy chủ giả; tắt là ngừng hẳn', async () => {
+    const fake = { seq: 0, records: new Map(), feed: [], staffDoc: null };
+    const fakeStage = (rec) => (rec.releaseAt ? 2 : (rec.results && Object.values(rec.results).some((v) => typeof v === 'string' && v.trim())) ? 1 : 0);
+    const fakeFetch = async (url, opts) => {
+      const u = new URL(url);
+      const body = opts && opts.body ? JSON.parse(opts.body) : {};
+      const reply = (status, data) => ({ ok: status >= 200 && status < 300, status, json: async () => data });
+      if (u.pathname === '/api/login') {
+        assert.strictEqual(body.name, 'KTV Đồng Bộ', 'đăng nhập bằng tên KTV trực');
+        assert.strictEqual(body.pinHash, 'hash-ss', 'đăng nhập gửi mã băm PIN đã lưu, không gửi PIN gốc');
+        return reply(200, { ok: true, token: 'tok-fake', bootstrap: false, serverSeq: fake.seq });
+      }
+      if (u.pathname === '/api/push') {
+        const results = [];
+        for (const ch of body.changes) {
+          if (ch.kind === 'record') {
+            const cur = fake.records.get(ch.uid);
+            if (ch.op === 'delete') {
+              if (cur && cur.stage >= 2) { results.push({ uid: ch.uid, status: 'rejected-released', rev: cur.rev, current: cur.payload }); continue; }
+              const rev = (cur ? cur.rev : 0) + 1;
+              fake.records.set(ch.uid, { payload: cur ? cur.payload : null, rev, stage: cur ? cur.stage : 0, deleted: true });
+              fake.feed.push({ seq: ++fake.seq, kind: 'record', entity: ch.uid, payload: cur ? cur.payload : null, rev, deleted: true, deviceId: 'other', at: '' });
+              results.push({ uid: ch.uid, status: 'accepted', rev });
+              continue;
+            }
+            const rev = (cur ? cur.rev : 0) + 1;
+            fake.records.set(ch.uid, { payload: ch.record, rev, stage: fakeStage(ch.record), deleted: false });
+            fake.feed.push({ seq: ++fake.seq, kind: 'record', entity: ch.uid, payload: ch.record, rev, deleted: false, deviceId: body.deviceId, at: '' });
+            results.push({ uid: ch.uid, status: 'accepted', rev });
+          } else if (ch.kind === 'staff') {
+            fake.staffDoc = ch.doc;
+            fake.feed.push({ seq: ++fake.seq, kind: 'staff', entity: 'staff', payload: ch.doc, rev: 1, deleted: false, deviceId: body.deviceId, at: '' });
+            results.push({ kind: 'staff', status: 'accepted', rev: 1 });
+          } else if (ch.kind === 'types') {
+            fake.feed.push({ seq: ++fake.seq, kind: 'types', entity: 'types', payload: ch.doc, rev: 1, deleted: false, deviceId: body.deviceId, at: '' });
+            results.push({ kind: 'types', status: 'accepted', rev: 1 });
+          } else if (ch.kind === 'audit') {
+            ch.entries.forEach((e) => fake.feed.push({ seq: ++fake.seq, kind: 'audit', entity: e.id, payload: e, rev: null, deleted: false, deviceId: body.deviceId, at: '' }));
+            results.push({ kind: 'audit', status: 'accepted', added: ch.entries.length });
+          }
+        }
+        return reply(200, { ok: true, results, serverSeq: fake.seq });
+      }
+      if (u.pathname === '/api/changes') {
+        const since = Number(u.searchParams.get('since') || 0);
+        return reply(200, { ok: true, changes: fake.feed.filter((c) => c.seq > since), serverSeq: fake.seq });
+      }
+      return reply(404, { ok: false });
+    };
+    const dom16 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) {
+        shimStorage(w, {
+          'labentry.staff.v1': JSON.stringify([{ name: 'KTV Đồng Bộ', salt: 'ss', pinHash: 'hash-ss', sig: '' }]),
+          'labentry.operator.v1': 'KTV Đồng Bộ',
+        });
+        w.fetch = fakeFetch;
+      } });
+    const w16 = dom16.window;
+    const d16 = w16.document;
+    for (let i = 0; i < 60 && d16.getElementById('select-type').options.length === 0; i++) await sleep(50);
+    assert.ok(d16.getElementById('sync-card'), 'tab Quản lý có thẻ Đồng bộ LAN');
+    assert.strictEqual(d16.getElementById('sync-enabled').value, 'off', 'mặc định TẮT');
+    assert.strictEqual(d16.getElementById('sync-status').textContent, 'Đang tắt');
+    /* Bật đồng bộ + đặt địa chỉ -> đăng nhập được, nhận token */
+    const urlEl = d16.getElementById('sync-url');
+    urlEl.value = '127.0.0.1:9999';
+    urlEl.dispatchEvent(new w16.Event('change'));
+    const selEl = d16.getElementById('sync-enabled');
+    selEl.value = 'on';
+    selEl.dispatchEvent(new w16.Event('change'));
+    for (let i = 0; i < 60 && w16.eval('syncCfg.token') !== 'tok-fake'; i++) await sleep(50);
+    assert.strictEqual(w16.eval('syncCfg.token'), 'tok-fake', 'đăng nhập máy chủ thành công');
+    assert.ok(fake.staffDoc && fake.staffDoc[0].name === 'KTV Đồng Bộ', 'lần đầu: danh sách KTV được đẩy lên máy chủ');
+    /* Thêm mẫu tại máy này -> đẩy lên máy chủ, nhận rev 1 */
+    w16.eval("store.add({ testId: 'SYNC-T1', typeId: 'cao-tim-nam', results: {}, receiver: 'KTV Đồng Bộ' })");
+    await w16.eval('syncNow()');
+    const mine = [...fake.records.values()].find((r) => r.payload && r.payload.testId === 'SYNC-T1');
+    assert.ok(mine, 'mẫu mới có mặt trên máy chủ');
+    const myUid = w16.eval("store.getAll().find((r) => r.testId === 'SYNC-T1').uid");
+    assert.strictEqual(w16.eval('store.getByUid(' + JSON.stringify(myUid) + ').rev'), 1, 'máy nhận rev 1 từ máy chủ');
+    /* Máy khác nhập kết quả (rev 2 trên máy chủ) -> máy này kéo về */
+    const edited = Object.assign({}, mine.payload, { results: { ketQua: 'Âm tính' }, updatedAt: new Date(Date.now() + 60000).toISOString() });
+    fake.records.set(myUid, { payload: edited, rev: 2, stage: 1, deleted: false });
+    fake.feed.push({ seq: ++fake.seq, kind: 'record', entity: myUid, payload: edited, rev: 2, deleted: false, deviceId: 'other', at: '' });
+    await w16.eval('syncNow()');
+    assert.strictEqual(w16.eval('store.getByUid(' + JSON.stringify(myUid) + ').results.ketQua'), 'Âm tính', 'kết quả từ máy khác hiện trên máy này');
+    assert.strictEqual(w16.eval('store.getByUid(' + JSON.stringify(myUid) + ').rev'), 2, 'rev cập nhật theo máy chủ');
+    /* Máy khác tạo mẫu mới -> máy này nhận; rồi xóa -> tombstone gỡ khỏi máy này */
+    const remoteRec = { uid: 'remote-1', testId: 'SYNC-T2', typeId: 'sp', results: {}, note: '', releaseAt: null, resultAt: null, receiver: 'KTV Khác', performer: '', releaser: '', urgent: false, deferReason: '', deferNote: '', deferAt: null, timerEndsAt: null, rev: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    fake.records.set('remote-1', { payload: remoteRec, rev: 1, stage: 0, deleted: false });
+    fake.feed.push({ seq: ++fake.seq, kind: 'record', entity: 'remote-1', payload: remoteRec, rev: 1, deleted: false, deviceId: 'other', at: '' });
+    await w16.eval('syncNow()');
+    assert.ok(w16.eval("!!store.getByUid('remote-1')"), 'mẫu từ máy khác xuất hiện trên máy này');
+    fake.records.set('remote-1', { payload: remoteRec, rev: 2, stage: 0, deleted: true });
+    fake.feed.push({ seq: ++fake.seq, kind: 'record', entity: 'remote-1', payload: remoteRec, rev: 2, deleted: true, deviceId: 'other', at: '' });
+    await w16.eval('syncNow()');
+    assert.strictEqual(w16.eval("store.getByUid('remote-1')"), null, 'tombstone: mẫu bị xóa ở máy khác biến mất trên máy này');
+    /* Tắt đồng bộ -> thêm mẫu nữa cũng không lên máy chủ */
+    selEl.value = 'off';
+    selEl.dispatchEvent(new w16.Event('change'));
+    w16.eval("store.add({ testId: 'SYNC-T3', typeId: 'sp', results: {} })");
+    await w16.eval('syncNow()');
+    assert.ok(![...fake.records.values()].some((r) => r.payload && r.payload.testId === 'SYNC-T3'), 'đã tắt: không gửi gì lên máy chủ');
+    w16.close();
   });
 
   await chain;
