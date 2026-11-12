@@ -609,7 +609,6 @@ function timerTick() {
   if (newly.length) refreshCurrent();
   if (now - lastWakeCheckAt >= 5000) { lastWakeCheckAt = now; manageWakeLock(); }
   checkAutoLock(now); /* tự khóa người trực khi không thao tác (F24) */
-  try { if (syncCfg.enabled && !syncBusy && Date.now() - syncLastTry > 30000) syncNow(); } catch (e) { /* F40: đồng bộ nền không được làm hỏng nhịp chính */ }
   if (now - lastNagCheckAt >= 30000) { lastNagCheckAt = now; renderBackupNag(); }
   try { updateMascot(); } catch (e) { /* F31: lỗi linh vật không bao giờ được làm hỏng nhịp báo động */ }
 }
@@ -1102,7 +1101,6 @@ function loadSavedTypes() {
 function persistTypes() {
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
   typesCustom = true;
-  syncEnqueueDoc('types'); /* F40 */
 }
 
 /* Dựng lại 3 ô chọn loại (form nhập, bộ lọc, máy quét) theo danh mục hiện hành, giữ lựa chọn cũ nếu còn */
@@ -2222,7 +2220,7 @@ function loadStaff() {
   } catch (e) { staffList = []; }
   try { currentOperator = localStorage.getItem(OPERATOR_KEY) || ''; } catch (e) { currentOperator = ''; }
 }
-function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } syncEnqueueDoc('staff'); /* F40 */ }
+function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } }
 function persistOperator() { try { localStorage.setItem(OPERATOR_KEY, currentOperator); } catch (e) { /* bỏ qua */ } }
 
 function staffNames() { return staffList.map((x) => x.name); }
@@ -2248,7 +2246,6 @@ function setOperator(name) {
   currentOperator = name || '';
   persistOperator();
   renderOperatorControls();
-  syncOnOperatorChange(); /* F40: đổi người trực -> phiên đăng nhập máy chủ cũ hết hiệu lực */
 }
 
 /* Điền một ô chọn KTV trong form nhập: danh sách + giá trị hiện tại + người trực */
@@ -2644,7 +2641,6 @@ function audit(action, detail, rec) {
   });
   if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
   saveAuditLog();
-  syncEnqueueAudit(auditLog[auditLog.length - 1]); /* F40: dòng mới luôn là dòng cuối sau khi cắt */
 }
 
 /* Cổng thao tác: chưa có KTV trực thì chặn + báo rõ, trả về false */
@@ -4458,7 +4454,6 @@ function init() {
   initMascot(); /* linh vật đồng ca (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
   initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
-  initSync(); /* đồng bộ qua mạng LAN (F40) — mặc định tắt, tắt thì app như cũ */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
   buildTypeOptions($('f-type'), true);
@@ -4830,387 +4825,6 @@ function initKeyboardFix() {
       catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
     }, 350);
   });
-}
-
-/* ================= Đồng bộ qua mạng LAN (F40, v87) =================
-   Nhiều thiết bị trong cùng mạng nội bộ dùng chung một dữ liệu qua máy chủ
-   LabEntry LAN (server.py). Thiết kế đã duyệt 12/11/2026:
-   - Offline-first: mọi thao tác ghi vào máy trước; hàng chờ (outbox) gửi khi
-     có máy chủ, mất mạng không chặn công việc và không mất mẫu.
-   - Xung đột theo giai đoạn: đã phát hành > chờ phát hành > chưa kết quả;
-     cùng giai đoạn thì bản sửa sau thắng (máy chủ phân xử, xem server.py).
-   - Xóa lan truyền dạng tombstone; mẫu đã phát hành không bị xóa từ xa.
-   - Mặc định TẮT và chưa cấu hình địa chỉ -> app chạy y như v86.
-   Cấu hình + hàng chờ lưu ở khóa labentry.sync.v1 (không nằm trong file sao lưu). */
-const SYNC_KEY = 'labentry.sync.v1';
-let syncCfg = { enabled: false, url: '', deviceId: '', token: '', lastSeq: 0, bootstrapped: false, outbox: [] };
-let syncBusy = false;
-let syncAgain = false; /* có yêu cầu đồng bộ trong lúc đang chạy -> chạy thêm một vòng ngay sau */
-let syncApplying = false; /* đang áp dữ liệu từ máy chủ về -> không đưa ngược vào outbox */
-let syncLastTry = 0;
-let syncTimer = null;
-let syncStatusMsg = '';
-const syncOrig = { add: null, update: null, remove: null }; /* hàm store gốc, engine dùng khi áp dữ liệu từ xa */
-
-function loadSync() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null');
-    if (raw && typeof raw === 'object') {
-      syncCfg.enabled = raw.enabled === true;
-      syncCfg.url = typeof raw.url === 'string' ? raw.url : '';
-      syncCfg.deviceId = typeof raw.deviceId === 'string' ? raw.deviceId : '';
-      syncCfg.token = typeof raw.token === 'string' ? raw.token : '';
-      syncCfg.lastSeq = typeof raw.lastSeq === 'number' ? raw.lastSeq : 0;
-      syncCfg.bootstrapped = raw.bootstrapped === true;
-      syncCfg.outbox = Array.isArray(raw.outbox) ? raw.outbox : [];
-    }
-  } catch (e) { /* cấu hình hỏng -> giữ mặc định tắt */ }
-  if (!syncCfg.deviceId) {
-    syncCfg.deviceId = 'dev-' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
-    saveSync();
-  }
-}
-
-function saveSync() {
-  try { localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg)); } catch (e) { /* đầy bộ nhớ: bỏ qua */ }
-}
-
-function syncBase() {
-  let u = (syncCfg.url || '').trim().replace(/\/+$/, '');
-  if (!u) return '';
-  if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
-  return u;
-}
-
-function syncActive() {
-  return syncCfg.enabled && !!syncBase() && typeof fetch === 'function';
-}
-
-function syncSchedule() {
-  if (!syncActive()) return;
-  if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => { syncNow(); }, 400);
-}
-
-/* --- Hàng chờ gửi: gộp theo khóa, luôn giữ bản mới nhất của mỗi thực thể --- */
-function syncOutboxPut(item) {
-  const i = syncCfg.outbox.findIndex((o) => o.key === item.key);
-  if (i >= 0) syncCfg.outbox[i] = item; else syncCfg.outbox.push(item);
-  saveSync();
-  renderSyncStatus();
-  syncSchedule();
-}
-
-function syncEnqueueRecord(rec) {
-  if (!syncCfg.enabled || syncApplying || !rec || !rec.uid) return;
-  syncOutboxPut({ key: 'rec:' + rec.uid, kind: 'record', uid: rec.uid, op: 'upsert', record: JSON.parse(JSON.stringify(rec)) });
-}
-
-function syncEnqueueDelete(uid) {
-  if (!syncCfg.enabled || syncApplying || !uid) return;
-  syncOutboxPut({ key: 'rec:' + uid, kind: 'record', uid, op: 'delete', record: null });
-}
-
-function syncEnqueueDoc(kind) {
-  if (!syncCfg.enabled || syncApplying) return;
-  const doc = kind === 'staff' ? JSON.parse(JSON.stringify(staffList)) : JSON.parse(JSON.stringify(getTestTypes()));
-  syncOutboxPut({ key: 'doc:' + kind, kind, doc, updatedAt: new Date().toISOString() });
-}
-
-function syncEnqueueAudit(entry) {
-  if (!syncCfg.enabled || syncApplying || !entry || !entry.id) return;
-  let item = syncCfg.outbox.find((o) => o.key === 'audit');
-  if (!item) { item = { key: 'audit', kind: 'audit', entries: [] }; syncCfg.outbox.push(item); }
-  if (!item.entries.some((e) => e.id === entry.id)) item.entries.push(JSON.parse(JSON.stringify(entry)));
-  saveSync();
-  renderSyncStatus();
-  syncSchedule();
-}
-
-/* Khi đang áp dữ liệu từ xa vẫn có lúc phải đẩy ngược (hồi sinh mẫu đã phát
-   hành, hòa giải bản ghi trùng): tạm nhấc cờ syncApplying để enqueue chạy. */
-function syncEnqueueRecordForce(rec) { const was = syncApplying; syncApplying = false; try { syncEnqueueRecord(rec); } finally { syncApplying = was; } }
-function syncEnqueueDeleteForce(uid) { const was = syncApplying; syncApplying = false; try { syncEnqueueDelete(uid); } finally { syncApplying = was; } }
-
-function syncOnOperatorChange() {
-  if (syncCfg.token) { syncCfg.token = ''; saveSync(); }
-}
-
-/* Bọc 3 hàm ghi của store: thao tác của người dùng tự vào hàng chờ.
-   Engine áp dữ liệu từ xa bằng applyRemote / syncOrig nên không tự kích hoạt. */
-function installSyncWrappers() {
-  if (syncOrig.add) return;
-  syncOrig.add = store.add; syncOrig.update = store.update; syncOrig.remove = store.remove;
-  store.add = function (input, now) {
-    const r = syncOrig.add(input, now);
-    if (r && r.ok) syncEnqueueRecord(r.record);
-    return r;
-  };
-  store.update = function (uid, input, now) {
-    const r = syncOrig.update(uid, input, now);
-    if (r && r.ok) syncEnqueueRecord(r.record);
-    return r;
-  };
-  store.remove = function (uid) {
-    const ok = syncOrig.remove(uid);
-    if (ok) syncEnqueueDelete(uid);
-    return ok;
-  };
-}
-
-/* Đăng nhập máy chủ bằng mã băm PIN đã lưu của KTV trực (PIN gốc không rời máy) */
-async function syncEnsureLogin() {
-  if (syncCfg.token) return true;
-  if (!currentOperator) { syncStatusMsg = 'Chưa chọn KTV trực — chưa đồng bộ được'; return false; }
-  const entry = staffList.find((s) => s.name === currentOperator);
-  const pinHash = entry && entry.pinHash ? entry.pinHash : '';
-  const resp = await fetch(syncBase() + '/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: currentOperator, pinHash, deviceId: syncCfg.deviceId, deviceName: 'LabEntry' }),
-  });
-  if (!resp.ok) {
-    syncStatusMsg = resp.status === 401 ? 'Máy chủ từ chối PIN của KTV trực' : 'Máy chủ lỗi đăng nhập (' + resp.status + ')';
-    return false;
-  }
-  const data = await resp.json();
-  syncCfg.token = data && data.token ? data.token : '';
-  saveSync();
-  return !!syncCfg.token;
-}
-
-async function syncFetch(path, opts) {
-  const o = opts || {};
-  o.headers = Object.assign({ 'Content-Type': 'application/json', 'X-Device-Token': syncCfg.token || '' }, o.headers || {});
-  let resp = await fetch(syncBase() + path, o);
-  if (resp.status === 401) { /* token hết hạn/bị thay -> đăng nhập lại một lần */
-    syncCfg.token = ''; saveSync();
-    if (await syncEnsureLogin()) {
-      o.headers['X-Device-Token'] = syncCfg.token;
-      resp = await fetch(syncBase() + path, o);
-    }
-  }
-  if (!resp.ok) throw new Error('HTTP ' + resp.status);
-  return resp;
-}
-
-async function syncFetchJson(path, opts) {
-  const resp = await syncFetch(path, opts);
-  return resp.json();
-}
-
-function syncToApiItem(item) {
-  if (item.kind === 'record') return { kind: 'record', uid: item.uid, op: item.op, record: item.record };
-  if (item.kind === 'audit') return { kind: 'audit', entries: item.entries };
-  return { kind: item.kind, doc: item.doc, updatedAt: item.updatedAt };
-}
-
-/* Bỏ một mục khỏi hàng chờ CHỈ khi nó chưa bị thay bằng bản mới hơn trong lúc gửi */
-function syncDropSent(item) {
-  const i = syncCfg.outbox.findIndex((o) => o.key === item.key);
-  if (i >= 0 && JSON.stringify(syncCfg.outbox[i]) === JSON.stringify(item)) syncCfg.outbox.splice(i, 1);
-}
-
-async function syncPush() {
-  if (!syncCfg.outbox.length) return;
-  const sent = syncCfg.outbox.slice();
-  const data = await syncFetchJson('/api/push', {
-    method: 'POST',
-    body: JSON.stringify({ deviceId: syncCfg.deviceId, changes: sent.map(syncToApiItem) }),
-  });
-  if (!data || !Array.isArray(data.results)) return;
-  data.results.forEach((res, i) => {
-    const item = sent[i];
-    if (!item) return;
-    syncDropSent(item);
-    if (item.kind !== 'record') return;
-    syncApplying = true;
-    try {
-      if (res.status === 'accepted' || res.status === 'accepted-revived') {
-        const local = store.getByUid(item.uid);
-        if (local && item.record && local.updatedAt === item.record.updatedAt) {
-          store.applyRemote(Object.assign({}, local, { rev: res.rev }));
-        }
-      } else if (res.current) { /* bị từ chối -> nhận bản máy chủ làm chuẩn */
-        store.applyRemote(Object.assign({}, res.current, { rev: res.rev }));
-      }
-    } finally { syncApplying = false; }
-  });
-  saveSync();
-}
-
-function syncStageRank(rec) {
-  const s = store.statusOf(rec);
-  return s === 'released' ? 2 : s === 'pending-release' ? 1 : 0;
-}
-
-function syncApplyDoc(kind, doc) {
-  if (!Array.isArray(doc)) return false;
-  if (kind === 'staff') {
-    const norm = doc.map(normalizeStaffEntry).filter(Boolean);
-    if (JSON.stringify(norm) === JSON.stringify(staffList)) return false;
-    staffList = norm;
-    persistStaff();
-    return true;
-  }
-  if (kind === 'types') {
-    if (validateTypeDefs(doc).length) return false;
-    if (JSON.stringify(doc) === JSON.stringify(getTestTypes())) return false;
-    setTestTypes(doc);
-    persistTypes();
-    return true;
-  }
-  return false;
-}
-
-function syncApplyAudit(rawEntry) {
-  const clean = sanitizeAuditLog([rawEntry]);
-  if (!clean.length) return;
-  const entry = clean[0];
-  if (auditLog.some((e) => e.id === entry.id)) return;
-  auditLog.push(entry);
-  auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-  if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
-  saveAuditLog();
-}
-
-function syncApplyRecord(c) {
-  const uid = c.entity;
-  const local = store.getByUid(uid);
-  if (c.deleted) {
-    if (!local) return false;
-    if (store.statusOf(local) === 'released') { syncEnqueueRecordForce(local); return false; } /* đã phát hành tại máy này sau lệnh xóa -> hồi sinh trên máy chủ */
-    syncOrig.remove(uid);
-    return true;
-  }
-  const remote = c.payload;
-  if (!remote || typeof remote !== 'object') return false;
-  const remoteRec = Object.assign({}, remote, { rev: c.rev || 0 });
-  if (!local) {
-    const dup = store.findDuplicate(remoteRec); /* hai máy cùng tạo một ID + loại khi mất mạng */
-    if (dup) {
-      const lr = syncStageRank(dup);
-      const rr = syncStageRank(remoteRec);
-      if (rr > lr || (rr === lr && (remoteRec.updatedAt || '') > (dup.updatedAt || ''))) {
-        syncOrig.remove(dup.uid);
-        store.applyRemote(remoteRec);
-        syncEnqueueDeleteForce(dup.uid);
-        return true;
-      }
-      syncEnqueueDeleteForce(uid);
-      return false;
-    }
-    return !!store.applyRemote(remoteRec);
-  }
-  if ((c.rev || 0) > (local.rev || 0)) { store.applyRemote(remoteRec); return true; }
-  if ((c.rev || 0) === (local.rev || 0) && JSON.stringify(local) !== JSON.stringify(remoteRec)) {
-    store.applyRemote(remoteRec);
-    return true;
-  }
-  return false;
-}
-
-async function syncPull() {
-  const data = await syncFetchJson('/api/changes?deviceId=' + encodeURIComponent(syncCfg.deviceId) + '&since=' + (syncCfg.lastSeq || 0));
-  if (!data || !Array.isArray(data.changes)) return;
-  const changes = data.changes;
-  let changedRecords = false;
-  let changedStaff = false;
-  let changedTypes = false;
-  syncApplying = true;
-  try {
-    changes.forEach((c) => { /* danh mục + nhật ký áp trước, bản ghi áp sau */
-      if (c.kind === 'staff') { if (syncApplyDoc('staff', c.payload)) changedStaff = true; }
-      else if (c.kind === 'types') { if (syncApplyDoc('types', c.payload)) changedTypes = true; }
-      else if (c.kind === 'audit') syncApplyAudit(c.payload);
-    });
-    changes.forEach((c) => {
-      if (c.kind === 'record' && syncApplyRecord(c)) changedRecords = true;
-    });
-  } finally { syncApplying = false; }
-  changes.forEach((c) => { if (typeof c.seq === 'number' && c.seq > syncCfg.lastSeq) syncCfg.lastSeq = c.seq; });
-  if (!changes.length && typeof data.serverSeq === 'number' && data.serverSeq > syncCfg.lastSeq) syncCfg.lastSeq = data.serverSeq;
-  saveSync();
-  if (changedStaff) renderOperatorControls();
-  if (changedTypes) refreshTypeSelects();
-  if (changedRecords || changedStaff || changedTypes) { refreshCurrent(); syncNativeAlarms(); }
-}
-
-async function syncNow() {
-  if (!syncActive()) { renderSyncStatus(); return; }
-  if (syncBusy) { syncAgain = true; return; } /* đang chạy: ghi nhớ để chạy nối tiếp, không bỏ lượt */
-  syncBusy = true;
-  syncLastTry = Date.now();
-  syncStatusMsg = 'Đang đồng bộ…';
-  renderSyncStatus();
-  try {
-    if (await syncEnsureLogin()) {
-      if (!syncCfg.bootstrapped) {
-        /* Lần đầu nối máy chủ: đưa toàn bộ dữ liệu tại máy vào hàng chờ (kể cả
-           dữ liệu có từ trước khi bật đồng bộ), rồi mới đẩy + kéo hội tụ. */
-        store.getAll().forEach((r) => syncEnqueueRecord(r));
-        if (staffList.length) syncEnqueueDoc('staff');
-        syncEnqueueDoc('types');
-        auditLog.forEach((e) => syncEnqueueAudit(e));
-        syncCfg.bootstrapped = true;
-        saveSync();
-      }
-      await syncPush();
-      await syncPull();
-      syncStatusMsg = 'Đã đồng bộ ' + new Date().toLocaleTimeString('vi-VN');
-    }
-  } catch (e) {
-    syncStatusMsg = 'Không tới được máy chủ — sẽ tự thử lại';
-  }
-  syncBusy = false;
-  saveSync();
-  renderSyncStatus();
-  if (syncAgain) { syncAgain = false; await syncNow(); }
-}
-
-function renderSyncStatus() {
-  const el = $('sync-status');
-  if (!el) return;
-  if (!syncCfg.enabled) { el.textContent = 'Đang tắt'; return; }
-  const pending = syncCfg.outbox.length;
-  el.textContent = (syncStatusMsg || 'Đã bật') + (pending ? ' · còn ' + pending + ' mục chờ gửi' : '');
-}
-
-function initSync() {
-  loadSync();
-  installSyncWrappers();
-  const sel = $('sync-enabled');
-  const urlInput = $('sync-url');
-  if (sel) {
-    sel.value = syncCfg.enabled ? 'on' : 'off';
-    sel.addEventListener('change', () => {
-      syncCfg.enabled = sel.value === 'on';
-      saveSync();
-      renderSyncStatus();
-      if (syncCfg.enabled) syncNow();
-    });
-  }
-  if (urlInput) {
-    urlInput.value = syncCfg.url;
-    urlInput.addEventListener('change', () => {
-      syncCfg.url = urlInput.value.trim();
-      syncCfg.token = ''; /* máy chủ khác -> đăng nhập lại + đồng bộ lại từ đầu */
-      syncCfg.lastSeq = 0;
-      syncCfg.bootstrapped = false;
-      saveSync();
-      renderSyncStatus();
-      if (syncCfg.enabled) syncNow();
-    });
-  }
-  const btn = $('btn-sync-now');
-  if (btn) btn.addEventListener('click', () => {
-    if (!syncCfg.enabled) { toast('Hãy bật đồng bộ LAN trước'); return; }
-    if (!syncBase()) { toast('Hãy nhập địa chỉ máy chủ trước'); return; }
-    syncNow();
-  });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSchedule(); });
-  renderSyncStatus();
-  if (syncCfg.enabled) syncSchedule();
 }
 
 document.addEventListener('DOMContentLoaded', init);

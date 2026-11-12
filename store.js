@@ -16,7 +16,6 @@
  *     performer: string,        // KTV thực hiện (v27) — tên người trực lúc lưu kết quả gần nhất
  *     releaser: string,         // KTV phát hành (v27) — tên người trực lúc phát hành
  *     urgent: boolean,          // mẫu khẩn STAT (F24, v43) — ưu tiên xử lý/báo động trước
- *     rev: number,              // phiên bản trên máy chủ đồng bộ LAN (F40, v87); 0 = chưa từng đồng bộ
  *     createdAt: string,        // ISO datetime nhập
  *     updatedAt: string,        // ISO datetime sửa cuối
  *   }
@@ -113,7 +112,6 @@ const LabStore = (() => {
            tạo mới đã có kết quả thì đóng dấu ngay */
         resultAt: input.resultAt || (hasResult({ typeId: input.typeId, results: input.results || {} }) ? t.toISOString() : null),
         timerEndsAt: input.timerEndsAt || null,
-        rev: (typeof input.rev === 'number' && input.rev > 0) ? Math.floor(input.rev) : 0, /* F40: rev do máy chủ cấp */
         createdAt: t.toISOString(),
         updatedAt: t.toISOString(),
       };
@@ -149,7 +147,6 @@ const LabStore = (() => {
             ? (hasResult({ typeId: input.typeId !== undefined ? input.typeId : records[idx].typeId, results: input.results }) ? t.toISOString() : null)
             : (records[idx].resultAt || null)),
         timerEndsAt: input.timerEndsAt !== undefined ? input.timerEndsAt : (records[idx].timerEndsAt || null),
-        rev: input.rev !== undefined ? input.rev : (records[idx].rev || 0), /* F40: giữ rev trừ khi được cấp mới */
         updatedAt: t.toISOString(),
       });
       const errors = validate(rec, uid);
@@ -226,7 +223,6 @@ const LabStore = (() => {
           resultAt: okDate(raw.resultAt),
           releaseAt: okDate(raw.releaseAt),
           timerEndsAt: okDate(raw.timerEndsAt),
-          rev: (typeof raw.rev === 'number' && raw.rev > 0) ? Math.floor(raw.rev) : 0, /* F40 */
           createdAt,
           updatedAt: okDate(raw.updatedAt) || createdAt,
         };
@@ -260,49 +256,6 @@ const LabStore = (() => {
       });
       if (added > 0) persist();
       return { added, skipped };
-    }
-
-    /*
-     * F40 (đồng bộ LAN): áp một bản ghi TỪ MÁY CHỦ vào kho tại máy.
-     * Khác add/update: KHÔNG kiểm tra trùng ID + loại, KHÔNG qua cổng thao tác —
-     * lớp đồng bộ tự hòa giải trước khi gọi. Chuẩn hóa trường giống parseBackup
-     * nhưng không ném lỗi (bản ghi lạ -> bỏ qua, trả về null).
-     */
-    function applyRemote(raw) {
-      if (!raw || typeof raw !== 'object') return null;
-      const okDate = (v) => (typeof v === 'string' && !isNaN(Date.parse(v)) ? v : null);
-      const testId = typeof raw.testId === 'string' ? raw.testId.trim() : '';
-      const uid = typeof raw.uid === 'string' ? raw.uid : '';
-      if (!testId || !uid || typeof raw.typeId !== 'string' || !raw.typeId) return null;
-      const results = {};
-      if (raw.results && typeof raw.results === 'object') {
-        Object.keys(raw.results).forEach((k) => { if (typeof raw.results[k] === 'string') results[k] = raw.results[k]; });
-      }
-      const createdAt = okDate(raw.createdAt) || new Date().toISOString();
-      const rec = {
-        uid,
-        testId,
-        typeId: raw.typeId,
-        results,
-        note: typeof raw.note === 'string' ? raw.note : '',
-        receiver: typeof raw.receiver === 'string' ? raw.receiver : '',
-        performer: typeof raw.performer === 'string' ? raw.performer : '',
-        releaser: typeof raw.releaser === 'string' ? raw.releaser : '',
-        urgent: raw.urgent === true,
-        deferReason: ['hut-mau', 'khong-dat', 'khac'].indexOf(raw.deferReason) >= 0 ? raw.deferReason : '',
-        deferNote: typeof raw.deferNote === 'string' ? raw.deferNote : '',
-        deferAt: okDate(raw.deferAt),
-        resultAt: okDate(raw.resultAt),
-        releaseAt: okDate(raw.releaseAt),
-        timerEndsAt: okDate(raw.timerEndsAt),
-        rev: (typeof raw.rev === 'number' && raw.rev > 0) ? Math.floor(raw.rev) : 0,
-        createdAt,
-        updatedAt: okDate(raw.updatedAt) || createdAt,
-      };
-      const idx = records.findIndex((r) => r.uid === uid);
-      if (idx >= 0) records[idx] = rec; else records.push(rec);
-      persist();
-      return rec;
     }
 
     function getByUid(uid) {
@@ -349,7 +302,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, applyRemote, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, STORAGE_KEY };
   }
 
   function localDayKey(d) {

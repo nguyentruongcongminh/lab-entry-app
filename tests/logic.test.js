@@ -355,30 +355,4 @@ test('giờ lưu kết quả (F38): add có kết quả thì đóng dấu, chưa
   assert.strictEqual(s.parseBackup(oldFile).records[0].resultAt, null, 'file cũ không có trường -> resultAt null (in sổ để trống giờ thực hiện)');
 });
 
-test('rev đồng bộ (F40): add mặc định rev 0; update giữ rev, cấp mới thì nhận; sao lưu mang theo rev, file cũ -> 0; applyRemote chèn/thay theo uid, không kiểm tra trùng', () => {
-  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
-  const r0 = s.add({ testId: 'SYNC1', typeId: 'sp' });
-  assert.strictEqual(r0.record.rev, 0, 'tạo mới -> rev 0 (chưa đồng bộ)');
-  const u1 = s.update(r0.record.uid, { note: 'sửa tại máy' });
-  assert.strictEqual(u1.record.rev, 0, 'update thường -> giữ rev');
-  const u2 = s.update(r0.record.uid, { rev: 7 });
-  assert.strictEqual(u2.record.rev, 7, 'update có rev mới (máy chủ cấp) -> nhận rev 7');
-  const parsed = s.parseBackup(s.exportBackup());
-  assert.strictEqual(parsed.records.find((r) => r.testId === 'SYNC1').rev, 7, 'rev đi theo file sao lưu');
-  const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x7', testId: 'SYNCOLD', typeId: 'sp', results: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
-  assert.strictEqual(s.parseBackup(oldFile).records[0].rev, 0, 'file cũ không có rev -> 0');
-  /* applyRemote: chèn bản ghi từ máy chủ (uid lạ) */
-  const remote = { uid: 'srv-1', testId: 'SYNC2', typeId: 'sp', results: { hongCau: '1+' }, note: '', releaseAt: null, resultAt: '2026-11-12T01:00:00.000Z', receiver: 'KTV B', performer: 'KTV B', releaser: '', urgent: false, deferReason: '', deferNote: '', deferAt: null, timerEndsAt: null, rev: 3, createdAt: '2026-11-12T01:00:00.000Z', updatedAt: '2026-11-12T01:00:00.000Z' };
-  const applied = s.applyRemote(remote);
-  assert.ok(applied && applied.uid === 'srv-1' && applied.rev === 3, 'applyRemote chèn bản ghi mới theo uid');
-  assert.strictEqual(s.statusOf(s.getByUid('srv-1')), 'pending-release');
-  /* applyRemote: thay bản ghi cùng uid, kể cả khi trùng ID + loại với bản khác (lớp đồng bộ hòa giải trước) */
-  const remote2 = Object.assign({}, remote, { results: { hongCau: '2+' }, rev: 4, updatedAt: '2026-11-12T02:00:00.000Z' });
-  s.applyRemote(remote2);
-  assert.strictEqual(s.getByUid('srv-1').results.hongCau, '2+', 'applyRemote thay nội dung cùng uid');
-  assert.strictEqual(s.getByUid('srv-1').rev, 4, 'applyRemote nhận rev mới');
-  assert.strictEqual(s.applyRemote({ uid: '', testId: 'X', typeId: 'sp' }), null, 'bản ghi thiếu uid -> bỏ qua');
-  assert.strictEqual(s.applyRemote(null), null, 'đầu vào null -> bỏ qua');
-});
-
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');
