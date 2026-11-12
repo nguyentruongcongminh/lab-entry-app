@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v85 và precache đúng URL ?v=85 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v86 và precache đúng URL ?v=86 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v85'"), 'sw.js phải gắn VERSION v85');
-    for (const a of ['styles.css?v=85', 'print.css?v=85', 'config.js?v=85', 'store.js?v=85', 'mascot.js?v=85', 'app.js?v=85', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v86'"), 'sw.js phải gắn VERSION v86');
+    for (const a of ['styles.css?v=86', 'print.css?v=86', 'config.js?v=86', 'store.js?v=86', 'mascot.js?v=86', 'app.js?v=86', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2402,59 +2402,6 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(d15.getElementById('pcfg-sig1-title').value, 'Người duyệt riêng', 'chức danh ô ký đổi theo file');
     assert.strictEqual(d15.getElementById('pcfg-sig1-name').value, 'Tên Riêng Một', 'họ tên ô ký đổi theo file');
     w15.close();
-  });
-
-  test('F39 (v84): đối chiếu ID quét bằng OCR — khớp mới nhận, lệch thì tự thử lại, 4 lần không khớp thì từ chối + nguội; tắt đối chiếu thì nhận thẳng', async () => {
-    const dom16 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
-      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Quét', salt: 's16', pinHash: 'h16' }]), 'labentry.operator.v1': 'KTV Quét' }); } });
-    const w16 = dom16.window;
-    const d16 = w16.document;
-    await new Promise((res) => { if (d16.readyState === 'complete') res(); else w16.addEventListener('load', res); });
-    await new Promise((r) => setTimeout(r, 300));
-
-    /* Giao diện + cache: có ô tick đối chiếu (mặc định bật); sw.js giữ cache OCR riêng */
-    assert.ok(htmlText.includes('chk-scan-verify'), 'có ô tick Đối chiếu ID bằng ảnh');
-    assert.strictEqual(d16.getElementById('chk-scan-verify').checked, false, 'đối chiếu mặc định TẮT (Minh chốt 12/11/2026)');
-    const swText = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
-    assert.ok(swText.includes('labentry-ocr-v1') && swText.includes('ocr/eng.traineddata.gz') && swText.includes('tesseract-core-simd-lstm.wasm.js'), 'sw.js: cache OCR bền vững + precache tài sản ocr/');
-
-    /* Trích ứng viên ID từ văn bản OCR */
-    assert.ok(JSON.parse(w16.eval("JSON.stringify(extractIdCandidates('KHOAXETNGHIEM-BOPHANSOI\\n26111112413\\nSOI'))")).includes('26111112413'), 'trích được ID toàn số');
-    assert.deepStrictEqual(JSON.parse(w16.eval("JSON.stringify(extractIdCandidates('MA N14-0044232 XONG'))")), ['N14-0044232'], 'trích được ID có gạch nối');
-    assert.deepStrictEqual(JSON.parse(w16.eval("JSON.stringify(extractIdCandidates('khong co gi ca'))")), [], 'không có chuỗi giống ID -> rỗng');
-
-    /* Engine giả lập: hàng đợi văn bản OCR cho từng lần thử; bỏ độ trễ thử lại */
-    w16.eval("VERIFY_RETRY_DELAY_MS = 0; VERIFY_COOLDOWN_MS = 60000; appMeta.scanVerify = true;");
-    w16.eval("ocrWorker = { recognize: async () => ({ data: { text: (window.__ocrQueue && window.__ocrQueue.length ? window.__ocrQueue.shift() : '') } }) }");
-    w16.eval("openScanner('today')");
-    const countOf = (id) => w16.eval("store.getAll().filter((r) => r.testId === '" + id + "').length");
-
-    /* Khớp ngay lần 1 -> nhận + báo đã đối chiếu */
-    w16.eval("window.__ocrQueue = ['NHAN 26111112413 XONG']; handleDecodedCode('26111112413', async () => ({}))");
-    await new Promise((r) => setTimeout(r, 250));
-    assert.strictEqual(countOf('26111112413'), 1, 'khớp lần 1 -> nhận mẫu');
-    assert.ok(d16.getElementById('scanner-msg').textContent.includes('đã đối chiếu'), 'thông báo ghi đã đối chiếu chữ in');
-
-    /* Lệch 2 lần, khớp lần 3 -> vẫn tự nhận (không hỏi người dùng) */
-    w16.eval("window.__ocrQueue = ['SAI 99999999999', 'KHONG DOC DUOC', 'DUNG 26111115555 ROI']; handleDecodedCode('26111115555', async () => ({}))");
-    await new Promise((r) => setTimeout(r, 400));
-    assert.strictEqual(countOf('26111115555'), 1, 'tự thử lại tới khi khớp -> nhận');
-
-    /* Lệch cả 4 lần -> TỪ CHỐI, vào trạng thái nguội (không đối chiếu lại ngay) */
-    w16.eval("window.__ocrQueue = ['LECH 11111111111', 'LECH 11111111111', 'LECH 11111111111', 'LECH 11111111111', 'DUNG 26111116666', 'DUNG 26111116666']; handleDecodedCode('26111116666', async () => ({}))");
-    await new Promise((r) => setTimeout(r, 400));
-    assert.strictEqual(countOf('26111116666'), 0, '4 lần không khớp -> không nhận mẫu');
-    assert.ok(d16.getElementById('scanner-msg').textContent.includes('Không nhận mã 26111116666'), 'báo từ chối kèm giá trị đọc được');
-    w16.eval("handleDecodedCode('26111116666', async () => ({}))");
-    await new Promise((r) => setTimeout(r, 150));
-    assert.strictEqual(w16.eval('window.__ocrQueue.length'), 2, 'đang nguội -> không chạy OCR lại');
-    assert.strictEqual(countOf('26111116666'), 0, 'đang nguội -> vẫn không nhận');
-
-    /* Tắt đối chiếu -> nhận thẳng như trước */
-    w16.eval("appMeta.scanVerify = false; window.__ocrQueue = []; handleDecodedCode('26111117777', async () => ({}))");
-    await new Promise((r) => setTimeout(r, 150));
-    assert.strictEqual(countOf('26111117777'), 1, 'tắt đối chiếu -> nhận thẳng');
-    w16.close();
   });
 
   await chain;

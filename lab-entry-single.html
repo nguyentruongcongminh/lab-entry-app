@@ -1001,7 +1001,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v85</span>
+    <span class="app-version">LabEntry v86</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1041,7 +1041,6 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <option value="30">30 phút</option>
     </select>
     <label class="speak-label"><input type="checkbox" id="chk-speak-due"> 🔊 Đọc mã khi tới giờ</label>
-    <label class="speak-label"><input type="checkbox" id="chk-scan-verify"> 🔍 Đối chiếu ID bằng ảnh</label>
   </div>
 
   <ul id="list-today" class="record-list"></ul>
@@ -4252,8 +4251,7 @@ function openScanner(source) {
   /* Chế độ 'find' (F24): quét 1 mã để TÌM mẫu đã có — mở từ tab Quản lý */
   const find = source === 'find';
   const single = find || (source === 'form' && !!formState.uid);
-  scannerState = { source, single, find, count: 0, lastCode: '', lastAt: 0, verifyBusy: false, verifyCooldown: null };
-  if (scanVerifyWanted()) ensureOcrWorker(); /* F39: hâm nóng engine OCR nền trong lúc camera mở */
+  scannerState = { source, single, find, count: 0, lastCode: '', lastAt: 0 };
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || getTestTypes()[0].id);
@@ -4384,18 +4382,6 @@ async function scanPhotoFile(file) {
         }
       }
     }
-    /* F39: giữ lại 1 bản canvas của ảnh trong BỘ NHỚ để đối chiếu OCR với
-       chữ in trên nhãn; bitmap gốc đóng ngay, canvas bỏ ngay khi đối chiếu
-       xong — ảnh không lưu ở đâu cả (quy tắc F35). */
-    let baseCv = null;
-    try {
-      const sc = Math.min(1, 1400 / bmp.width);
-      baseCv = document.createElement('canvas');
-      baseCv.width = Math.max(1, Math.round(bmp.width * sc));
-      baseCv.height = Math.max(1, Math.round(bmp.height * sc));
-      const bctx = baseCv.getContext('2d');
-      if (bctx) bctx.drawImage(bmp, 0, 0, baseCv.width, baseCv.height); else baseCv = null;
-    } catch (e) { baseCv = null; }
     if (bmp.close) bmp.close();
     const code = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
     if (!code) {
@@ -4404,203 +4390,9 @@ async function scanPhotoFile(file) {
       if (navigator.vibrate) navigator.vibrate(120);
       return;
     }
-    if (baseCv) {
-      handleDecodedCode(code, (attempt) => {
-        if (attempt === 1) return baseCv;
-        if (attempt === 2) return ocrPrepVariant(baseCv, false);
-        if (attempt === 3) return ocrGrayVariant(baseCv);
-        return ocrPrepVariant(baseCv, true);
-      });
-    } else acceptScanCode(code);
+    acceptScanCode(code);
   } catch (e) {
     setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
-  }
-}
-
-/* ================= F39 (v84): ĐỐI CHIẾU ID QUÉT BẰNG OCR =================
-   Yêu cầu của Minh 2026-11-12: mã quét bằng camera / chụp ảnh chỉ được NHẬN
-   khi khớp với ID đọc bằng OCR từ CHỮ IN trên cùng nhãn (hai kênh độc lập:
-   giải mã vạch <-> đọc chữ in). Lệch hoặc không đọc được -> TỰ ĐỘNG thử lại
-   với khung hình / biến thể ảnh mới (tối đa VERIFY_MAX_ATTEMPTS lần), KHÔNG
-   hỏi người dùng quyết định; hết lượt vẫn không khớp thì TỪ CHỐI mã đó
-   (hiện giá trị đọc được để đối chiếu bằng mắt) và cho mã đó "nguội" vài
-   giây trước khi thử chu trình mới. Ảnh chỉ sống trong bộ nhớ lúc đối chiếu
-   rồi bỏ ngay: không lưu localStorage, không đính vào bản ghi, không tải
-   lên đâu (cùng quy tắc riêng tư F35; chức năng chụp ảnh F35 giữ nguyên).
-   Máy quét cầm tay (wedge) và nhập tay không qua đối chiếu (không có ảnh).
-   Engine: Tesseract.js đóng gói sẵn trong thư mục ocr/ (chạy offline nhờ
-   service worker), nạp lười khi mở màn hình quét lần đầu. Nạp hỏng thì tính
-   năng ngủ yên — quét vẫn chạy như cũ, không chặn nhận mẫu. */
-let ocrWorker = null;
-let ocrInitPromise = null;
-let ocrInitFailed = false;
-
-function loadTesseractLib() {
-  return new Promise((resolve, reject) => {
-    if (window.Tesseract) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = 'ocr/tesseract.min.js';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('no-lib'));
-    document.head.appendChild(s);
-  });
-}
-
-function ensureOcrWorker() {
-  if (ocrWorker) return Promise.resolve(true);
-  if (ocrInitFailed) return Promise.resolve(false);
-  if (!ocrInitPromise) {
-    ocrInitPromise = (async () => {
-      try {
-        await loadTesseractLib();
-        const w = await window.Tesseract.createWorker('eng', 1, {
-          workerPath: 'ocr/worker.min.js', corePath: 'ocr/', langPath: 'ocr/', cacheMethod: 'none'
-        });
-        await w.setParameters({ tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-', tessedit_pageseg_mode: '6' });
-        ocrWorker = w;
-        return true;
-      } catch (e) { ocrInitFailed = true; return false; }
-    })();
-  }
-  return ocrInitPromise;
-}
-
-function scanVerifyWanted() { return !!(appMeta && appMeta.scanVerify); }
-
-function normalizeIdForCompare(s) { return String(s || '').toUpperCase().replace(/\s+/g, ''); }
-
-/* Trích các chuỗi "giống ID" trong văn bản OCR: >= 6 ký tự, >= 5 chữ số,
-   cho phép dấu gạch nối ở giữa (vd 26111112413, N14-0044232). */
-function extractIdCandidates(text) {
-  const out = [];
-  const up = String(text || '').toUpperCase();
-  const re = /[A-Z0-9]+(?:-[A-Z0-9]+)*/g;
-  let m;
-  while ((m = re.exec(up)) !== null) {
-    const tok = m[0].replace(/^-+|-+$/g, '');
-    const digits = (tok.match(/\d/g) || []).length;
-    if (tok.length >= 6 && digits >= 5 && out.indexOf(tok) < 0) out.push(tok);
-  }
-  return out;
-}
-
-async function ocrRecognizeText(img) {
-  if (!ocrWorker || !img) return '';
-  try { const r = await ocrWorker.recognize(img); return (r && r.data && r.data.text) || ''; }
-  catch (e) { return ''; }
-}
-
-/* Chụp khung hình camera hiện tại thành canvas (bộ nhớ thuần, bỏ ngay sau OCR) */
-function captureScanFrame() {
-  try {
-    const video = $('scanner-video');
-    if (!video || !video.videoWidth || !video.videoHeight) return null;
-    const scale = Math.min(1, 1100 / video.videoWidth);
-    const cv = document.createElement('canvas');
-    cv.width = Math.round(video.videoWidth * scale);
-    cv.height = Math.round(video.videoHeight * scale);
-    const ctx = cv.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, cv.width, cv.height);
-    return cv;
-  } catch (e) { return null; }
-}
-
-/* Biến thể tiền xử lý: cắt vùng giữa + thang xám + ngưỡng — mạnh trên nhãn
-   sạch; ảnh nghiêng/mờ thì bản thô lại thắng, nên vòng lặp luân phiên cả hai
-   (đã kiểm chứng khi làm v84: ảnh mẫu nghiêng đọc được ở bản thô, mất ở bản
-   ngưỡng; nhãn sạch cả hai đều trúng). */
-function ocrPrepVariant(src, tight) {
-  try {
-    const w = src.width, h = src.height;
-    if (!w || !h) return src;
-    const cw = Math.floor(w * (tight ? 0.8 : 0.92)), ch = Math.floor(h * (tight ? 0.86 : 0.94));
-    const sx = Math.floor((w - cw) / 2), sy = Math.floor((h - ch) / 2);
-    const scale = Math.min(2, 1100 / cw);
-    const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(cw * scale)); cv.height = Math.max(1, Math.round(ch * scale));
-    const ctx = cv.getContext('2d');
-    if (!ctx) return src;
-    ctx.drawImage(src, sx, sy, cw, ch, 0, 0, cv.width, cv.height);
-    const idata = ctx.getImageData(0, 0, cv.width, cv.height), px = idata.data;
-    const n = cv.width * cv.height;
-    const lum = new Uint8Array(n);
-    let sum = 0;
-    for (let i = 0; i < n; i++) { const l = (px[i * 4] * 299 + px[i * 4 + 1] * 587 + px[i * 4 + 2] * 114) / 1000; lum[i] = l; sum += l; }
-    const thr = sum / n - 18;
-    for (let i = 0; i < n; i++) { const v = lum[i] < thr ? 0 : 255; px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = v; px[i * 4 + 3] = 255; }
-    ctx.putImageData(idata, 0, 0);
-    return cv;
-  } catch (e) { return src; }
-}
-
-/* Biến thể xám không ngưỡng, phóng nhẹ — cho ảnh chụp mờ/nghiêng (đường F35) */
-function ocrGrayVariant(src) {
-  try {
-    const w = src.width, h = src.height;
-    if (!w || !h) return src;
-    const scale = Math.min(2, 1100 / w);
-    const cv = document.createElement('canvas');
-    cv.width = Math.max(1, Math.round(w * scale)); cv.height = Math.max(1, Math.round(h * scale));
-    const ctx = cv.getContext('2d');
-    if (!ctx) return src;
-    ctx.drawImage(src, 0, 0, cv.width, cv.height);
-    const idata = ctx.getImageData(0, 0, cv.width, cv.height), px = idata.data;
-    for (let i = 0; i < px.length; i += 4) { const l = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000; px[i] = px[i + 1] = px[i + 2] = l; }
-    ctx.putImageData(idata, 0, 0);
-    return cv;
-  } catch (e) { return src; }
-}
-
-let VERIFY_MAX_ATTEMPTS = 4;
-let VERIFY_RETRY_DELAY_MS = 350;
-let VERIFY_COOLDOWN_MS = 5000;
-
-/* Cổng vào cho mã giải mã từ CAMERA hoặc ẢNH (F35). getImage(attempt) trả
-   canvas của lần thử đó (camera: khung hình mới mỗi lần; ảnh: biến thể của
-   cùng ảnh). Đối chiếu tắt / engine chưa sẵn sàng -> nhận như cũ. */
-async function handleDecodedCode(rawCode, getImage) {
-  const code = String(rawCode || '').trim();
-  if (!code || !scannerState) return;
-  const st = scannerState;
-  if (st.verifyBusy) return;
-  if (st.verifyCooldown && st.verifyCooldown.code === code && Date.now() < st.verifyCooldown.until) return;
-  if (!scanVerifyWanted()) { acceptScanCode(code); return; }
-  const ready = await ensureOcrWorker();
-  if (scannerState !== st) return;             /* màn hình quét đã đóng/mở lại giữa chừng */
-  if (!ready) { acceptScanCode(code); return; } /* engine hỏng -> quét như cũ, không chặn */
-  st.verifyBusy = true;
-  const target = normalizeIdForCompare(code);
-  let lastCand = [];
-  try {
-    for (let attempt = 1; attempt <= VERIFY_MAX_ATTEMPTS; attempt++) {
-      if (scannerState !== st) return;
-      setScanMsg('Đang đối chiếu chữ in trên nhãn — mã ' + code + ' (lần ' + attempt + '/' + VERIFY_MAX_ATTEMPTS + ')...');
-      let img = null;
-      try { img = await getImage(attempt); } catch (e) { img = null; }
-      if (scannerState !== st) return;
-      if (img) {
-        const text = await ocrRecognizeText(img);
-        if (scannerState !== st) return;
-        const cand = extractIdCandidates(text);
-        if (cand.length) lastCand = cand;
-        if (cand.some((c) => normalizeIdForCompare(c) === target)) {
-          st.verifyBusy = false;
-          st.lastCode = code; st.lastAt = Date.now(); /* nới chống-lặp sau chu trình đối chiếu */
-          const ok = acceptScanCode(code);
-          if (ok && !st.single && !st.find) setScanMsg('Đã nhận mẫu: ' + code + ' ✓ đã đối chiếu chữ in trên nhãn — quét mã tiếp theo', 'ok');
-          return;
-        }
-      }
-      if (attempt < VERIFY_MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, VERIFY_RETRY_DELAY_MS));
-    }
-    /* Hết lượt vẫn không khớp: TỪ CHỐI mã này — không hỏi, không tự ý nhận */
-    st.verifyCooldown = { code: code, until: Date.now() + VERIFY_COOLDOWN_MS };
-    setScanMsg('Không nhận mã ' + code + ' — chữ in trên nhãn đọc được "' + (lastCand[0] || 'không rõ') + '", không khớp sau ' + VERIFY_MAX_ATTEMPTS + ' lần thử. Kiểm tra lại nhãn, hoặc nhập tay ở màn hình nhập mẫu.', 'err');
-    beepErr();
-    if (navigator.vibrate) navigator.vibrate(120);
-  } finally {
-    if (scannerState === st) st.verifyBusy = false;
   }
 }
 
@@ -4636,14 +4428,7 @@ async function startCamera() {
           if (code === scannerState.lastCode && now - scannerState.lastAt < 3000) return;
           scannerState.lastCode = code;
           scannerState.lastAt = now;
-          /* F39: mã từ camera đi qua cổng đối chiếu OCR (tự chụp khung hình
-             mới ở mỗi lần thử; lần lẻ dùng ảnh thô, lần chẵn dùng bản đã
-             tiền xử lý). Tắt đối chiếu thì handleDecodedCode nhận như cũ. */
-          handleDecodedCode(code, (attempt) => {
-            const raw = captureScanFrame();
-            if (!raw) return null;
-            return attempt % 2 === 0 ? ocrPrepVariant(raw, false) : raw;
-          });
+          acceptScanCode(code);
         }
       } catch (e) { /* bỏ qua khung hình lỗi */ }
     }, 400);
@@ -5255,7 +5040,7 @@ let printSettings = null;
  *    chưa có thì mở form nhập); không thấy thì báo ngay tại màn hình quét.
  * (Mục 2 trong danh sách đề xuất ban đầu — hoãn báo động — Minh không chọn.) */
 const META_KEY = 'labentry.meta.v1';
-let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '', lastActAt: 0, scanVerify: false };
+let appMeta = { lastBackupAt: null, autoLockMin: 10, speakDue: false, backupNagUntil: '', deferDay: '', lastActAt: 0 };
 
 function loadMeta() {
   try {
@@ -5267,7 +5052,6 @@ function loadMeta() {
       if (typeof m.backupNagUntil === 'string') appMeta.backupNagUntil = m.backupNagUntil;
       if (typeof m.deferDay === 'string') appMeta.deferDay = m.deferDay; /* F37: ngày linh vật đã báo cáo mẫu hẹn lại */
       if (typeof m.lastActAt === 'number' && m.lastActAt > 0) appMeta.lastActAt = m.lastActAt; /* v82: mốc thao tác thật gần nhất (cho tự khóa qua lần mở app) */
-      appMeta.scanVerify = m.scanVerify === true; /* F39: đối chiếu ID quét bằng OCR — mặc định TẮT (Minh chốt 12/11/2026), bật thủ công khi cần */
     }
   } catch (e) { /* cấu hình hỏng -> dùng mặc định */ }
 }
@@ -7131,13 +6915,6 @@ function init() {
     appMeta.speakDue = $('chk-speak-due').checked;
     saveMeta();
     toast(appMeta.speakDue ? 'Đã bật đọc to mã mẫu khi tới giờ' : 'Đã tắt đọc to mã mẫu khi tới giờ');
-  });
-  $('chk-scan-verify').checked = appMeta.scanVerify;
-  $('chk-scan-verify').addEventListener('change', () => {
-    appMeta.scanVerify = $('chk-scan-verify').checked;
-    saveMeta();
-    if (appMeta.scanVerify) ensureOcrWorker();
-    toast(appMeta.scanVerify ? 'Đã bật đối chiếu ID quét bằng chữ in trên nhãn (OCR)' : 'Đã tắt đối chiếu ID bằng ảnh — quét nhận thẳng như trước');
   });
   ['pointerdown', 'keydown', 'touchstart'].forEach((ev) =>
     document.addEventListener(ev, noteActivity, { passive: true }));
