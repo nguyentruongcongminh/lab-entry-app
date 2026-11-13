@@ -24,3 +24,12 @@ Ký số được làm riêng ngoài CI bằng keystore cá nhân (không nằm 
   `LabAlarmReceiver` (thông báo khi tới giờ + khôi phục báo thức sau khi máy khởi động lại).
 - `tools/gen_icons.py` — sinh icon/splash PNG từ `tools/icon-512.png.b64` trong CI.
 - `capacitor.config.json` — trỏ WebView tới bản web live.
+
+## Đồng bộ LAN (v87)
+
+Từ web v87, app có thể dùng chung dữ liệu mẫu qua máy chủ LabEntry trong mạng nội bộ. Để vỏ Android gọi được
+máy chủ `http://192.168.x.x:8787` từ trang `https` của app, `capacitor.config.json` (cả bản trong
+`android/app/src/main/assets/`) bật `android.allowMixedContent` và `AndroidManifest.xml` bật
+`usesCleartextTraffic`. Hai thay đổi này chỉ có hiệu lực khi **build lại APK** (CI `build-apk.yml` tự chạy khi
+đẩy `android-shell/**`). Chỉ cho phép lưu lượng trong mạng LAN do máy chủ tự kiểm tra (chỉ nhận địa chỉ nội bộ).
+Xem hướng dẫn đầy đủ ở `docs/HUONG-DAN-DONG-BO-LAN.md` trong repo gốc.

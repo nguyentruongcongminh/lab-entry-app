@@ -1,0 +1,62 @@
+LABENTRY v87 — DÙNG CHUNG DỮ LIỆU TRONG PHÒNG XÉT NGHIỆM (MẠNG LAN)
+====================================================================
+
+Mục đích: tất cả máy tính và điện thoại Android trong cùng Wi-Fi / mạng LAN dùng CHUNG một dữ liệu mẫu.
+Tiếp nhận ở máy này thì máy kia thấy ngay. Mất mạng vẫn làm việc được, có mạng lại tự khớp.
+Dữ liệu chỉ nằm trên máy chủ trong phòng — không gửi ra Internet.
+
+
+A. CÀI MÁY CHỦ (làm 1 lần, trên 1 máy Windows luôn bật trong phòng)
+-------------------------------------------------------------------
+1. Chép thư mục LabEntry-LAN vào máy (ví dụ ổ D:). Giải nén nếu đang là file .zip.
+2. Bấm đúp  Chay-may-chu.bat
+3. Windows hỏi quyền quản trị để mở cổng 8787 (Tường lửa): bấm "Yes / Có". Chỉ hỏi lần đầu.
+4. Cửa sổ đen hiện "MÁY CHỦ LAN đang chạy" kèm địa chỉ, ví dụ  http://192.168.1.10:8787/
+   -> GHI LẠI địa chỉ này. ĐỪNG ĐÓNG cửa sổ đen (thu nhỏ xuống thanh tác vụ là được).
+5. (Nên làm) Bấm đúp  Tu-khoi-dong-cung-Windows.bat  rồi chọn 1: bật máy là máy chủ tự chạy.
+6. (Nên làm) Trong trang cấu hình router, đặt cho máy chủ một địa chỉ IP cố định
+   ("DHCP reservation" / "gán IP theo MAC") để địa chỉ không đổi.
+
+
+B. DÙNG TRÊN MÁY TÍNH / ĐIỆN THOẠI (KTV tự làm)
+-----------------------------------------------
+- Máy tính, điện thoại (trình duyệt Chrome): mở địa chỉ máy chủ, ví dụ  http://192.168.1.10:8787/
+  App TỰ nối vào dữ liệu chung. Thấy thanh xanh "Dùng chung dữ liệu · đã khớp" là xong.
+- App Android LabEntry (bản v87 trở lên, có quét mã bằng camera): vào tab Quản lý -> bấm
+  "Đồng bộ LAN" -> gõ địa chỉ máy chủ (ví dụ 192.168.1.10) -> Kết nối. Chỉ làm 1 lần.
+- Máy đã có dữ liệu cũ: khi nối lần đầu app hỏi và GỬI dữ liệu cũ lên máy chủ (không phải nhập lại).
+  Mẫu trùng giống hệt được gộp; mẫu trùng nhưng khác nội dung báo "xung đột" để KTV chọn. Dữ liệu cũ
+  trên máy vẫn giữ nguyên và có bản lưu dự phòng.
+
+
+C. THANH TRẠNG THÁI TRÊN ĐẦU APP
+--------------------------------
+  Xanh  "Dùng chung dữ liệu · đã khớp"   : bình thường.
+  Cam   "Mất mạng — làm việc riêng"      : cứ làm việc bình thường; có mạng lại tự gửi hết, không mất gì.
+  Đỏ    "n xung đột cần KTV xem"         : bấm vào thanh, đọc và chọn bản đúng (có lời giải thích từng việc).
+
+
+D. QUY TẮC AN TOÀN DỮ LIỆU
+--------------------------
+- Mẫu ĐÃ PHÁT HÀNH được bảo vệ: máy khác không xóa, không sửa ngược được. Muốn sửa phải
+  "Hủy phát hành" ở trang Xem (có ghi nhật ký người làm), sửa, rồi phát hành lại.
+- Hai KTV sửa CÙNG một ô: app không ghi đè im lặng. Giữ bản đến trước, bản kia nằm ở mục Xung đột để chọn.
+- Hai máy cùng tiếp nhận một mã: chỉ giữ MỘT bản ghi.
+- Nút "Phục hồi (thay toàn bộ)" bị khóa khi đang dùng chung dữ liệu; dùng "Gộp dữ liệu từ file".
+
+
+E. SAO LƯU
+----------
+- Máy chủ tự sao lưu mỗi ngày vào thư mục  server\data\backup  (giữ 60 ngày).
+- Nên chép thư mục server\data sang USB / ổ khác định kỳ.
+- Khôi phục: tắt máy chủ, chép file state-YYYY-MM-DD.json cần dùng đè lên server\data\state.json, chạy lại.
+
+
+F. SỰ CỐ THƯỜNG GẶP
+-------------------
+- Máy khác không mở được địa chỉ: kiểm tra cùng Wi-Fi/mạng; máy chủ đang chạy; chạy lại
+  Mo-tuong-lua.bat; kiểm tra địa chỉ IP của máy chủ có đổi không (xem cửa sổ đen).
+- Địa chỉ máy chủ đổi: mở app bằng địa chỉ mới, hoặc ở "Đồng bộ LAN" bấm "Tìm máy chủ".
+- Cổng 8787 bị dùng: có thể máy chủ đã chạy sẵn ở cửa sổ khác.
+- Trang web mở bằng http:// trong mạng LAN không dùng được camera quét mã (quy định của trình duyệt):
+  dùng máy quét mã cầm tay (nhập như bàn phím) hoặc app Android LabEntry để quét bằng camera.

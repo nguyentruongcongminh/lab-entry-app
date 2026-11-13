@@ -960,6 +960,39 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 .sig-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pcfg-sig-row select { flex: 1 1 140px; min-width: 0; }
 
+/* ---------- Đồng bộ LAN (v87) ---------- */
+.sync-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 14px; font-size: 13.5px; line-height: 1.35; cursor: pointer; border-bottom: 1px solid var(--line);
+}
+.sync-bar.online { background: #e8f5e9; color: #1b5e20; border-bottom-color: #a5d6a7; }
+.sync-bar.offline { background: #fff3e0; color: #8a4b00; border-bottom: 2px solid #ffa726; }
+.sync-bar.alert { background: #ffebee; color: #b71c1c; border-bottom: 2px solid #e53935; font-weight: 700; }
+.sync-bar-go { flex: 0 0 auto; font-weight: 700; opacity: .8; }
+.sync-open-btn { grid-column: 1 / -1; }
+.sync-box { max-width: 560px; max-height: 92vh; overflow-y: auto; text-align: left; }
+.sync-status-line { padding: 10px 12px; border-radius: 8px; background: #eef3f8; font-size: 14.5px; line-height: 1.45; margin-bottom: 12px; }
+.sync-connect { margin-bottom: 8px; }
+.sync-url-label { display: block; font-size: 13.5px; color: var(--muted); margin-bottom: 4px; }
+.sync-connect input { width: 100%; box-sizing: border-box; padding: 11px 12px; font-size: 16px; border: 1.5px solid var(--line); border-radius: 8px; }
+.sync-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+.sync-btns .primary-btn { width: auto; }
+.sync-discover-msg { font-size: 13.5px; color: var(--muted); min-height: 18px; }
+.sync-hint { font-size: 12.5px; line-height: 1.45; color: #8a4b00; background: #fff3e0; border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; }
+.sync-h { margin: 14px 0 6px; font-size: 15px; }
+.sync-conflicts { display: flex; flex-direction: column; gap: 10px; }
+.sync-conflict { border: 1.5px solid #e53935; background: #fff; border-radius: 10px; padding: 10px 12px; }
+.sync-conflict.info { border-color: #90a4ae; background: #f5f8fa; }
+.sync-c-head { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; flex-wrap: wrap; }
+.sync-c-when { font-size: 12px; color: var(--muted); }
+.sync-c-text { font-size: 14px; line-height: 1.45; margin: 6px 0; }
+.sync-row { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; padding: 6px 8px; background: #fafafa; border-radius: 6px; margin-top: 4px; }
+.sync-lbl { flex: 1 1 100%; font-weight: 700; color: var(--blue-dark); }
+.sync-mine { color: #b71c1c; }
+.sync-theirs { color: #1b5e20; }
+.sync-c-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.mini-btn.primary { background: var(--blue); color: #fff; }
+
 </style>
 <style>
 /* print.css — Khi in/xuất PDF: chỉ hiện tờ kết quả do renderSheet() dựng trong #print-area.
@@ -995,13 +1028,19 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   </span>
 </div>
 
+<!-- Thanh trạng thái đồng bộ LAN (v87) — chỉ hiện khi máy đã nối máy chủ; bấm để mở chi tiết/xung đột -->
+<div id="sync-bar" class="sync-bar hidden" role="status">
+  <span id="sync-bar-text"></span>
+  <span class="sync-bar-go">Chi tiết ›</span>
+</div>
+
 <!-- ============ TAB: KẾT QUẢ HÔM NAY ============ -->
 <section id="view-today" class="view">
   <header class="toolbar">
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v86</span>
+    <span class="app-version">LabEntry v87</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1083,6 +1122,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
   <button type="button" id="btn-deferred" class="audit-open-btn">⏸ Mẫu hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
   </div>
+  <button type="button" id="btn-sync" class="audit-open-btn sync-open-btn">🔗 Đồng bộ LAN — dùng chung dữ liệu nhiều máy</button>
 
 
   <div id="group-noresult">
@@ -1731,6 +1771,34 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   </div>
 </div>
 
+<!-- ============ ĐỒNG BỘ LAN (v87) ============ -->
+<div id="sync-modal" class="modal hidden">
+  <div class="modal-box sync-box">
+    <h3 class="staff-title">🔗 Đồng bộ LAN</h3>
+    <div id="sync-status-line" class="sync-status-line"></div>
+    <div class="sync-connect">
+      <label class="sync-url-label" for="sync-url">Địa chỉ máy chủ LabEntry (hiện trên màn hình máy chủ)</label>
+      <input id="sync-url" type="text" inputmode="url" autocomplete="off" placeholder="Ví dụ: 192.168.1.10">
+      <div class="sync-btns">
+        <button type="button" id="btn-sync-connect" class="primary-btn small">Kết nối</button>
+        <button type="button" id="btn-sync-discover" class="mini-btn">🔍 Tìm máy chủ</button>
+      </div>
+      <div id="sync-discover-msg" class="sync-discover-msg"></div>
+      <p id="sync-hint" class="sync-hint hidden">Trang này đang mở bằng https nên trình duyệt có thể chặn nối tới máy chủ http trong mạng LAN. Hãy mở LabEntry bằng địa chỉ do máy chủ phát (dạng http://192.168.x.x:8787) hoặc dùng app Android LabEntry.</p>
+    </div>
+    <div class="sync-btns sync-ctl">
+      <button type="button" id="btn-sync-now" class="mini-btn hidden">⟳ Đồng bộ ngay</button>
+      <button type="button" id="btn-sync-pause" class="mini-btn hidden">⏸ Tạm ngắt</button>
+      <button type="button" id="btn-sync-forget" class="mini-btn danger hidden">Ngừng dùng chung</button>
+    </div>
+    <h4 class="sync-h">Xung đột &amp; thông báo <span id="sync-conflict-count"></span></h4>
+    <div id="sync-conflicts" class="sync-conflicts"></div>
+    <div class="summary-actions">
+      <button type="button" id="btn-sync-close" class="secondary-btn">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <div id="staff-modal" class="modal hidden">
   <div class="modal-box">
     <h3 class="staff-title">Danh sách kỹ thuật viên</h3>
@@ -2001,9 +2069,20 @@ const LabStore = (() => {
     return 'r' + now.getTime().toString(36) + uidCounter.toString(36) + Math.floor(Math.random() * 1e6).toString(36);
   }
 
-  function createStore(storage, getTestTypeFn) {
+  /*
+   * opts.onChange(evt) — v87 (đồng bộ LAN): được gọi SAU KHI đã lưu cục bộ, với
+   *   { kind: 'create'|'update'|'delete', uid, before, after } (before/after là bản ghi trước/sau, hoặc null).
+   * Thay đổi do máy chủ gửi về (applyRemote/removeLocal) KHÔNG phát sự kiện này.
+   */
+  function createStore(storage, getTestTypeFn, opts) {
     const store = storage || defaultStorage();
+    const onChange = opts && typeof opts.onChange === 'function' ? opts.onChange : null;
     let records = load();
+
+    function emit(kind, uid, before, after) {
+      if (!onChange) return;
+      try { onChange({ kind, uid, before: before || null, after: after || null }); } catch (e) { /* lỗi bên đồng bộ không được làm hỏng thao tác của KTV */ }
+    }
 
     function load() {
       try {
@@ -2070,6 +2149,7 @@ const LabStore = (() => {
       if (errors.length) return { ok: false, errors };
       records.push(rec);
       persist();
+      emit('create', rec.uid, null, rec);
       return { ok: true, record: rec };
     }
 
@@ -2102,16 +2182,46 @@ const LabStore = (() => {
       });
       const errors = validate(rec, uid);
       if (errors.length) return { ok: false, errors };
+      const prevRec = records[idx];
       records[idx] = rec;
       persist();
+      emit('update', uid, prevRec, rec);
       return { ok: true, record: rec };
     }
 
     function remove(uid) {
+      const prevRec = records.find((r) => r.uid === uid) || null;
+      const before = records.length;
+      records = records.filter((r) => r.uid !== uid);
+      if (records.length !== before) { persist(); emit('delete', uid, prevRec, null); }
+      return records.length !== before;
+    }
+
+    /* ---------- Đồng bộ LAN (v87): ghi thay đổi từ máy chủ, KHÔNG kiểm tra trùng, KHÔNG phát sự kiện ---------- */
+    function applyRemote(list) {
+      let changed = 0;
+      (list || []).forEach((r) => {
+        if (!r || typeof r.uid !== 'string') return;
+        const idx = records.findIndex((x) => x.uid === r.uid);
+        if (r.deleted) { if (idx >= 0) { records.splice(idx, 1); changed += 1; } return; }
+        const copy = Object.assign({}, r, { results: Object.assign({}, r.results || {}) });
+        delete copy.deleted;
+        if (idx >= 0) records[idx] = copy; else records.push(copy);
+        changed += 1;
+      });
+      if (changed) persist();
+      return changed;
+    }
+    function removeLocal(uid) {
       const before = records.length;
       records = records.filter((r) => r.uid !== uid);
       if (records.length !== before) persist();
       return records.length !== before;
+    }
+    /* Quên dấu phiên bản máy chủ (khi nối sang máy chủ mới): mọi bản ghi coi như chưa từng đồng bộ */
+    function clearSyncMeta() {
+      records.forEach((r) => { delete r.rv; delete r.seq; });
+      persist();
     }
 
     function getAll() {
@@ -2181,6 +2291,8 @@ const LabStore = (() => {
       return { records: out, exportedAt: data && typeof data.exportedAt === 'string' ? data.exportedAt : null };
     }
 
+    /* Lưu ý (v87): khi đang đồng bộ LAN, app KHÔNG cho dùng importBackup (thay toàn bộ = sẽ xóa dữ liệu chung);
+       chỉ cho gộp qua máy chủ. importBackup vẫn dùng bình thường ở chế độ một máy. */
     function importBackup(text) {
       const parsed = parseBackup(text);
       records = parsed.records;
@@ -2204,6 +2316,7 @@ const LabStore = (() => {
         if (records.some((r) => r.uid === copy.uid)) copy.uid = makeUid(new Date());
         records.push(copy);
         added += 1;
+        emit('create', copy.uid, null, copy);
       });
       if (added > 0) persist();
       return { added, skipped };
@@ -2253,7 +2366,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, applyRemote, removeLocal, clearSyncMeta, STORAGE_KEY };
   }
 
   function localDayKey(d) {
@@ -2281,11 +2394,1162 @@ const LabStore = (() => {
     };
   }
 
-  return { createStore, memoryStorage, localDayKey, tatStats };
+  /*
+   * SHA-256 thuần JS (v87). Dùng khi trình duyệt không có crypto.subtle — xảy ra trên trang mở
+   * bằng http://<IP máy chủ LAN> (không phải ngữ cảnh an toàn). Kết quả GIỐNG HỆT crypto.subtle,
+   * nên băm PIN tạo ở máy này kiểm tra được ở máy khác và ngược lại.
+   */
+  const SHA256_K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+  ];
+  function utf8Bytes(str) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(str);
+    const bin = unescape(encodeURIComponent(str));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function sha256Hex(text) {
+    const ror = (x, n) => (x >>> n) | (x << (32 - n));
+    const msg = utf8Bytes(String(text));
+    const len = msg.length;
+    const padded = new Uint8Array(((len + 9 + 63) >> 6) << 6);
+    padded.set(msg);
+    padded[len] = 0x80;
+    const dv = new DataView(padded.buffer);
+    dv.setUint32(padded.length - 8, Math.floor((len * 8) / 4294967296));
+    dv.setUint32(padded.length - 4, (len * 8) >>> 0);
+    let h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+    const w = new Uint32Array(64);
+    for (let off = 0; off < padded.length; off += 64) {
+      for (let i = 0; i < 16; i++) w[i] = dv.getUint32(off + i * 4);
+      for (let i = 16; i < 64; i++) {
+        const s0 = ror(w[i - 15], 7) ^ ror(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        const s1 = ror(w[i - 2], 17) ^ ror(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      let a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+      for (let i = 0; i < 64; i++) {
+        const S1 = ror(e, 6) ^ ror(e, 11) ^ ror(e, 25);
+        const ch = (e & f) ^ (~e & g);
+        const t1 = (hh + S1 + ch + SHA256_K[i] + w[i]) >>> 0;
+        const S0 = ror(a, 2) ^ ror(a, 13) ^ ror(a, 22);
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const t2 = (S0 + maj) >>> 0;
+        hh = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      h = [(h[0] + a) >>> 0, (h[1] + b) >>> 0, (h[2] + c) >>> 0, (h[3] + d) >>> 0, (h[4] + e) >>> 0, (h[5] + f) >>> 0, (h[6] + g) >>> 0, (h[7] + hh) >>> 0];
+    }
+    return h.map((x) => x.toString(16).padStart(8, '0')).join('');
+  }
+  return { createStore, memoryStorage, localDayKey, tatStats, sha256Hex };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = LabStore;
+}
+
+</script>
+<script>
+'use strict';
+/*
+ * sync-core.js — Lõi đồng bộ LabEntry qua mạng LAN (v87). Thuần logic, KHÔNG I/O:
+ * chạy trong Node (máy chủ LAN + test) và trong trình duyệt (window.LabSyncCore, dùng
+ * hàm diff/flatten của phía máy khách).
+ *
+ * Mô hình: máy chủ LAN giữ bản dữ liệu chung; mỗi máy là bản sao làm việc được cả khi
+ * mất mạng. Mỗi thao tác của máy khách là một "op" (có opId duy nhất, nên gửi lại
+ * nhiều lần vẫn chỉ áp dụng MỘT lần). Máy chủ gán cho mỗi bản ghi số phiên bản `rv`
+ * và nhớ trường nào đổi ở phiên bản nào (`changed`), nhờ đó:
+ *   - hai máy sửa KHÁC trường  -> tự gộp, không mất gì;
+ *   - hai máy sửa CÙNG trường  -> giữ bản đang có trên máy chủ, bản của máy kia
+ *                                 vào "hộp xung đột" để KTV chọn (không ghi đè im lặng);
+ *   - mẫu ĐÃ PHÁT HÀNH         -> bất biến: chỉ cho "hủy phát hành" có chủ đích
+ *                                 (đúng phiên bản đã xem); sửa/xóa bị từ chối;
+ *   - phát hành khi kết quả đã bị người khác đổi sau lúc xem -> từ chối;
+ *   - trùng (ID + loại XN) khi hai máy cùng tiếp nhận -> chỉ giữ MỘT bản ghi;
+ *   - xóa để lại "bia mộ" (deleted) nên máy cũ không làm sống lại bản ghi đã xóa.
+ */
+const LabSyncCore = (() => {
+  const RECORD_FIELDS = [
+    'testId', 'typeId', 'note', 'releaseAt', 'receiver', 'performer', 'releaser', 'urgent',
+    'deferReason', 'deferNote', 'deferAt', 'resultAt', 'timerEndsAt',
+  ];
+  const DATE_FIELDS = ['releaseAt', 'deferAt', 'resultAt', 'timerEndsAt'];
+  const BOOL_FIELDS = ['urgent'];
+  const DEFAULTS = {
+    testId: '', typeId: '', note: '', releaseAt: null, receiver: '', performer: '', releaser: '', urgent: false,
+    deferReason: '', deferNote: '', deferAt: null, resultAt: null, timerEndsAt: null,
+  };
+  /* Trường dấu vết/tự động: hai máy cùng ghi thì bản ghi sau thắng (không đáng làm phiền KTV bằng xung đột):
+     giờ lưu kết quả (lấy mốc muộn hơn), KTV thực hiện (= người lưu gần nhất), đồng hồ hẹn giờ, cờ KHẨN. */
+  const LWW_PATHS = ['resultAt', 'performer', 'timerEndsAt', 'urgent'];
+  /* Đường dẫn "nội dung" — đổi các trường này sau khi KTV đã xem thì không được phát hành bằng bản xem cũ */
+  const isContentPath = (p) => p === 'testId' || p === 'typeId' || p === 'note' || p.indexOf('results.') === 0;
+  const RESULT_PATH = /^results\.[A-Za-z0-9_\-]{1,64}$/;
+  const OPS_KEEP = 30000;
+  const AUDIT_KEEP = 20000;
+  const CONFLICT_KEEP = 2000;
+
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+  const okDate = (v) => (typeof v === 'string' && v.length <= 40 && !isNaN(Date.parse(v)) ? v : null);
+
+  /* ---------- Bản ghi phẳng: { 'testId': ..., 'results.ketQua': ... } ---------- */
+  function flatten(rec) {
+    const out = {};
+    RECORD_FIELDS.forEach((f) => {
+      const v = rec ? rec[f] : undefined;
+      out[f] = v === undefined ? DEFAULTS[f] : v;
+    });
+    if (rec && isObj(rec.results)) {
+      Object.keys(rec.results).forEach((k) => { out['results.' + k] = typeof rec.results[k] === 'string' ? rec.results[k] : ''; });
+    }
+    return out;
+  }
+  const same = (a, b) => a === b || (a == null && b == null);
+  const valOf = (flat, p) => {
+    if (p in flat) return flat[p];
+    return p.indexOf('results.') === 0 ? '' : DEFAULTS[p];
+  };
+
+  /* Các trường khác nhau giữa hai bản ghi -> { path: giáTrịMới } */
+  function diffRecords(oldRec, newRec) {
+    const a = flatten(oldRec || {});
+    const b = flatten(newRec || {});
+    const set = {};
+    Object.keys(Object.assign({}, a, b)).forEach((p) => {
+      if (!same(valOf(a, p), valOf(b, p))) set[p] = valOf(b, p);
+    });
+    return set;
+  }
+
+  function applySet(rec, set) {
+    Object.keys(set).forEach((p) => {
+      if (p.indexOf('results.') === 0) {
+        if (!isObj(rec.results)) rec.results = {};
+        rec.results[p.slice(8)] = set[p];
+      } else {
+        rec[p] = set[p];
+      }
+    });
+    return rec;
+  }
+
+  function contentEqual(a, b) {
+    const fa = flatten(a);
+    const fb = flatten(b);
+    return Object.keys(Object.assign({}, fa, fb)).every((p) => same(valOf(fa, p), valOf(fb, p)));
+  }
+
+  const isReleased = (rec) => !!(rec && rec.releaseAt);
+  const recKey = (rec) => String(rec.testId || '').trim() + '|' + rec.typeId;
+
+  /* ---------- Làm sạch dữ liệu đến từ máy khách ---------- */
+  function sanitizeRecord(raw, nowIso) {
+    if (!isObj(raw)) return null;
+    const uid = typeof raw.uid === 'string' && raw.uid.length > 0 && raw.uid.length <= 80 ? raw.uid : null;
+    const testId = typeof raw.testId === 'string' ? raw.testId.trim().slice(0, 200) : '';
+    const typeId = typeof raw.typeId === 'string' ? raw.typeId.slice(0, 80) : '';
+    if (!uid || !testId || !typeId) return null;
+    const results = {};
+    if (isObj(raw.results)) {
+      Object.keys(raw.results).forEach((k) => {
+        if (RESULT_PATH.test('results.' + k) && typeof raw.results[k] === 'string') results[k] = raw.results[k].slice(0, 2000);
+      });
+    }
+    const createdAt = okDate(raw.createdAt) || nowIso;
+    const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+    return {
+      uid, testId, typeId, results,
+      note: str(raw.note, 5000),
+      receiver: str(raw.receiver, 100), performer: str(raw.performer, 100), releaser: str(raw.releaser, 100),
+      urgent: raw.urgent === true,
+      deferReason: ['hut-mau', 'khong-dat', 'khac'].indexOf(raw.deferReason) >= 0 ? raw.deferReason : '',
+      deferNote: str(raw.deferNote, 2000),
+      deferAt: okDate(raw.deferAt), resultAt: okDate(raw.resultAt), releaseAt: okDate(raw.releaseAt), timerEndsAt: okDate(raw.timerEndsAt),
+      createdAt,
+      updatedAt: okDate(raw.updatedAt) || createdAt,
+    };
+  }
+
+  function sanitizeSet(raw) {
+    const set = {};
+    if (!isObj(raw)) return set;
+    Object.keys(raw).forEach((p) => {
+      const v = raw[p];
+      if (RESULT_PATH.test(p)) { if (typeof v === 'string') set[p] = v.slice(0, 2000); return; }
+      if (RECORD_FIELDS.indexOf(p) < 0) return;
+      if (DATE_FIELDS.indexOf(p) >= 0) { if (v === null) set[p] = null; else if (okDate(v)) set[p] = v; return; }
+      if (BOOL_FIELDS.indexOf(p) >= 0) { if (typeof v === 'boolean') set[p] = v; return; }
+      if (p === 'deferReason') { if (['', 'hut-mau', 'khong-dat', 'khac'].indexOf(v) >= 0) set[p] = v; return; }
+      if (p === 'testId') { if (typeof v === 'string' && v.trim()) set[p] = v.trim().slice(0, 200); return; }
+      if (p === 'typeId') { if (typeof v === 'string' && v) set[p] = v.slice(0, 80); return; }
+      if (typeof v === 'string') set[p] = v.slice(0, p === 'note' || p === 'deferNote' ? 5000 : 100);
+    });
+    return set;
+  }
+
+  /* ---------- Trạng thái máy chủ ---------- */
+  function newState(serverId) {
+    return {
+      v: 1, serverId: serverId || ('s' + Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36)),
+      seq: 0, records: {}, types: { rv: 0, seq: 0, list: null }, staff: {}, audit: [],
+      ops: {}, opsOrder: [], conflicts: [], conflictSeq: 0,
+    };
+  }
+
+  /* Chỉ mục (ID + loại) -> uid của bản ghi còn sống. Không lưu xuống đĩa; dựng lại khi cần. */
+  function ensureIndex(state) {
+    if (state._index) return state._index;
+    const idx = new Map();
+    Object.keys(state.records).forEach((uid) => {
+      const r = state.records[uid];
+      if (!r.deleted) idx.set(recKey(r), uid);
+    });
+    Object.defineProperty(state, '_index', { value: idx, enumerable: false, writable: true, configurable: true });
+    return idx;
+  }
+  function liveByKey(state, key, exceptUid) {
+    const uid = ensureIndex(state).get(key);
+    if (!uid || uid === exceptUid) return null;
+    const r = state.records[uid];
+    return r && !r.deleted ? r : null;
+  }
+
+  function publicRecord(rec) {
+    if (rec.deleted) return { uid: rec.uid, deleted: true, rv: rec.rv, seq: rec.seq, testId: rec.testId, typeId: rec.typeId };
+    const out = clone(rec);
+    delete out.changed;
+    return out;
+  }
+
+  function addConflict(state, c, now) {
+    state.conflictSeq += 1;
+    /* Tăng mốc seq: xung đột mới phải đánh thức long-poll của MỌI máy ngay, không đợi tới nhịp kế */
+    state.seq += 1;
+    const item = Object.assign({ id: 'c' + state.conflictSeq, at: now, status: 'open', seq: state.seq }, c);
+    state.conflicts.push(item);
+    if (state.conflicts.length > CONFLICT_KEEP) {
+      /* chỉ bỏ các xung đột ĐÃ xử lý cũ nhất; không bao giờ bỏ xung đột đang mở */
+      const i = state.conflicts.findIndex((x) => x.status !== 'open');
+      if (i >= 0) state.conflicts.splice(i, 1);
+    }
+    return item.id;
+  }
+
+  /* ---------- Áp dụng op ---------- */
+  function bump(state, rec, paths, now) {
+    state.seq += 1;
+    rec.rv += 1;
+    rec.seq = state.seq;
+    paths.forEach((p) => { rec.changed[p] = rec.rv; });
+    rec.updatedAt = now;
+  }
+
+  function applyCreate(state, op, now) {
+    const inc = sanitizeRecord(op.rec, now);
+    if (!inc) return { status: 'rejected', reason: 'invalid' };
+    const existing = state.records[inc.uid];
+    if (existing) {
+      if (existing.deleted) return { status: 'rejected', reason: 'deleted', uid: inc.uid };
+      return { status: 'merged', uid: inc.uid, rec: publicRecord(existing) };
+    }
+    const dupe = liveByKey(state, recKey(inc));
+    if (dupe) {
+      if (contentEqual(dupe, inc)) return { status: 'merged', uid: dupe.uid, replaces: inc.uid, rec: publicRecord(dupe), reason: 'same-content' };
+      const f = flatten(dupe);
+      const fi = flatten(inc);
+      const fill = {};
+      const clash = [];
+      Object.keys(fi).forEach((p) => {
+        const mine = fi[p];
+        const theirs = valOf(f, p);
+        const emptyMine = mine === '' || mine === null || mine === false || mine === undefined;
+        if (emptyMine || same(mine, theirs)) return;
+        const emptyTheirs = theirs === '' || theirs === null || theirs === false || theirs === undefined;
+        /* Không bao giờ tự "phát hành" mẫu hộ một bản trùng: phát hành phải do KTV thấy đủ nội dung rồi tự bấm */
+        const isRelease = p === 'releaseAt' || p === 'releaser';
+        if (emptyTheirs && !isReleased(dupe) && !isRelease) fill[p] = mine;
+        else clash.push({ path: p, mine, theirs });
+      });
+      if (Object.keys(fill).length) { applySet(dupe, fill); bump(state, dupe, Object.keys(fill), now); }
+      const meaningful = clash.filter((c) => c.path !== 'receiver' && c.path !== 'urgent');
+      const ids = [];
+      /* Luôn lập một mục báo cho KTV: "mẫu này đã được máy khác tiếp nhận" (kể cả khi chỉ khác người nhận) */
+      ids.push(addConflict(state, {
+        kind: 'duplicate-intake', uid: dupe.uid, testId: dupe.testId, typeId: dupe.typeId,
+        device: op.deviceId || '', operator: op.operator || '', baseRv: dupe.rv,
+        paths: clash, info: meaningful.length === 0, incoming: inc,
+      }, now));
+      return { status: meaningful.length ? 'conflict' : 'merged', uid: dupe.uid, replaces: inc.uid, rec: publicRecord(dupe), reason: 'duplicate', conflictIds: ids };
+    }
+    state.seq += 1;
+    const rec = Object.assign({}, inc, { rv: 1, seq: state.seq, changed: {} });
+    Object.keys(flatten(rec)).forEach((p) => { rec.changed[p] = 1; });
+    state.records[rec.uid] = rec;
+    ensureIndex(state).set(recKey(rec), rec.uid);
+    return { status: 'applied', uid: rec.uid, rec: publicRecord(rec) };
+  }
+
+  function applyUpdate(state, op, now) {
+    const rec = state.records[op.uid];
+    const set = sanitizeSet(op.set);
+    const paths = Object.keys(set);
+    if (!paths.length) return { status: 'merged', uid: op.uid, rec: rec && !rec.deleted ? publicRecord(rec) : undefined };
+    if (!rec || rec.deleted) {
+      const id = addConflict(state, {
+        kind: 'edit-on-deleted', uid: op.uid, testId: rec ? rec.testId : '', typeId: rec ? rec.typeId : '',
+        device: op.deviceId || '', operator: op.operator || '', baseRv: rec ? rec.rv : 0,
+        paths: paths.map((p) => ({ path: p, mine: set[p], theirs: null })), snapshot: rec ? snapshotOf(rec) : null,
+      }, now);
+      return { status: 'rejected', reason: 'deleted', uid: op.uid, conflictIds: [id], rec: rec ? publicRecord(rec) : { uid: op.uid, deleted: true } };
+    }
+    /* base = -1: "gộp mù" (sửa viết lại trên bản ghi mà máy chưa từng thấy bản của máy chủ):
+       trường nào máy chủ đang TRỐNG thì điền, trường nào máy chủ đã có giá trị khác thì thành xung đột. */
+    const blind = op.base === -1;
+    const base = Number.isInteger(op.base) ? op.base : 0;
+    const flat = flatten(rec);
+
+    if (isReleased(rec)) {
+      const unrelease = set.releaseAt === null && paths.every((p) => p === 'releaseAt' || p === 'releaser');
+      if (unrelease) {
+        if (base !== rec.rv) {
+          const id = addConflict(state, {
+            kind: 'unrelease-stale', uid: rec.uid, testId: rec.testId, typeId: rec.typeId, device: op.deviceId || '', operator: op.operator || '',
+            baseRv: rec.rv, paths: paths.map((p) => ({ path: p, mine: set[p], theirs: valOf(flat, p) })),
+          }, now);
+          return { status: 'rejected', reason: 'released-changed', uid: rec.uid, conflictIds: [id], rec: publicRecord(rec) };
+        }
+        applySet(rec, set);
+        bump(state, rec, paths, now);
+        return { status: 'applied', uid: rec.uid, rec: publicRecord(rec), unreleased: true };
+      }
+      /* bấm "Phát hành" lần hai ở máy khác: coi như đã xong, KHÔNG đổi người/giờ phát hành đầu tiên */
+      const releaseOnly = set.releaseAt && paths.every((p) => ['releaseAt', 'releaser', 'deferReason', 'deferNote', 'deferAt'].indexOf(p) >= 0);
+      if (releaseOnly) return { status: 'merged', reason: 'already-released', uid: rec.uid, rec: publicRecord(rec) };
+      const id = addConflict(state, {
+        kind: 'edit-on-released', uid: rec.uid, testId: rec.testId, typeId: rec.typeId, device: op.deviceId || '', operator: op.operator || '',
+        baseRv: rec.rv, paths: paths.map((p) => ({ path: p, mine: set[p], theirs: valOf(flat, p) })),
+      }, now);
+      return { status: 'rejected', reason: 'released', uid: rec.uid, conflictIds: [id], rec: publicRecord(rec) };
+    }
+
+    const apply = {};
+    const clash = [];
+    paths.forEach((p) => {
+      const cur = valOf(flat, p);
+      if (same(cur, set[p])) return;
+      if (LWW_PATHS.indexOf(p) >= 0) {
+        if (p === 'resultAt' && cur && set[p] && set[p] < cur) return; /* giữ mốc giờ muộn hơn */
+        apply[p] = set[p];
+        return;
+      }
+      const changedAt = rec.changed[p] || 0;
+      const curEmpty = cur === '' || cur === null || cur === false || cur === undefined;
+      if (blind ? !curEmpty : changedAt > base) clash.push({ path: p, mine: set[p], theirs: cur });
+      else apply[p] = set[p];
+    });
+    /* Phát hành chỉ hợp lệ nếu người phát hành đã thấy đúng nội dung hiện tại */
+    if (apply.releaseAt) {
+      const stale = blind || Object.keys(rec.changed).some((p) => isContentPath(p) && rec.changed[p] > base);
+      if (stale) {
+        delete apply.releaseAt; delete apply.releaser;
+        clash.push({ path: 'releaseAt', mine: set.releaseAt, theirs: null, reason: 'content-changed' });
+      }
+    }
+    /* Đổi ID/loại XN không được tạo bản ghi trùng */
+    if (apply.testId !== undefined || apply.typeId !== undefined) {
+      const key = String(apply.testId !== undefined ? apply.testId : rec.testId).trim() + '|' + (apply.typeId !== undefined ? apply.typeId : rec.typeId);
+      if (liveByKey(state, key, rec.uid)) {
+        ['testId', 'typeId'].forEach((p) => { if (p in apply) { clash.push({ path: p, mine: apply[p], theirs: valOf(flat, p), reason: 'duplicate-key' }); delete apply[p]; } });
+      }
+    }
+    const applied = Object.keys(apply);
+    if (applied.length) {
+      const oldKey = recKey(rec);
+      applySet(rec, apply);
+      bump(state, rec, applied, now);
+      const idx = ensureIndex(state);
+      if (recKey(rec) !== oldKey) { idx.delete(oldKey); idx.set(recKey(rec), rec.uid); }
+    }
+    const out = { uid: rec.uid, rec: publicRecord(rec) };
+    if (clash.length) {
+      out.conflictIds = [addConflict(state, {
+        kind: 'field', uid: rec.uid, testId: rec.testId, typeId: rec.typeId, device: op.deviceId || '', operator: op.operator || '',
+        baseRv: rec.rv, paths: clash,
+      }, now)];
+      out.status = applied.length ? 'partial' : 'conflict';
+    } else {
+      out.status = applied.length ? 'applied' : 'merged';
+    }
+    return out;
+  }
+
+  function snapshotOf(rec) {
+    const s = publicRecord(rec);
+    return s.deleted ? { uid: rec.uid, testId: rec.testId, typeId: rec.typeId, results: rec.results, note: rec.note } : s;
+  }
+
+  function applyDelete(state, op, now) {
+    const rec = state.records[op.uid];
+    if (!rec || rec.deleted) return { status: 'merged', uid: op.uid, rec: rec ? publicRecord(rec) : { uid: op.uid, deleted: true } };
+    const base = Number.isInteger(op.base) ? op.base : 0;
+    if (isReleased(rec) || base !== rec.rv) {
+      const reason = isReleased(rec) ? 'released' : 'changed';
+      const id = addConflict(state, {
+        kind: isReleased(rec) ? 'delete-released' : 'delete-stale', uid: rec.uid, testId: rec.testId, typeId: rec.typeId,
+        device: op.deviceId || '', operator: op.operator || '', baseRv: rec.rv, paths: [],
+      }, now);
+      return { status: 'rejected', reason, uid: rec.uid, conflictIds: [id], rec: publicRecord(rec) };
+    }
+    ensureIndex(state).delete(recKey(rec));
+    rec.deleted = true;
+    rec.deletedAt = now;
+    bump(state, rec, [], now);
+    return { status: 'applied', uid: rec.uid, rec: publicRecord(rec) };
+  }
+
+  function normalizeStaff(x) {
+    if (!isObj(x) || typeof x.name !== 'string' || !x.name.trim()) return null;
+    return {
+      name: x.name.trim().slice(0, 100),
+      salt: typeof x.salt === 'string' ? x.salt.slice(0, 100) : '',
+      pinHash: typeof x.pinHash === 'string' && x.pinHash ? x.pinHash.slice(0, 200) : null,
+      sig: (typeof x.sig === 'string' && x.sig.indexOf('data:image/') === 0 && x.sig.length <= 300000) ? x.sig : '',
+    };
+  }
+
+  function applyStaff(state, op, now) {
+    const entry = op.entry === null ? null : normalizeStaff(op.entry);
+    const name = typeof op.name === 'string' ? op.name.trim() : '';
+    if (!name || (op.entry !== null && !entry)) return { status: 'rejected', reason: 'invalid' };
+    const key = name.toLowerCase();
+    const ts = Number.isFinite(op.ts) ? op.ts : 0;
+    const cur = state.staff[key];
+    /* ts = 0: dữ liệu KTV cũ có sẵn trên máy lúc mới nối vào máy chủ — không bao giờ ghi đè KTV đã có trên máy chủ */
+    if (cur && (cur.ts > ts || ts === 0)) return { status: 'merged', reason: 'stale', staff: staffPublic(key, cur) };
+    if (cur && cur.ts === ts && JSON.stringify(cur.entry) === JSON.stringify(entry)) return { status: 'merged', staff: staffPublic(key, cur) };
+    state.seq += 1;
+    state.staff[key] = { entry, ts, deleted: entry === null, seq: state.seq };
+    return { status: 'applied', staff: staffPublic(key, state.staff[key]) };
+  }
+  const staffPublic = (key, s) => ({ key, entry: s.entry, ts: s.ts, deleted: !!s.deleted, seq: s.seq });
+
+  function validTypes(list) {
+    return Array.isArray(list) && list.length > 0 && list.length <= 500 && list.every((t) =>
+      isObj(t) && typeof t.id === 'string' && t.id && typeof t.name === 'string' && Array.isArray(t.fields));
+  }
+
+  function applyTypes(state, op, now) {
+    if (!validTypes(op.list)) return { status: 'rejected', reason: 'invalid' };
+    /* merge: lần nối đầu của một máy — hợp danh mục của máy với danh mục chung (loại nào chưa có thì thêm, loại đã có giữ nguyên) */
+    if (op.merge) {
+      if (!state.types.list) {
+        state.seq += 1;
+        state.types = { rv: state.types.rv + 1, seq: state.seq, list: clone(op.list) };
+        return { status: 'applied', types: { rv: state.types.rv, list: state.types.list } };
+      }
+      const have = new Set(state.types.list.map((t) => t.id));
+      const extra = op.list.filter((t) => !have.has(t.id));
+      if (!extra.length) return { status: 'merged', types: { rv: state.types.rv, list: state.types.list } };
+      state.seq += 1;
+      state.types = { rv: state.types.rv + 1, seq: state.seq, list: state.types.list.concat(clone(extra)) };
+      return { status: 'applied', types: { rv: state.types.rv, list: state.types.list } };
+    }
+    const base = Number.isInteger(op.base) ? op.base : 0;
+    if (base !== state.types.rv) {
+      if (state.types.list && JSON.stringify(state.types.list) === JSON.stringify(op.list)) return { status: 'merged', types: { rv: state.types.rv, list: state.types.list } };
+      const id = addConflict(state, {
+        kind: 'types-conflict', uid: '', testId: '', typeId: '', device: op.deviceId || '', operator: op.operator || '',
+        baseRv: state.types.rv, paths: [], mineList: clone(op.list),
+      }, now);
+      return { status: 'rejected', reason: 'types-changed', conflictIds: [id], types: { rv: state.types.rv, list: state.types.list } };
+    }
+    state.seq += 1;
+    state.types = { rv: state.types.rv + 1, seq: state.seq, list: clone(op.list) };
+    return { status: 'applied', types: { rv: state.types.rv, list: state.types.list } };
+  }
+
+  function applyAudit(state, op) {
+    const have = new Set(state.audit.map((e) => e.id));
+    let added = 0;
+    (Array.isArray(op.entries) ? op.entries : []).slice(0, 500).forEach((e) => {
+      if (!isObj(e) || typeof e.id !== 'string' || !e.id || have.has(e.id)) return;
+      if (typeof e.at !== 'string' || isNaN(Date.parse(e.at)) || typeof e.action !== 'string' || !e.action) return;
+      have.add(e.id);
+      if (!added) state.seq += 1;
+      added += 1;
+      state.audit.push({
+        id: e.id, at: e.at, action: e.action.slice(0, 40),
+        actor: typeof e.actor === 'string' ? e.actor.slice(0, 100) : '',
+        testId: typeof e.testId === 'string' ? e.testId.slice(0, 200) : '',
+        typeId: typeof e.typeId === 'string' ? e.typeId.slice(0, 80) : '',
+        detail: typeof e.detail === 'string' ? e.detail.slice(0, 2000) : '',
+        sseq: state.seq,
+      });
+    });
+    if (state.audit.length > AUDIT_KEEP) state.audit.splice(0, state.audit.length - AUDIT_KEEP);
+    return { status: added ? 'applied' : 'merged' };
+  }
+
+  function applyOp(state, op, now) {
+    now = now || new Date().toISOString();
+    if (!isObj(op) || typeof op.opId !== 'string' || !op.opId) return { status: 'rejected', reason: 'invalid' };
+    const prev = state.ops[op.opId];
+    if (prev) {
+      /* Gửi lại op đã xử lý (mất mạng giữa chừng): trả đúng kết quả cũ, KHÔNG áp dụng lần nữa */
+      const r = Object.assign({ opId: op.opId, replay: true }, prev);
+      const live = r.uid ? state.records[r.uid] : null;
+      if (live) r.rec = publicRecord(live);
+      return r;
+    }
+    if ((op.kind === 'update' || op.kind === 'delete') && (typeof op.uid !== 'string' || !op.uid)) return { opId: op.opId, status: 'rejected', reason: 'invalid' };
+    let res;
+    if (op.kind === 'create') res = applyCreate(state, op, now);
+    else if (op.kind === 'update') res = applyUpdate(state, op, now);
+    else if (op.kind === 'delete') res = applyDelete(state, op, now);
+    else if (op.kind === 'staff') res = applyStaff(state, op, now);
+    else if (op.kind === 'types') res = applyTypes(state, op, now);
+    else if (op.kind === 'audit') res = applyAudit(state, op, now);
+    else res = { status: 'rejected', reason: 'unknown-kind' };
+    res.opId = op.opId;
+    if (res.types) res.typesRv = res.types.rv;
+    const keep = { status: res.status };
+    ['uid', 'reason', 'replaces', 'conflictIds', 'unreleased'].forEach((k) => { if (res[k] !== undefined) keep[k] = res[k]; });
+    /* rv sau khi áp dụng op này: máy khách dùng làm mốc cho thao tác kế tiếp của chính nó */
+    if (res.rec && Number.isInteger(res.rec.rv)) { keep.rv = res.rec.rv; res.rv = res.rec.rv; }
+    state.ops[op.opId] = keep;
+    state.opsOrder.push(op.opId);
+    while (state.opsOrder.length > OPS_KEEP) delete state.ops[state.opsOrder.shift()];
+    return res;
+  }
+
+  function applyBatch(state, ops, now) {
+    return (Array.isArray(ops) ? ops : []).map((op) => applyOp(state, op, now));
+  }
+
+  /* ---------- Bản thay đổi gửi cho máy khách ---------- */
+  function changesSince(state, since) {
+    since = Number.isInteger(since) && since >= 0 ? since : 0;
+    const out = {
+      serverId: state.serverId, seq: state.seq, records: [], types: null, staff: [], audit: [],
+      conflicts: state.conflicts.filter((c) => c.status === 'open').map(publicConflict),
+    };
+    Object.keys(state.records).forEach((uid) => {
+      const r = state.records[uid];
+      if (r.seq > since) out.records.push(publicRecord(r));
+    });
+    out.records.sort((a, b) => a.seq - b.seq);
+    if (state.types.seq > since && state.types.list) out.types = { rv: state.types.rv, list: state.types.list };
+    Object.keys(state.staff).forEach((k) => { if (state.staff[k].seq > since) out.staff.push(staffPublic(k, state.staff[k])); });
+    state.audit.forEach((e) => { if (e.sseq > since) out.audit.push(e); });
+    out.typesRv = state.types.rv;
+    return out;
+  }
+  function publicConflict(c) {
+    const o = clone(c);
+    return o;
+  }
+
+  /* ---------- Xử lý xung đột do KTV chọn ---------- */
+  function resolveConflict(state, id, choice, by, now) {
+    now = now || new Date().toISOString();
+    const c = state.conflicts.find((x) => x.id === id);
+    if (!c) return { ok: false, reason: 'not-found' };
+    if (c.status !== 'open') return { ok: true, already: true, conflict: publicConflict(c) };
+    let applied = null;
+    if (choice === 'apply-mine') {
+      if (c.kind === 'field' || c.kind === 'duplicate-intake') {
+        const rec = state.records[c.uid];
+        if (!rec || rec.deleted) return { ok: false, reason: 'deleted' };
+        if (isReleased(rec)) return { ok: false, reason: 'released' };
+        const set = {};
+        c.paths.forEach((p) => { if (p.path !== 'releaseAt' || p.reason !== 'content-changed') set[p.path] = p.mine; });
+        const res = applyOp(state, { opId: 'resolve-' + id + '-' + state.seq, kind: 'update', uid: c.uid, base: rec.rv, set, deviceId: 'resolve', operator: by || '' }, now);
+        applied = res;
+        if (res.status === 'rejected' || res.status === 'conflict') return { ok: false, reason: res.reason || 'conflict', result: res };
+      } else if (c.kind === 'edit-on-deleted') {
+        const rec = state.records[c.uid];
+        const snap = c.snapshot || (rec ? snapshotOf(rec) : null);
+        if (!snap) return { ok: false, reason: 'no-snapshot' };
+        const base = Object.assign({}, snap, { uid: c.uid });
+        c.paths.forEach((p) => { applySet(base, { [p.path]: p.mine }); });
+        const key = recKey(base);
+        if (liveByKey(state, key, c.uid)) return { ok: false, reason: 'duplicate-key' };
+        const cur = state.records[c.uid];
+        if (cur && cur.deleted) {
+          cur.deleted = false;
+          delete cur.deletedAt;
+          Object.assign(cur, sanitizeRecord(Object.assign({}, cur, base, { uid: c.uid }), now) || {});
+          bump(state, cur, Object.keys(flatten(cur)), now);
+          ensureIndex(state).set(recKey(cur), cur.uid);
+          applied = { status: 'applied', rec: publicRecord(cur) };
+        } else {
+          applied = applyOp(state, { opId: 'resolve-' + id + '-' + state.seq, kind: 'create', rec: base, deviceId: 'resolve', operator: by || '' }, now);
+        }
+      } else if (c.kind === 'types-conflict' && validTypes(c.mineList)) {
+        applied = applyOp(state, { opId: 'resolve-' + id + '-' + state.seq, kind: 'types', base: state.types.rv, list: c.mineList, deviceId: 'resolve', operator: by || '' }, now);
+      } else {
+        return { ok: false, reason: 'not-applicable' };
+      }
+    }
+    c.status = 'resolved';
+    c.resolvedAt = now;
+    c.resolvedBy = by || '';
+    c.choice = choice === 'apply-mine' ? 'apply-mine' : 'keep-server';
+    state.seq += 1;
+    c.seq = state.seq;
+    return { ok: true, conflict: publicConflict(c), result: applied };
+  }
+
+  /* ---------- Nạp dữ liệu cũ (sao lưu của từng máy) lên máy chủ ----------
+     Bản ghi trùng (ID + loại) mà NỘI DUNG KHÁC không bị bỏ qua im lặng: đi vào hộp xung đột. */
+  function importRecords(state, records, meta, now) {
+    now = now || new Date().toISOString();
+    const stats = { added: 0, same: 0, conflicts: 0, invalid: 0 };
+    (Array.isArray(records) ? records : []).forEach((raw, i) => {
+      const inc = sanitizeRecord(raw, now);
+      if (!inc) { stats.invalid += 1; return; }
+      const opId = 'imp-' + (meta && meta.batchId ? meta.batchId : now) + '-' + i;
+      const res = applyOp(state, { opId, kind: 'create', rec: inc, deviceId: (meta && meta.device) || 'import', operator: (meta && meta.operator) || '' }, now);
+      if (res.status === 'applied') stats.added += 1;
+      else if (res.status === 'merged' && !(res.conflictIds && res.conflictIds.length)) stats.same += 1;
+      else stats.conflicts += 1;
+    });
+    return stats;
+  }
+
+  return {
+    RECORD_FIELDS, flatten, diffRecords, applySet, contentEqual, isReleased, recKey, isContentPath,
+    sanitizeRecord, sanitizeSet, normalizeStaff, validTypes,
+    newState, ensureIndex, publicRecord, applyOp, applyBatch, changesSince, resolveConflict, importRecords,
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = LabSyncCore;
+}
+
+</script>
+<script>
+'use strict';
+/*
+ * sync.js — Máy khách đồng bộ LAN của LabEntry (v87).
+ *
+ * Nguyên tắc: máy nào cũng là bản làm việc ĐẦY ĐỦ (localStorage như trước). Mỗi thao tác
+ * của KTV được ghi lại thành một "op" trong hàng đợi (lưu bền, sống qua tắt máy / mất mạng),
+ * rồi gửi lên máy chủ LAN khi có mạng. Máy chủ trả lời từng op; thay đổi của máy khác về
+ * qua kênh "long-poll" (treo yêu cầu tới khi có thay đổi) nên gần như tức thời.
+ *
+ *   - Mất mạng: hàng đợi cứ dài ra, KTV làm việc bình thường; có mạng lại thì tự gửi.
+ *   - Gửi lại op (rớt mạng giữa chừng) an toàn: opId duy nhất, máy chủ chỉ áp dụng một lần.
+ *   - Op sau của cùng một mẫu "nối đuôi" op trước (after) để không tự xung đột với chính mình.
+ *   - Bị từ chối / xung đột: bản của máy chủ được giữ, giá trị của KTV nằm ở hộp xung đột.
+ */
+const LabSync = (() => {
+  const Core = (typeof LabSyncCore !== 'undefined') ? LabSyncCore : require('./sync-core.js');
+  const KEY_STATE = 'labentry.sync.v1';
+  const KEY_QUEUE = 'labentry.syncq.v1';
+  const KEY_PRESYNC = 'labentry.presync.backup.v1';
+  const DEFAULT_PORT = 8787;
+  const BATCH_MAX = 150;
+
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  function memStorage() {
+    const m = new Map();
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+  }
+
+  /* "192.168.1.10" -> "http://192.168.1.10:8787"; giữ nguyên nếu đã có http(s):// và cổng */
+  function normalizeUrl(input) {
+    let u = String(input || '').trim().replace(/\/+$/, '');
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+    const m = /^(https?):\/\/(\[[^\]]+\]|[^/:?#]+)(?::(\d+))?/i.exec(u);
+    if (!m) return '';
+    const proto = m[1].toLowerCase();
+    const port = m[3] || (proto === 'http' ? String(DEFAULT_PORT) : '');
+    return proto + '://' + m[2] + (port ? ':' + port : '');
+  }
+  function create(opts) {
+    const o = Object.assign({ waitSec: 20, backoffMaxMs: 15000 }, opts || {});
+    const store = o.store;
+    const storage = o.storage || memStorage();
+    const hooks = Object.assign({
+      getTypes: () => [], applyRemoteTypes: () => {}, getStaff: () => [], applyRemoteStaff: () => {},
+      getAudit: () => [], mergeAudit: () => {}, getOperator: () => '', onDataChanged: () => {}, onStatus: () => {},
+      onNotice: () => {}, confirmAdopt: async () => true,
+    }, o.hooks || {});
+    const fetchFn = o.fetch || (typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null);
+    const sleepFn = o.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
+    const nowMs = o.now || (() => Date.now());
+
+    const loadJson = (k, dflt) => { try { const raw = storage.getItem(k); return raw ? JSON.parse(raw) : dflt; } catch (e) { return dflt; } };
+    const randId = (n) => {
+      let s = '';
+      try {
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) { const a = new Uint32Array(2); crypto.getRandomValues(a); s = a[0].toString(36) + a[1].toString(36); }
+      } catch (e) { s = ''; }
+      return (s || Math.floor(Math.random() * 1e15).toString(36)).slice(0, n || 8);
+    };
+
+    let st = Object.assign({
+      enabled: false, paused: false, url: '', deviceId: 'd' + randId(10), serverId: '', since: 0, typesRv: 0, staffSnap: {}, lastOkAt: null,
+    }, loadJson(KEY_STATE, {}));
+    let queue = loadJson(KEY_QUEUE, []);
+    if (!Array.isArray(queue)) queue = [];
+    let conflicts = [];
+    let status = 'off'; /* off | connecting | online | offline | paused */
+    let lastError = '';
+    let opCounter = 0;
+    let running = false;
+    let loopToken = 0;
+    let flushing = false;
+    let flushAgain = false;
+    let flushTimer = null;
+    let kick = null;
+    let notices = [];
+
+    function saveState() { try { storage.setItem(KEY_STATE, JSON.stringify(st)); } catch (e) { /* đầy bộ nhớ */ } }
+    function saveQueue() { try { storage.setItem(KEY_QUEUE, JSON.stringify(queue)); } catch (e) { /* đầy bộ nhớ */ } }
+    function newOpId() { opCounter += 1; return 'o' + st.deviceId.slice(-6) + nowMs().toString(36) + opCounter.toString(36) + randId(4); }
+
+    function getStatus() {
+      return {
+        mode: status, enabled: st.enabled, paused: st.paused, url: st.url, deviceId: st.deviceId, pending: queue.length,
+        conflicts: conflicts.length, lastOkAt: st.lastOkAt, error: lastError, serverId: st.serverId,
+      };
+    }
+    function emit() { try { hooks.onStatus(getStatus()); } catch (e) { /* bỏ qua */ } }
+    function setStatus(s, err) { status = s; lastError = err || ''; emit(); }
+    function notice(msg) { notices.push(msg); try { hooks.onNotice(msg); } catch (e) { /* bỏ qua */ } }
+
+    /* ---------- Gọi máy chủ ---------- */
+    async function call(method, path, body, timeoutMs, baseUrl) {
+      if (!fetchFn) throw new Error('Trình duyệt không hỗ trợ fetch');
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs || 10000) : null;
+      try {
+        const res = await fetchFn((baseUrl || st.url) + path, {
+          method,
+          headers: Object.assign({ 'X-LabEntry': '1' }, body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+          signal: ctrl ? ctrl.signal : undefined,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw Object.assign(new Error(data && data.error ? data.error : 'HTTP ' + res.status), { status: res.status, data });
+        return data;
+      } finally { if (timer) clearTimeout(timer); }
+    }
+
+    /* ---------- Hàng đợi op ---------- */
+    const isRecKind = (k) => k === 'create' || k === 'update' || k === 'delete';
+    const lastFor = (uid) => { for (let i = queue.length - 1; i >= 0; i--) if (queue[i].uid === uid && isRecKind(queue[i].kind)) return queue[i]; return null; };
+
+    function enqueueCreate(rec) {
+      queue.push({ opId: newOpId(), kind: 'create', uid: rec.uid, base: 0, after: null, rec: clone(rec), sent: false });
+    }
+    /* hint = phiên bản bản ghi mà KTV đã THẤY lúc bắt đầu sửa (form mở từ trước). Mốc của op luôn là phiên bản CŨ NHẤT
+       KTV có thể đã thấy: nếu trong lúc form mở máy khác đã sửa cùng ô thì máy chủ phát hiện xung đột thay vì ghi đè. */
+    function enqueueUpdate(uid, set, rvNow, hint) {
+      const last = lastFor(uid);
+      const hasHint = Number.isInteger(hint);
+      if (last && !last.sent && last.kind === 'update') {
+        Object.assign(last.set, set);
+        if (hasHint) { if (Number.isInteger(last.base)) last.base = Math.min(last.base, hint); else last.hint = Number.isInteger(last.hint) ? Math.min(last.hint, hint) : hint; }
+        return;
+      }
+      if (last && !last.sent && last.kind === 'create') return; /* bản ghi gửi lúc đẩy: lấy trạng thái mới nhất */
+      if (last) queue.push({ opId: newOpId(), kind: 'update', uid, base: null, after: last.opId, hint: hasHint ? hint : undefined, set: clone(set), sent: false });
+      else queue.push({ opId: newOpId(), kind: 'update', uid, base: Number.isInteger(rvNow) ? rvNow : 0, after: null, set: clone(set), sent: false });
+    }
+    const baseHints = new Map();
+    function setBaseHint(uid, rv) { if (Number.isInteger(rv)) baseHints.set(uid, rv); }
+    function clearBaseHint(uid) { baseHints.delete(uid); }
+    function enqueueDelete(uid, rvNow) {
+      const hadUnsentCreate = queue.some((q) => q.uid === uid && q.kind === 'create' && !q.sent);
+      queue = queue.filter((q) => !(q.uid === uid && isRecKind(q.kind) && !q.sent));
+      const last = lastFor(uid);
+      if (hadUnsentCreate && !last) return; /* chưa từng lên máy chủ: không cần gửi gì */
+      queue.push({ opId: newOpId(), kind: 'delete', uid, base: last ? null : (Number.isInteger(rvNow) ? rvNow : 0), after: last ? last.opId : null, sent: false });
+    }
+
+    /* Cầu nối: kho dữ liệu báo mọi thay đổi của KTV ở đây */
+    function onStoreChange(evt) {
+      if (!st.enabled) return;
+      if (evt.kind === 'create') enqueueCreate(evt.after);
+      else if (evt.kind === 'update') {
+        const set = Core.diffRecords(evt.before, evt.after);
+        const hint = baseHints.get(evt.uid);
+        baseHints.delete(evt.uid);
+        let rvNow = evt.before && evt.before.rv;
+        if (Number.isInteger(hint)) rvNow = Number.isInteger(rvNow) ? Math.min(hint, rvNow) : hint;
+        if (Object.keys(set).length) enqueueUpdate(evt.uid, set, rvNow, Number.isInteger(hint) ? hint : null);
+      } else if (evt.kind === 'delete') enqueueDelete(evt.uid, evt.before && evt.before.rv);
+      saveQueue();
+      emit();
+      scheduleFlush();
+    }
+
+    function notifyTypes() {
+      if (!st.enabled) return;
+      const pend = queue.find((q) => q.kind === 'types' && !q.sent);
+      if (!pend) {
+        const last = queue.filter((q) => q.kind === 'types').pop();
+        queue.push({ opId: newOpId(), kind: 'types', base: last ? null : st.typesRv, after: last ? last.opId : null, sent: false });
+      }
+      saveQueue(); emit(); scheduleFlush();
+    }
+
+    function notifyStaff(list) {
+      if (!st.enabled) return;
+      const cur = {};
+      (list || []).forEach((e) => { if (e && e.name) cur[e.name.toLowerCase()] = e; });
+      Object.keys(cur).forEach((key) => {
+        const json = JSON.stringify(cur[key]);
+        if (st.staffSnap[key] === json) return;
+        st.staffSnap[key] = json;
+        queue = queue.filter((q) => !(q.kind === 'staff' && q.key === key && !q.sent));
+        queue.push({ opId: newOpId(), kind: 'staff', key, name: cur[key].name, entry: clone(cur[key]), ts: nowMs(), sent: false });
+      });
+      Object.keys(st.staffSnap).forEach((key) => {
+        if (cur[key]) return;
+        delete st.staffSnap[key];
+        queue = queue.filter((q) => !(q.kind === 'staff' && q.key === key && !q.sent));
+        queue.push({ opId: newOpId(), kind: 'staff', key, name: key, entry: null, ts: nowMs(), sent: false });
+      });
+      saveState(); saveQueue(); emit(); scheduleFlush();
+    }
+
+    function notifyAudit(entry) {
+      if (!st.enabled || !entry) return;
+      const pend = queue.find((q) => q.kind === 'audit' && !q.sent && q.entries.length < 200);
+      if (pend) pend.entries.push(clone(entry));
+      else queue.push({ opId: newOpId(), kind: 'audit', entries: [clone(entry)], sent: false });
+      saveQueue(); scheduleFlush();
+    }
+
+    /* ---------- Hòa giải bản ghi từ máy chủ với thao tác đang chờ gửi ---------- */
+    function reconcile(uid, serverRec) {
+      if (!serverRec) return false;
+      if (serverRec.deleted) { return store.removeLocal(uid); }
+      const pend = queue.filter((q) => q.uid === uid && isRecKind(q.kind));
+      if (pend.some((q) => q.kind === 'delete')) return false; /* KTV đã xóa ở máy này, chờ máy chủ xử lý */
+      const view = clone(serverRec);
+      pend.forEach((q) => { if (q.kind === 'update') Core.applySet(view, q.set); });
+      store.applyRemote([view]);
+      return true;
+    }
+
+    function localRecordFresh(uid, fallback) {
+      const r = store.getByUid(uid);
+      const src = r ? clone(r) : fallback;
+      if (!src) return null;
+      delete src.rv; delete src.seq;
+      return src;
+    }
+
+    /* ---------- Đẩy hàng đợi lên máy chủ ---------- */
+    function pickBatch() {
+      const picked = [];
+      const seenUid = new Set();
+      const seenKey = new Set();
+      for (let i = 0; i < queue.length && picked.length < BATCH_MAX; i++) {
+        const q = queue[i];
+        if (isRecKind(q.kind)) {
+          if (seenUid.has(q.uid)) continue;
+          seenUid.add(q.uid);
+          if (q.base === null && q.after && !queue.some((x) => x.opId === q.after)) { q.after = null; q.base = -1; } /* op trước đã mất: gộp mù cho an toàn */
+          if (q.base === null) continue; /* còn chờ op trước ghi nhận */
+        } else if (q.kind === 'types') {
+          if (seenKey.has('types')) continue;
+          seenKey.add('types');
+          if (q.base === null) continue;
+        } else if (q.kind === 'staff') {
+          if (seenKey.has('s:' + q.key)) continue;
+          seenKey.add('s:' + q.key);
+        }
+        picked.push(q);
+      }
+      return picked;
+    }
+
+    function toWire(q) {
+      if (q.kind === 'create') return { opId: q.opId, kind: 'create', rec: localRecordFresh(q.uid, q.rec) };
+      if (q.kind === 'update') return { opId: q.opId, kind: 'update', uid: q.uid, base: q.base, set: q.set };
+      if (q.kind === 'delete') return { opId: q.opId, kind: 'delete', uid: q.uid, base: q.base };
+      if (q.kind === 'types') return { opId: q.opId, kind: 'types', base: q.base, merge: !!q.merge, list: hooks.getTypes() };
+      if (q.kind === 'staff') return { opId: q.opId, kind: 'staff', name: q.name, entry: q.entry, ts: q.ts };
+      if (q.kind === 'audit') return { opId: q.opId, kind: 'audit', entries: q.entries };
+      return { opId: q.opId, kind: q.kind };
+    }
+
+    function handleResults(batch, results) {
+      const byId = {};
+      (results || []).forEach((r) => { if (r && r.opId) byId[r.opId] = r; });
+      let problems = 0;
+      let dirty = false;
+      batch.forEach((q) => {
+        const res = byId[q.opId];
+        if (!res) return; /* máy chủ chưa xử lý: để lại, gửi lại lần sau */
+        queue = queue.filter((x) => x.opId !== q.opId);
+        const rv = Number.isInteger(res.rv) ? res.rv : (res.rec && Number.isInteger(res.rec.rv) ? res.rec.rv : null);
+        queue.forEach((x) => {
+          if (x.after !== q.opId) return;
+          x.after = null;
+          if (q.kind === 'types') x.base = Number.isInteger(res.typesRv) ? res.typesRv : st.typesRv;
+          else {
+            x.base = rv !== null ? rv : 0;
+            if (Number.isInteger(x.hint)) x.base = Math.min(x.base, x.hint); /* KTV sửa trên bản cũ hơn bản vừa ghi nhận */
+          }
+          delete x.hint;
+        });
+        const bad = res.status === 'rejected' || res.status === 'conflict' || res.status === 'partial';
+        if (isRecKind(q.kind)) {
+          if (res.replaces && res.uid && res.replaces !== res.uid) {
+            /* hai máy cùng tiếp nhận một mã: bản của máy này nhập vào bản đã có trên máy chủ */
+            queue.forEach((x) => { if (x.uid === res.replaces && x.kind === 'update') { x.uid = res.uid; x.base = -1; x.after = null; } });
+            queue = queue.filter((x) => !(x.uid === res.replaces && isRecKind(x.kind)));
+            store.removeLocal(res.replaces);
+            dirty = true;
+            if (res.reason === 'duplicate' || res.reason === 'same-content') {
+              notice('Mẫu ' + ((res.rec && res.rec.testId) || '') + ' đã được máy khác tiếp nhận trước — đã nhập chung vào một bản ghi.');
+            }
+          }
+          if (res.rec) { reconcile(res.rec.uid || q.uid, res.rec); dirty = true; }
+          if (bad) {
+            problems += 1;
+            if (q.kind === 'delete' && res.reason === 'released') notice('Không xóa được: mẫu đã phát hành. Hãy hủy phát hành trước nếu thật sự cần.');
+            else if (res.reason === 'released') notice('Không lưu được thay đổi: mẫu đã được phát hành ở máy khác — kết quả đã phát hành được giữ nguyên.');
+            else if (res.reason === 'deleted') notice('Mẫu này đã bị xóa ở máy khác — thay đổi của bạn được giữ trong mục Xung đột.');
+          }
+        } else if (q.kind === 'types') {
+          if (res.types && res.types.list) {
+            st.typesRv = res.types.rv;
+            if (!queue.some((x) => x.kind === 'types')) { hooks.applyRemoteTypes(res.types.list); dirty = true; }
+          }
+          if (bad) { problems += 1; notice('Danh mục xét nghiệm đã được máy khác sửa trước — danh mục chung được giữ, bản của bạn nằm ở mục Xung đột.'); }
+        }
+      });
+      if (problems) notice('Có ' + problems + ' thay đổi chưa được áp dụng do xung đột — mở mục Đồng bộ để xem và chọn.');
+      saveQueue();
+      saveState();
+      if (dirty) hooks.onDataChanged();
+    }
+
+    function scheduleFlush() {
+      if (flushTimer || !running) return;
+      flushTimer = setTimeout(() => { flushTimer = null; flush(); }, 120);
+    }
+
+    async function flush() {
+      if (!st.enabled || st.paused || !running) return;
+      if (flushing) { flushAgain = true; return; }
+      flushing = true;
+      try {
+        for (let guard = 0; guard < 500; guard++) {
+          const batch = pickBatch();
+          if (!batch.length) break;
+          batch.forEach((q) => { q.sent = true; });
+          saveQueue();
+          const wire = batch.map(toWire).filter((w) => !(w.kind === 'create' && !w.rec));
+          const resp = await call('POST', '/api/push', { deviceId: st.deviceId, operator: hooks.getOperator(), ops: wire }, 30000);
+          if (resp.serverId && st.serverId && resp.serverId !== st.serverId) throw Object.assign(new Error('server-changed'), { serverChanged: true });
+          handleResults(batch, resp.results);
+          st.lastOkAt = new Date(nowMs()).toISOString();
+          setStatus('online');
+          if (batch.every((q) => queue.some((x) => x.opId === q.opId))) break; /* máy chủ không xử lý op nào: tránh vòng lặp vô hạn */
+        }
+      } catch (e) {
+        if (e && e.serverChanged) await onServerChanged();
+        else setStatus('offline', e && e.message);
+      } finally {
+        flushing = false;
+        if (flushAgain) { flushAgain = false; scheduleFlush(); }
+      }
+    }
+
+    /* ---------- Kéo thay đổi từ máy chủ ---------- */
+    function applyPull(resp) {
+      let dirty = false;
+      (resp.records || []).forEach((r) => { if (reconcile(r.uid, r)) dirty = true; });
+      if (resp.types && resp.types.list) {
+        const pendTypes = queue.some((q) => q.kind === 'types');
+        if (!pendTypes && resp.types.rv !== st.typesRv) { hooks.applyRemoteTypes(resp.types.list); st.typesRv = resp.types.rv; dirty = true; }
+      }
+      if (typeof resp.typesRv === 'number' && !queue.some((q) => q.kind === 'types') && !resp.types && st.typesRv < resp.typesRv) st.typesRv = resp.typesRv;
+      if (resp.staff && resp.staff.length) {
+        const items = resp.staff.filter((s) => !queue.some((q) => q.kind === 'staff' && q.key === s.key && q.ts >= s.ts));
+        items.forEach((s) => { if (s.deleted) delete st.staffSnap[s.key]; else st.staffSnap[s.key] = JSON.stringify(s.entry); });
+        if (items.length) { hooks.applyRemoteStaff(items); dirty = true; }
+      }
+      if (resp.audit && resp.audit.length) hooks.mergeAudit(resp.audit);
+      conflicts = resp.conflicts || [];
+      st.since = resp.seq;
+      saveState();
+      if (dirty) hooks.onDataChanged();
+      emit();
+    }
+
+    async function onServerChanged() {
+      /* Máy chủ đã đổi (hoặc bị đặt lại): coi như máy chủ mới — gửi lại toàn bộ dữ liệu của máy này */
+      const info = await call('GET', '/api/hello', undefined, 5000).catch(() => null);
+      if (!info) { setStatus('offline', 'mất kết nối máy chủ'); return; }
+      const ok = await hooks.confirmAdopt({ localRecords: store.getAll().length, serverRecords: info.records, reason: 'server-changed' });
+      if (!ok) { st.paused = true; saveState(); setStatus('paused'); return; }
+      adopt(info.serverId);
+    }
+
+    /* Nạp toàn bộ dữ liệu của máy này lên máy chủ (lần nối đầu tiên / sang máy chủ mới) */
+    function adopt(serverId) {
+      try { storage.setItem(KEY_PRESYNC, JSON.stringify({ at: new Date(nowMs()).toISOString(), serverId, records: store.getAll(), staff: hooks.getStaff(), types: hooks.getTypes() })); } catch (e) { /* quá lớn: bỏ qua */ }
+      st.serverId = serverId;
+      st.since = 0;
+      st.typesRv = 0;
+      st.staffSnap = {};
+      store.clearSyncMeta();
+      queue = [];
+      store.getAll().forEach((r) => enqueueCreate(r));
+      queue.push({ opId: newOpId(), kind: 'types', base: 0, merge: true, after: null, sent: false });
+      hooks.getStaff().forEach((s) => {
+        st.staffSnap[s.name.toLowerCase()] = JSON.stringify(s);
+        queue.push({ opId: newOpId(), kind: 'staff', key: s.name.toLowerCase(), name: s.name, entry: clone(s), ts: 0, sent: false });
+      });
+      const audit = hooks.getAudit();
+      for (let i = 0; i < audit.length; i += 200) queue.push({ opId: newOpId(), kind: 'audit', entries: clone(audit.slice(i, i + 200)), sent: false });
+      saveState(); saveQueue();
+    }
+
+    async function pullLoop(token) {
+      let fails = 0;
+      while (running && token === loopToken) {
+        try {
+          const resp = await call('GET', '/api/sync?since=' + st.since + '&wait=' + o.waitSec, undefined, (o.waitSec + 12) * 1000);
+          if (!running || token !== loopToken) return;
+          if (st.serverId && resp.serverId && resp.serverId !== st.serverId) { await onServerChanged(); fails = 0; continue; }
+          applyPull(resp);
+          fails = 0;
+          st.lastOkAt = new Date(nowMs()).toISOString();
+          if (status !== 'online') setStatus('online');
+          if (queue.length) scheduleFlush();
+        } catch (e) {
+          if (!running || token !== loopToken) return;
+          setStatus('offline', e && e.message);
+          const wait = Math.min(o.backoffMaxMs, 1000 * Math.pow(2, Math.min(fails, 5)));
+          fails += 1;
+          await new Promise((resolve) => { kick = resolve; sleepFn(wait).then(resolve); });
+          kick = null;
+        }
+      }
+    }
+
+    function startLoops() {
+      if (running) return;
+      running = true;
+      loopToken += 1;
+      setStatus('connecting');
+      pullLoop(loopToken);
+      scheduleFlush();
+    }
+    function stopLoops() { running = false; loopToken += 1; if (kick) kick(); if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; } }
+
+    /* ---------- Điều khiển từ giao diện ---------- */
+    async function probe(url, timeoutMs) {
+      const info = await call('GET', '/api/hello', undefined, timeoutMs || 4000, url);
+      if (!info || info.app !== 'LabEntry-LAN') throw new Error('Địa chỉ này không phải máy chủ LabEntry');
+      return info;
+    }
+
+    async function connect(urlInput) {
+      const url = normalizeUrl(urlInput);
+      if (!url) return { ok: false, error: 'Địa chỉ máy chủ chưa đúng. Ví dụ: 192.168.1.10' };
+      let info;
+      try { info = await probe(url); }
+      catch (e) { return { ok: false, error: 'Không nối được tới ' + url + (e && e.message ? ' (' + e.message + ')' : '') }; }
+      const changed = !!st.serverId && st.serverId !== info.serverId;
+      const fresh = !st.serverId || changed;
+      if (fresh) {
+        const n = store.getAll().length;
+        const ok = await hooks.confirmAdopt({ localRecords: n, serverRecords: info.records, reason: changed ? 'server-changed' : 'first' });
+        if (!ok) return { ok: false, error: 'Đã hủy — chưa nối máy chủ' };
+      }
+      stopLoops();
+      st.url = url;
+      st.enabled = true;
+      st.paused = false;
+      if (fresh) adopt(info.serverId); else { saveState(); }
+      startLoops();
+      return { ok: true, info };
+    }
+
+    function disconnect() { st.paused = true; saveState(); stopLoops(); setStatus('paused'); }
+    async function resume() { if (!st.enabled) return { ok: false }; st.paused = false; saveState(); startLoops(); return { ok: true }; }
+    /* Quên máy chủ: dữ liệu cục bộ giữ nguyên, bỏ hàng đợi (các thay đổi chưa gửi KHÔNG còn được gửi) */
+    function forget() {
+      stopLoops();
+      st = Object.assign({}, st, { enabled: false, paused: false, url: '', serverId: '', since: 0, typesRv: 0, staffSnap: {}, lastOkAt: null });
+      queue = []; conflicts = [];
+      saveState(); saveQueue(); setStatus('off');
+    }
+
+    function init() {
+      if (st.enabled && !st.paused && st.url) startLoops(); else if (st.enabled) setStatus('paused'); else setStatus('off');
+    }
+
+    async function resolveConflict(id, choice) {
+      const r = await call('POST', '/api/conflicts/resolve', { id, choice, by: hooks.getOperator() }, 15000);
+      conflicts = conflicts.filter((c) => c.id !== id);
+      emit();
+      if (kick) kick();
+      return r;
+    }
+
+    async function importRecords(records) {
+      const r = await call('POST', '/api/import', { records }, 120000);
+      return r;
+    }
+
+    async function syncNow() {
+      if (kick) kick();
+      await flush();
+    }
+
+    /* Tìm máy chủ trong mạng LAN: thử các địa chỉ hay gặp (đầu vào do giao diện cung cấp) */
+    async function discover(candidates, onProgress) {
+      const list = candidates.slice();
+      let found = null;
+      let done = 0;
+      const worker = async () => {
+        while (list.length && !found) {
+          const url = list.shift();
+          try { const info = await probe(url, 900); if (!found) found = { url, info }; } catch (e) { /* thử địa chỉ khác */ }
+          done += 1;
+          if (onProgress) onProgress(done);
+        }
+      };
+      await Promise.all(Array.from({ length: 40 }, worker));
+      return found;
+    }
+
+    return {
+      onStoreChange, setBaseHint, clearBaseHint, notifyTypes, notifyStaff, notifyAudit, init, connect, disconnect, resume, forget, syncNow, resolveConflict, importRecords, discover, probe,
+      getStatus, getConflicts: () => conflicts.slice(), getQueue: () => queue.slice(), getState: () => clone(st), normalizeUrl,
+      kick: () => { if (kick) kick(); scheduleFlush(); }, _flush: flush, _call: call,
+    };
+  }
+
+  return { create, normalizeUrl };
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = LabSync;
 }
 
 </script>
@@ -2306,7 +3570,13 @@ window.LABENTRY_MASCOTS = {
 'use strict';
 /* app.js — Điều khiển giao diện LabEntry. Logic nghiệp vụ nằm ở store.js, khai báo loại XN ở config.js */
 
-const store = LabStore.createStore(null, getTestType);
+/* v87: cầu nối sang bộ đồng bộ LAN (sync.js). Chưa nối máy chủ thì onChange không làm gì cả. */
+const syncBridge = { onChange: null };
+const store = LabStore.createStore(null, getTestType, { onChange: (e) => { if (syncBridge.onChange) syncBridge.onChange(e); } });
+let labSync = null; /* bộ đồng bộ LAN (tạo trong initSync) */
+let applyingRemoteStaff = false; /* đang áp KTV từ máy chủ: không gửi ngược lại */
+let applyingRemoteTypes = false; /* đang áp danh mục từ máy chủ: không gửi ngược lại */
+function syncActive() { return !!(labSync && labSync.getState().enabled); }
 
 const $ = (id) => document.getElementById(id);
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -2499,6 +3769,7 @@ function handleListClick(e) {
     if (btn.dataset.action === 'edit') openForm(uid);
     if (btn.dataset.action === 'delete') {
       const rec = store.getByUid(uid);
+      if (rec && syncActive() && rec.releaseAt) { toast('Mẫu ' + rec.testId + ' đã phát hành — được bảo vệ, không xóa được. Cần xóa thì hủy phát hành trước (trang Xem).'); return; }
       if (rec && confirm('Xóa kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')?')) {
         if (!requireOperator('xóa kết quả')) return;
         audit('delete', deleteDetailOf(rec), rec);
@@ -3204,6 +4475,11 @@ function exportBackupFile() {
    danh mục của file; chế độ gộp -> hợp nhất (chỉ thêm loại mà máy này chưa có). */
 function importBackupText(text, mode) {
   const merge = mode === 'merge';
+  if (!merge && syncActive()) {
+    /* v87: "Phục hồi" thay TOÀN BỘ dữ liệu — khi dùng chung qua máy chủ LAN nó sẽ xóa dữ liệu của cả phòng. Chặn. */
+    alert('Máy này đang dùng chung dữ liệu qua máy chủ LAN nên KHÔNG dùng được "Phục hồi" (thay toàn bộ sẽ làm mất dữ liệu chung của các máy khác).\n\nHãy dùng nút "Gộp dữ liệu từ file…": mẫu chưa có sẽ được thêm, mẫu trùng khác nội dung sẽ báo xung đột để chọn.');
+    return false;
+  }
   let fileTypes = null;
   let fileLayout = null;
   let fileStaff = null;
@@ -3264,7 +4540,15 @@ function importBackupText(text, mode) {
     return false;
   }
   if (merge) {
+    /* v87: đang dùng chung dữ liệu -> mẫu trùng (ID + loại) nhưng KHÁC nội dung không được bỏ qua im lặng:
+       gửi lên máy chủ để so với bản chung; khác thì vào mục Xung đột cho KTV chọn. */
+    const differing = syncActive() ? parsed.records.filter((r) => { const d = store.findDuplicate(r); return d && !LabSyncCore.contentEqual(d, r); }) : [];
     const res = store.mergeBackup(text);
+    if (differing.length) {
+      labSync.importRecords(differing)
+        .then((st) => toast('Mẫu trùng khác nội dung: ' + (st.conflicts || 0) + ' xung đột cần xem (mở 🔗 Đồng bộ LAN), ' + (st.same || 0) + ' giống hệt đã gộp'))
+        .catch(() => toast('Máy đang mất kết nối máy chủ — ' + differing.length + ' mẫu trùng khác nội dung CHƯA được so sánh. Gộp lại file này khi có mạng.'));
+    }
     if (fileStaff) {
       const before = staffList.length;
       fileStaff.forEach((n) => { if (!staffList.some((x) => x.name.toLowerCase() === n.name.toLowerCase())) staffList.push(n); });
@@ -3279,7 +4563,7 @@ function importBackupText(text, mode) {
     }
     if (fileAudit) {
       const have = new Set(auditLog.map((e) => e.id));
-      fileAudit.forEach((e) => { if (!have.has(e.id)) auditLog.push(e); });
+      fileAudit.forEach((e) => { if (!have.has(e.id)) { auditLog.push(e); if (labSync) labSync.notifyAudit(e); } });
       auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
       if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
       saveAuditLog();
@@ -3406,6 +4690,7 @@ function loadSavedTypes() {
 function persistTypes() {
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
   typesCustom = true;
+  if (labSync && !applyingRemoteTypes) labSync.notifyTypes(); /* v87: danh mục đổi -> gửi cho các máy khác */
 }
 
 /* Dựng lại 3 ô chọn loại (form nhập, bộ lọc, máy quét) theo danh mục hiện hành, giữ lựa chọn cũ nếu còn */
@@ -3470,6 +4755,7 @@ function resetTypes() {
   try { localStorage.removeItem(TYPES_KEY); } catch (e) { /* bỏ qua */ }
   setTestTypes(null);
   typesCustom = false;
+  if (labSync && !applyingRemoteTypes) labSync.notifyTypes();
   refreshTypeSelects();
   renderTypes();
   toast('Đã khôi phục 6 loại mặc định');
@@ -3759,11 +5045,17 @@ function buildTypeOptions(selectEl, includeAll) {
 
 function openForm(uid) {
   const rec = uid ? store.getByUid(uid) : null;
+  /* v87: mẫu đã phát hành được bảo vệ khi dùng chung dữ liệu — không mở form sửa; muốn sửa phải Hủy phát hành (có chủ đích) ở trang Xem */
+  if (rec && rec.releaseAt && syncActive()) {
+    toast('Mẫu ' + rec.testId + ' đã phát hành nên không sửa trực tiếp được. Mở trang Xem → Hủy phát hành nếu cần sửa lại.');
+    return;
+  }
   formState = {
     uid: rec ? rec.uid : null,
     typeId: rec ? rec.typeId : getTestTypes()[0].id,
     results: rec ? Object.assign({}, rec.results) : {},
     createdAt: rec ? rec.createdAt : new Date().toISOString(),
+    base: rec ? JSON.parse(JSON.stringify(rec)) : null, /* v87: bản ghi lúc mở form — để biết KTV đã sửa những ô nào */
   };
   $('input-testid').value = rec ? rec.testId : '';
   $('select-type').value = formState.typeId;
@@ -3901,8 +5193,30 @@ function saveForm() {
   payload.releaser = payload.releaseAt ? ($('input-releaser').value || currentOperator) : '';
   const wasAdd = !formState.uid;
   const oldRec = wasAdd ? null : store.getByUid(formState.uid);
+  /* v87: form mở từ lúc nào đó, trong lúc ấy máy khác có thể đã sửa mẫu này. Chỉ ghi các ô KTV THỰC SỰ
+     sửa trong form lên bản mới nhất — ô không đụng tới giữ nguyên giá trị mới (không ghi đè im lặng). */
+  if (!wasAdd && syncActive() && oldRec && formState.base) {
+    if (oldRec.releaseAt && !formState.base.releaseAt) {
+      showFormError('Mẫu này vừa được phát hành ở máy khác nên không lưu được. Đóng form và mở lại mẫu để xem bản mới.');
+      return;
+    }
+    const base = formState.base;
+    const keepLatest = (key) => { if (JSON.stringify(payload[key]) === JSON.stringify(base[key])) payload[key] = oldRec[key]; };
+    ['testId', 'typeId', 'note', 'urgent', 'releaseAt', 'receiver', 'performer', 'releaser'].forEach(keepLatest);
+    const mergedResults = Object.assign({}, oldRec.results || {});
+    Object.keys(Object.assign({}, base.results || {}, payload.results || {})).forEach((k) => {
+      const mine = (payload.results || {})[k] || '';
+      const was = (base.results || {})[k] || '';
+      if (mine !== was) mergedResults[k] = mine;
+    });
+    payload.results = mergedResults;
+  }
   const oldReleaseAt = oldRec ? oldRec.releaseAt : null;
+  /* v87: mốc phiên bản của thao tác = bản KTV ĐÃ THẤY lúc mở form (không phải bản hiện tại lúc bấm Lưu) —
+     nhờ vậy nếu máy khác đã sửa CÙNG ô trong lúc form mở, máy chủ báo xung đột thay vì ghi đè im lặng. */
+  if (!wasAdd && syncActive() && formState.base && Number.isInteger(formState.base.rv)) labSync.setBaseHint(formState.uid, formState.base.rv);
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
+  if (!wasAdd && labSync) labSync.clearBaseHint(formState.uid);
   if (!res.ok) {
     showFormError(res.errors.join('. '));
     return;
@@ -3964,7 +5278,7 @@ function openBatch() {
   const typeId = withPending.length
     ? withPending.slice().sort((a, b) => b.n - a.n)[0].type.id
     : (getTestTypes()[0] ? getTestTypes()[0].id : null);
-  batchState = { typeId, uids: [], work: {}, cur: 0, mode: null };
+  batchState = { typeId, uids: [], work: {}, snap: {}, cur: 0, mode: null };
   if (typeId) loadBatchType(typeId);
   switchView('batch');
 }
@@ -3973,7 +5287,11 @@ function loadBatchType(typeId) {
   const recs = batchPending(typeId);
   batchState.uids = recs.map((r) => r.uid);
   batchState.work = {};
-  recs.forEach((r) => { batchState.work[r.uid] = Object.assign({}, r.results || {}); });
+  batchState.snap = {}; /* v87: bản KTV đã thấy lúc mở lô (kết quả + phiên bản) — để chỉ ghi ô KTV thực sự nhập */
+  recs.forEach((r) => {
+    batchState.work[r.uid] = Object.assign({}, r.results || {});
+    batchState.snap[r.uid] = { results: Object.assign({}, r.results || {}), rv: r.rv };
+  });
   batchState.cur = 0;
   batchShownCur = -1; /* mở lô / đổi loại: lần vẽ thẻ đầu tiên luôn cuộn lên đầu */
 }
@@ -3998,28 +5316,44 @@ function batchDirty(uid) {
   const rec = store.getByUid(uid);
   if (!rec) return false;
   const type = getTestType(batchState.typeId);
-  return type.fields.some((f) => (batchState.work[uid][f.key] || '') !== ((rec.results || {})[f.key] || ''));
+  /* so với bản KTV đã thấy lúc mở lô (v87), KHÔNG so với bản hiện tại: máy khác có thể vừa nhập kết quả cho mẫu này */
+  const snap = (batchState.snap || {})[uid];
+  const seen = snap ? snap.results : (rec.results || {});
+  return type.fields.some((f) => (batchState.work[uid][f.key] || '') !== ((seen || {})[f.key] || ''));
 }
 function batchDirtyCount() { return batchState.uids.filter(batchDirty).length; }
 function saveBatch() {
   let saved = 0;
+  let skippedReleased = 0;
+  const type = getTestType(batchState.typeId);
   batchState.uids.slice().forEach((uid) => {
     if (!batchDirty(uid)) return;
     const oldRec = store.getByUid(uid);
     if (!oldRec) return;
+    if (syncActive() && oldRec.releaseAt) { skippedReleased += 1; return; } /* đã phát hành ở máy khác: được bảo vệ */
     const work = batchState.work[uid];
-    const payload = { results: Object.assign({}, work) };
-    if (store.hasResult({ typeId: batchState.typeId, results: work })) {
+    const snap = (batchState.snap || {})[uid] || { results: oldRec.results || {}, rv: oldRec.rv };
+    /* Chỉ ghi các ô KTV THỰC SỰ nhập, đặt lên bản mới nhất — ô không đụng tới giữ nguyên giá trị (kể cả giá trị máy khác vừa nhập) */
+    const merged = Object.assign({}, oldRec.results || {});
+    type.fields.forEach((f) => {
+      const mine = work[f.key] || '';
+      if (mine !== ((snap.results || {})[f.key] || '')) merged[f.key] = mine;
+    });
+    const payload = { results: merged };
+    if (store.hasResult({ typeId: batchState.typeId, results: merged })) {
       payload.timerEndsAt = null;
       payload.performer = currentOperator;
     }
+    if (syncActive() && Number.isInteger(snap.rv)) labSync.setBaseHint(uid, snap.rv); /* mốc = bản đã thấy → sửa trùng ô thì báo xung đột */
     const res = store.update(uid, payload);
+    if (labSync) labSync.clearBaseHint(uid);
     if (res.ok) {
       saved++;
       const parts = diffRecordChanges(oldRec, Object.assign({}, oldRec, payload));
       if (parts.length) audit('save', parts.join('; '), res.record);
     }
   });
+  if (skippedReleased) toast(skippedReleased + ' mẫu đã được phát hành ở máy khác nên không lưu thay đổi của lô');
   if (saved) {
     syncNativeAlarms();
     toast('Đã lưu kết quả ' + saved + ' mẫu');
@@ -4525,7 +5859,10 @@ function loadStaff() {
   } catch (e) { staffList = []; }
   try { currentOperator = localStorage.getItem(OPERATOR_KEY) || ''; } catch (e) { currentOperator = ''; }
 }
-function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } }
+function persistStaff() {
+  try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ }
+  if (labSync && !applyingRemoteStaff) labSync.notifyStaff(staffList); /* v87: KTV (tên, PIN băm, chữ ký) dùng chung */
+}
 function persistOperator() { try { localStorage.setItem(OPERATOR_KEY, currentOperator); } catch (e) { /* bỏ qua */ } }
 
 function staffNames() { return staffList.map((x) => x.name); }
@@ -4594,7 +5931,15 @@ async function hashPin(pin, salt) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
       return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
     }
-  } catch (e) { /* rơi xuống hàm băm dự phòng bên dưới */ }
+  } catch (e) { /* rơi xuống SHA-256 thuần JS bên dưới */ }
+  /* v87: trang mở bằng http://<IP máy chủ LAN> không có crypto.subtle -> dùng SHA-256 thuần JS,
+     cho kết quả GIỐNG HỆT, nên PIN tạo ở máy này vẫn kiểm tra đúng ở mọi máy khác. */
+  return LabStore.sha256Hex(text);
+}
+
+/* Băm dự phòng KIỂU CŨ (≤ v86, 16 ký tự hex, không phải SHA-256) — chỉ còn để kiểm tra PIN đã lưu
+   từ môi trường không có crypto.subtle trước v87. */
+function legacyFallbackHash(text) {
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < text.length; i++) {
     const ch = text.charCodeAt(i);
@@ -4609,7 +5954,8 @@ async function hashPin(pin, salt) {
 async function verifyStaffPin(name, pin) {
   const st = findStaff(name);
   if (!st || !st.pinHash) return false;
-  return (await hashPin(pin, st.salt)) === st.pinHash;
+  if ((await hashPin(pin, st.salt)) === st.pinHash) return true;
+  return st.pinHash.length === 16 && legacyFallbackHash((st.salt || '') + ':' + pin) === st.pinHash;
 }
 
 let pinSession = null; /* { mode: 'verify' | 'set', name, resolve } */
@@ -4935,7 +6281,7 @@ function saveAuditLog() {
 }
 
 function audit(action, detail, rec) {
-  auditLog.push({
+  const entry = {
     id: 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36),
     at: new Date().toISOString(),
     actor: currentOperator || '',
@@ -4943,9 +6289,11 @@ function audit(action, detail, rec) {
     testId: rec ? (rec.testId || '') : '',
     typeId: rec ? (rec.typeId || '') : '',
     detail: detail || '',
-  });
+  };
+  auditLog.push(entry);
   if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
   saveAuditLog();
+  if (labSync) labSync.notifyAudit(entry); /* v87: nhật ký chung của cả phòng xét nghiệm */
 }
 
 /* Cổng thao tác: chưa có KTV trực thì chặn + báo rõ, trả về false */
@@ -6745,6 +8093,262 @@ function initTheme() {
   applyTheme();
 }
 
+/* ================= Đồng bộ LAN (v87) =================
+ * Nhiều máy (PC, điện thoại Android) trong cùng mạng LAN dùng CHUNG một dữ liệu mẫu qua một máy chủ
+ * LabEntry (server/server.js) chạy trong phòng xét nghiệm. Mỗi máy vẫn là bản làm việc đầy đủ:
+ * mất mạng vẫn nhập/phát hành bình thường, có mạng lại tự khớp (engine ở sync.js, luật gộp/xung
+ * đột ở sync-core.js). Phần dưới đây chỉ là giao diện + nối với KTV/danh mục/nhật ký của app. */
+const SYNC_PATH_LABEL = {
+  note: 'Ghi chú', releaseAt: 'Phát hành', releaser: 'KTV phát hành', receiver: 'KTV nhận', testId: 'ID xét nghiệm',
+  typeId: 'Loại xét nghiệm', deferReason: 'Lý do hẹn lại', deferNote: 'Ghi chú hẹn lại', deferAt: 'Giờ hẹn lại',
+  performer: 'KTV thực hiện', resultAt: 'Giờ lưu kết quả', urgent: 'Mẫu khẩn', timerEndsAt: 'Hẹn giờ',
+};
+let syncRefreshTimer = null;
+
+function syncPathLabel(c, path) {
+  if (path.indexOf('results.') === 0) {
+    const type = getTestType(c.typeId);
+    const f = type && type.fields.find((x) => x.key === path.slice(8));
+    return f ? f.label : path.slice(8);
+  }
+  return SYNC_PATH_LABEL[path] || path;
+}
+function syncValueText(path, v) {
+  if (v === null || v === undefined || v === '') return '(trống)';
+  if (typeof v === 'boolean') return v ? 'Có' : 'Không';
+  if (/At$/.test(path) && typeof v === 'string') return fmtFull(v);
+  return String(v);
+}
+function syncWho(c) { return c.operator ? 'KTV ' + c.operator : 'một máy khác'; }
+
+/* Mỗi xung đột hiện bằng lời dễ hiểu + nút chọn. Trả về { html, choices } */
+function describeConflict(c) {
+  const typeName = (getTestType(c.typeId) || {}).name || c.typeId || '';
+  const head = c.testId ? '<b>Mẫu ' + esc(c.testId) + '</b>' + (typeName ? ' · ' + esc(typeName) : '') : '<b>Danh mục xét nghiệm</b>';
+  /* resultAt/timerEndsAt là dấu giờ tự động đi kèm thao tác — không đưa vào lời giải thích cho KTV */
+  const rows = (c.paths || []).filter((p) => p.reason !== 'content-changed' && p.path !== 'resultAt' && p.path !== 'timerEndsAt').map((p) =>
+    '<div class="sync-row"><span class="sync-lbl">' + esc(syncPathLabel(c, p.path)) + '</span>' +
+    '<span class="sync-mine">' + esc(syncWho(c)) + ': <b>' + esc(syncValueText(p.path, p.mine)) + '</b></span>' +
+    '<span class="sync-theirs">Đang lưu: <b>' + esc(syncValueText(p.path, p.theirs)) + '</b></span></div>').join('');
+  const stale = (c.paths || []).some((p) => p.reason === 'content-changed');
+  let text = '';
+  let choices = [['keep-server', 'Đã hiểu']];
+  if (c.kind === 'field') {
+    if (stale) text = 'Chưa phát hành được: kết quả đã bị máy khác đổi sau khi ' + esc(syncWho(c)) + ' xem. Hãy xem lại kết quả mới rồi phát hành.';
+    else { text = esc(syncWho(c)) + ' nhập khác với bản đang lưu (máy khác đã sửa trước). Bản đang lưu được giữ — chọn bản đúng:'; choices = [['keep-server', 'Giữ bản đang lưu'], ['apply-mine', 'Dùng bản của ' + (c.operator ? c.operator : 'máy kia')]]; }
+  } else if (c.kind === 'duplicate-intake') {
+    if (c.info) text = 'Mẫu này được tiếp nhận ở 2 máy cùng lúc — đã gộp thành MỘT bản ghi, không bị trùng.';
+    else { text = 'Mẫu này được tiếp nhận ở 2 máy với nội dung khác nhau. Bản ghi chung giữ bản đến trước — chọn giá trị đúng:'; choices = [['keep-server', 'Giữ bản đang lưu'], ['apply-mine', 'Dùng bản của ' + (c.operator ? c.operator : 'máy kia')]]; }
+  } else if (c.kind === 'edit-on-released') {
+    text = 'Mẫu đã PHÁT HÀNH nên được bảo vệ: thay đổi của ' + esc(syncWho(c)) + ' bị từ chối, kết quả phát hành giữ nguyên. Muốn sửa thật sự thì Hủy phát hành ở trang Xem trước.';
+  } else if (c.kind === 'delete-released') {
+    text = esc(syncWho(c)) + ' định xóa mẫu đã PHÁT HÀNH — bị từ chối, mẫu vẫn còn nguyên.';
+  } else if (c.kind === 'delete-stale') {
+    text = esc(syncWho(c)) + ' định xóa mẫu này nhưng mẫu vừa được máy khác sửa — chưa xóa. Mở mẫu xem lại, cần thì xóa lại.';
+  } else if (c.kind === 'unrelease-stale') {
+    text = 'Hủy phát hành bị từ chối vì mẫu đã thay đổi từ lúc ' + esc(syncWho(c)) + ' xem. Mở lại mẫu để xem bản mới.';
+  } else if (c.kind === 'edit-on-deleted') {
+    text = 'Mẫu này đã bị xóa ở máy khác, nhưng ' + esc(syncWho(c)) + ' vừa sửa nó. Giữ trạng thái xóa, hay khôi phục mẫu cùng thay đổi của ' + esc(c.operator || 'máy kia') + '?';
+    choices = [['keep-server', 'Giữ trạng thái xóa'], ['apply-mine', 'Khôi phục mẫu']];
+  } else if (c.kind === 'types-conflict') {
+    text = 'Danh mục xét nghiệm đã được sửa ở máy khác lúc ' + esc(syncWho(c)) + ' cũng sửa. Danh mục chung được giữ — chọn:';
+    choices = [['keep-server', 'Giữ danh mục chung'], ['apply-mine', 'Dùng danh mục của ' + (c.operator ? c.operator : 'máy kia')]];
+  } else {
+    text = 'Có thay đổi chưa áp dụng được.';
+  }
+  const btns = choices.map(([ch, label], i) =>
+    '<button type="button" class="mini-btn' + (i === 0 ? '' : ' primary') + '" data-sync-resolve="' + esc(c.id) + '" data-choice="' + ch + '">' + esc(label) + '</button>').join('');
+  return '<div class="sync-conflict ' + (c.info ? 'info' : '') + '"><div class="sync-c-head">' + head + '<span class="sync-c-when">' + esc(fmtFull(c.at)) + '</span></div>' +
+    '<div class="sync-c-text">' + text + '</div>' + rows + '<div class="sync-c-btns">' + btns + '</div></div>';
+}
+
+function syncStatusText(s) {
+  const when = s.lastOkAt ? ' · khớp lúc ' + fmtFull(s.lastOkAt) : '';
+  if (!s.enabled) return 'Chưa nối máy chủ — máy này đang dùng dữ liệu riêng.';
+  if (s.paused || s.mode === 'paused') return '⏸ Đang tạm ngắt đồng bộ' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : '') + '. Bấm “Nối lại” để dùng chung dữ liệu.';
+  if (s.mode === 'online') return '🟢 Đang dùng chung dữ liệu với máy chủ ' + s.url + when + (s.pending ? ' · đang gửi ' + s.pending + ' thay đổi' : '');
+  if (s.mode === 'connecting') return '🔄 Đang nối máy chủ ' + s.url + '…';
+  return '🟠 Mất kết nối máy chủ — bạn vẫn làm việc bình thường trên máy này' + (s.pending ? ' (' + s.pending + ' thay đổi sẽ tự gửi khi có mạng lại)' : '') + '.';
+}
+
+function renderSyncStatus(s) {
+  s = s || (labSync ? labSync.getStatus() : { enabled: false });
+  const bar = $('sync-bar');
+  if (bar) {
+    const conflicts = labSync ? labSync.getConflicts().filter((c) => !c.info).length : 0;
+    const infos = labSync ? labSync.getConflicts().length - conflicts : 0;
+    bar.classList.toggle('hidden', !s.enabled);
+    bar.classList.remove('online', 'offline', 'alert');
+    let text = '';
+    if (s.enabled) {
+      if (conflicts > 0) { bar.classList.add('alert'); text = '⚠ ' + conflicts + ' xung đột cần KTV xem và chọn' + (s.mode !== 'online' ? ' · mất kết nối' : ''); }
+      else if (s.paused || s.mode === 'paused') { bar.classList.add('offline'); text = '⏸ Tạm ngắt đồng bộ' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : ''); }
+      else if (s.mode === 'online') { bar.classList.add('online'); text = '🟢 Dùng chung dữ liệu · ' + (s.pending ? 'đang gửi ' + s.pending + ' thay đổi' : 'đã khớp') + (infos ? ' · ' + infos + ' thông báo' : ''); }
+      else if (s.mode === 'connecting') { bar.classList.add('offline'); text = '🔄 Đang nối máy chủ…'; }
+      else { bar.classList.add('offline'); text = '🟠 Mất mạng — làm việc riêng trên máy này' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : '') + '. Có mạng lại sẽ tự khớp.'; }
+    }
+    $('sync-bar-text').textContent = text;
+  }
+  const modal = $('sync-modal');
+  if (modal && !modal.classList.contains('hidden')) renderSyncDialog();
+}
+
+function renderSyncDialog() {
+  if (!labSync) return;
+  const s = labSync.getStatus();
+  $('sync-status-line').textContent = syncStatusText(s);
+  const urlEl = $('sync-url');
+  if (urlEl && document.activeElement !== urlEl && !urlEl.value) urlEl.value = (s.url || '').replace(/^http:\/\//, '').replace(/:8787$/, '');
+  $('btn-sync-now').classList.toggle('hidden', !s.enabled);
+  $('btn-sync-pause').classList.toggle('hidden', !s.enabled);
+  $('btn-sync-pause').textContent = (s.paused || s.mode === 'paused') ? '▶ Nối lại' : '⏸ Tạm ngắt';
+  $('btn-sync-forget').classList.toggle('hidden', !s.enabled);
+  const list = labSync.getConflicts();
+  $('sync-conflict-count').textContent = list.length ? '(' + list.length + ')' : '';
+  $('sync-conflicts').innerHTML = list.length ? list.map(describeConflict).join('') : '<div class="empty-msg">Không có xung đột nào cần xem.</div>';
+  const httpsBlock = location.protocol === 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !(window.LabAlarmNative);
+  $('sync-hint').classList.toggle('hidden', !httpsBlock);
+}
+
+function openSyncDialog() {
+  if (!labSync) { toast('Bản trình duyệt này chưa hỗ trợ đồng bộ LAN'); return; }
+  $('sync-discover-msg').textContent = '';
+  $('sync-modal').classList.remove('hidden');
+  renderSyncDialog();
+}
+function closeSyncDialog() { $('sync-modal').classList.add('hidden'); }
+
+async function syncConnectClicked() {
+  const msg = $('sync-discover-msg');
+  const val = $('sync-url').value.trim();
+  if (!val) { msg.textContent = 'Nhập địa chỉ máy chủ (ví dụ 192.168.1.10) — máy chủ hiện địa chỉ này trên màn hình của nó.'; return; }
+  msg.textContent = 'Đang nối…';
+  const r = await labSync.connect(val);
+  msg.textContent = r.ok ? '✅ Đã nối máy chủ. Dữ liệu từ giờ dùng chung.' : '❌ ' + r.error;
+  renderSyncDialog();
+}
+
+/* Tìm máy chủ: thử các địa chỉ LAN hay gặp (cổng 8787) — chạy được khi trang cho phép gọi http (app Android / trang do chính máy chủ phát) */
+async function syncDiscoverClicked() {
+  const msg = $('sync-discover-msg');
+  const prefixes = [];
+  const m = /(\d+\.\d+\.\d+)\.\d+/.exec($('sync-url').value || (labSync.getState().url || ''));
+  if (m) prefixes.push(m[1]);
+  ['192.168.1', '192.168.0', '192.168.100', '192.168.2', '10.0.0', '10.0.1', '172.16.0'].forEach((p) => { if (!prefixes.includes(p)) prefixes.push(p); });
+  const cands = [];
+  prefixes.forEach((p) => { for (let i = 1; i < 255; i++) cands.push('http://' + p + '.' + i + ':8787'); });
+  msg.textContent = 'Đang tìm máy chủ trong mạng… (có thể mất ~1 phút)';
+  const found = await labSync.discover(cands, (n) => { if (n % 60 === 0) msg.textContent = 'Đang tìm máy chủ… ' + Math.round(100 * n / cands.length) + '%'; });
+  if (found) {
+    $('sync-url').value = found.url.replace(/^http:\/\//, '').replace(/:8787$/, '');
+    msg.textContent = '✅ Thấy máy chủ ở ' + found.url + ' — bấm Kết nối.';
+  } else {
+    msg.textContent = 'Không thấy máy chủ. Kiểm tra: máy chủ đang chạy, cùng Wi-Fi/mạng, hoặc gõ địa chỉ do máy chủ hiển thị.';
+  }
+}
+
+function scheduleSyncRefresh() {
+  if (syncRefreshTimer) return;
+  syncRefreshTimer = setTimeout(() => {
+    syncRefreshTimer = null;
+    try {
+      refreshTypeSelects();
+      renderOperatorControls();
+      refreshCurrent();
+      syncNativeAlarms();
+      if (!$('summary-modal').classList.contains('hidden') && summaryUid) {
+        if (store.getByUid(summaryUid)) openSummary(summaryUid); else closeSummary();
+      }
+      if (!$('view-form').classList.contains('hidden') && formState.uid && formState.base) {
+        const cur = store.getByUid(formState.uid);
+        if (cur && cur.rv !== formState.base.rv && !formState.warnedRemote) {
+          formState.warnedRemote = true;
+          toast('⚠ Mẫu đang mở vừa được máy khác cập nhật. Ô bạn không sửa giữ giá trị mới; nếu bạn sửa đúng ô máy khác vừa sửa, app sẽ báo xung đột để chọn (không ghi đè).');
+        }
+      }
+    } catch (e) { /* lỗi vẽ lại không được làm hỏng đồng bộ */ }
+  }, 60);
+}
+
+function mergeRemoteAudit(list) {
+  const have = new Set(auditLog.map((e) => e.id));
+  let added = 0;
+  sanitizeAuditLog(list).forEach((e) => { if (!have.has(e.id)) { auditLog.push(e); have.add(e.id); added += 1; } });
+  if (!added) return;
+  auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
+  saveAuditLog();
+  if (!$('view-audit').classList.contains('hidden')) renderAuditLog();
+}
+
+function initSync() {
+  if (typeof LabSync === 'undefined' || typeof LabSyncCore === 'undefined') return;
+  let storage;
+  try { storage = localStorage; } catch (e) { storage = null; }
+  labSync = LabSync.create({
+    store,
+    storage: storage || undefined,
+    hooks: {
+      getTypes: () => getTestTypes(),
+      applyRemoteTypes: (list) => {
+        if (validateTypeDefs(list).length) return;
+        applyingRemoteTypes = true;
+        try { setTestTypes(list); persistTypes(); } finally { applyingRemoteTypes = false; }
+        refreshTypeSelects();
+        if (!$('view-types').classList.contains('hidden')) renderTypes();
+      },
+      getStaff: () => staffList,
+      applyRemoteStaff: (items) => {
+        applyingRemoteStaff = true;
+        try {
+          items.forEach((it) => {
+            const i = staffList.findIndex((x) => x.name.toLowerCase() === it.key);
+            if (it.deleted) { if (i >= 0) staffList.splice(i, 1); return; }
+            const e = normalizeStaffEntry(it.entry);
+            if (!e) return;
+            if (i >= 0) staffList[i] = e; else staffList.push(e);
+          });
+          persistStaff();
+        } finally { applyingRemoteStaff = false; }
+        if (currentOperator && !findStaff(currentOperator)) { setOperator(''); toast('KTV trực đã bị xóa khỏi danh sách ở máy khác — hãy chọn lại người trực'); }
+        renderOperatorControls();
+        if (!$('staff-modal').classList.contains('hidden')) renderStaffList();
+      },
+      getAudit: () => auditLog,
+      mergeAudit: mergeRemoteAudit,
+      getOperator: () => currentOperator,
+      onDataChanged: scheduleSyncRefresh,
+      onStatus: renderSyncStatus,
+      onNotice: (m) => toast(m),
+      confirmAdopt: (info) => {
+        if (!info.localRecords) return Promise.resolve(true);
+        return Promise.resolve(confirm('Máy này đang có ' + info.localRecords + ' mẫu.\n\nNối vào máy chủ LabEntry sẽ GỬI các mẫu này vào dữ liệu chung' +
+          (info.serverRecords ? ' (máy chủ đang có ' + info.serverRecords + ' mẫu)' : '') + ':\n• Mẫu trùng ID + loại và giống hệt nhau → gộp thành một.\n• Mẫu trùng nhưng khác nội dung → báo xung đột để KTV chọn, không mất gì.\n• Dữ liệu trên máy giữ nguyên và được lưu dự phòng.\n\nTiếp tục?'));
+      },
+    },
+  });
+  syncBridge.onChange = labSync.onStoreChange;
+  labSync.init();
+  renderSyncStatus();
+  trySameOriginConnect();
+}
+
+/* Mở app bằng địa chỉ do chính máy chủ phát (http://<IP>:8787) → tự nối, KTV không phải cài đặt gì.
+   Máy chủ đổi IP (DHCP) mà KTV mở lại bằng địa chỉ mới → tự cập nhật địa chỉ nếu đúng là máy chủ cũ. */
+async function trySameOriginConnect() {
+  try {
+    if (!labSync || !/^https?:$/.test(location.protocol) || /github\.io$/i.test(location.hostname)) return;
+    const st = labSync.getState();
+    if (st.enabled && st.url === location.origin) return;
+    let info;
+    try { info = await labSync.probe(location.origin, 2500); } catch (e) { return; }
+    if (st.enabled && st.serverId && info.serverId !== st.serverId) return; /* máy chủ khác: để KTV tự quyết trong hộp thoại */
+    const r = await labSync.connect(location.origin);
+    if (r.ok && !st.enabled) toast('Đã nối máy chủ LabEntry ' + location.host + ' — dữ liệu dùng chung với các máy khác');
+    else if (!r.ok && r.error) toast(r.error);
+  } catch (e) { /* không nối được: giữ chế độ riêng */ }
+}
+
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
@@ -6795,6 +8399,13 @@ function init() {
   $('btn-delete-selected').addEventListener('click', () => {
     if (!selectedUids.size) { toast('Chưa chọn kết quả nào'); return; }
     if (!requireOperator('xóa kết quả')) return;
+    if (syncActive()) {
+      const protectedIds = [...selectedUids].map((uid) => store.getByUid(uid)).filter((r) => r && r.releaseAt);
+      if (protectedIds.length) {
+        toast(protectedIds.length + ' mẫu đã phát hành được bảo vệ, không xóa được (' + protectedIds.slice(0, 3).map((r) => r.testId).join(', ') + (protectedIds.length > 3 ? '…' : '') + '). Bỏ chọn các mẫu đó rồi xóa lại.');
+        return;
+      }
+    }
     if (!confirm('Xóa ' + selectedUids.size + ' kết quả đã chọn?')) return;
     const snaps = [...selectedUids].map((uid) => store.getByUid(uid)).filter(Boolean);
     selectedUids.forEach((uid) => store.remove(uid));
@@ -7047,6 +8658,41 @@ function init() {
     inp.value = '';
     if (f) scanPhotoFile(f);
   });
+
+  /* v87: đồng bộ LAN */
+  $('btn-sync').addEventListener('click', openSyncDialog);
+  $('sync-bar').addEventListener('click', openSyncDialog);
+  $('btn-sync-close').addEventListener('click', closeSyncDialog);
+  $('btn-sync-connect').addEventListener('click', syncConnectClicked);
+  $('sync-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); syncConnectClicked(); } });
+  $('btn-sync-discover').addEventListener('click', syncDiscoverClicked);
+  $('btn-sync-now').addEventListener('click', async () => { await labSync.syncNow(); toast('Đã đồng bộ'); renderSyncDialog(); });
+  $('btn-sync-pause').addEventListener('click', async () => {
+    const s = labSync.getStatus();
+    if (s.paused || s.mode === 'paused') await labSync.resume(); else labSync.disconnect();
+    renderSyncDialog();
+  });
+  $('btn-sync-forget').addEventListener('click', () => {
+    if (!confirm('Ngừng dùng chung dữ liệu? Máy này giữ nguyên dữ liệu hiện có nhưng từ nay làm việc riêng; các thay đổi chưa gửi lên máy chủ sẽ KHÔNG còn được gửi.')) return;
+    labSync.forget();
+    renderSyncDialog();
+  });
+  $('sync-conflicts').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sync-resolve]');
+    if (!b) return;
+    b.disabled = true;
+    try {
+      await labSync.resolveConflict(b.dataset.syncResolve, b.dataset.choice);
+      toast(b.dataset.choice === 'apply-mine' ? 'Đã áp dụng bản bạn chọn cho mọi máy' : 'Đã xử lý');
+      refreshCurrent();
+    } catch (err) {
+      const reasons = { released: 'Mẫu đã phát hành — không sửa được nữa', deleted: 'Mẫu đã bị xóa', 'duplicate-key': 'ID này đã có mẫu khác' };
+      toast('Chưa áp dụng được: ' + ((err && err.data && reasons[err.data.reason]) || (err && err.message) || 'lỗi không rõ'));
+      b.disabled = false;
+    }
+    renderSyncDialog();
+  });
+  initSync();
 
   switchView('today');
 

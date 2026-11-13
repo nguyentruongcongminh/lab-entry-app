@@ -354,5 +354,51 @@ test('giờ lưu kết quả (F38): add có kết quả thì đóng dấu, chưa
   const oldFile = JSON.stringify({ app: 'LabEntry', version: 1, records: [{ uid: 'x9', testId: 'KQOLD', typeId: 'sp', results: { hongCau: '1+' }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }] });
   assert.strictEqual(s.parseBackup(oldFile).records[0].resultAt, null, 'file cũ không có trường -> resultAt null (in sổ để trống giờ thực hiện)');
 });
+/* ---------- Đồng bộ LAN (v87): móc của kho dữ liệu + SHA-256 ---------- */
+test('v87: SHA-256 thuần JS giống hệt crypto của Node (kể cả ranh giới đệm 55/56/63/64 byte, tiếng Việt, chuỗi dài)', () => {
+  const nodeCrypto = require('node:crypto');
+  const cases = ['', 'a', 'abc', 'muối:123456', 'x'.repeat(55), 'x'.repeat(56), 'x'.repeat(63), 'x'.repeat(64), 'x'.repeat(119), 'x'.repeat(5000), 'Tiếng Việt có dấu ✓ 🧪'];
+  cases.forEach((t) => assert.strictEqual(LabStore.sha256Hex(t), nodeCrypto.createHash('sha256').update(t, 'utf8').digest('hex'), 'độ dài ' + t.length));
+});
+
+test('v87: onChange báo đúng create/update/delete (trước/sau), không báo khi thao tác bị từ chối; applyRemote/removeLocal KHÔNG báo', () => {
+  const events = [];
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType, { onChange: (e) => events.push(e) });
+  const r = s.add({ testId: 'EV1', typeId: 'sp', results: {} }, D('2026-11-13T08:00:00Z'));
+  s.update(r.record.uid, { note: 'n' });
+  assert.deepStrictEqual(events.map((e) => e.kind), ['create', 'update']);
+  assert.strictEqual(events[1].before.note, '');
+  assert.strictEqual(events[1].after.note, 'n');
+  assert.ok(!s.add({ testId: 'EV1', typeId: 'sp', results: {} }).ok, 'trùng bị từ chối');
+  assert.strictEqual(events.length, 2, 'thao tác bị từ chối không phát sự kiện');
+  s.applyRemote([Object.assign({}, s.getByUid(r.record.uid), { rv: 5, note: 'từ máy chủ' })]);
+  assert.strictEqual(s.getByUid(r.record.uid).note, 'từ máy chủ');
+  assert.strictEqual(s.getByUid(r.record.uid).rv, 5);
+  s.applyRemote([{ uid: 'moi1', testId: 'EV2', typeId: 'sp', results: {}, rv: 1, createdAt: '2026-11-13T08:00:00Z', updatedAt: '2026-11-13T08:00:00Z' }]);
+  assert.strictEqual(s.getAll().length, 2, 'applyRemote thêm bản ghi mới (không kiểm tra trùng cục bộ)');
+  s.applyRemote([{ uid: 'moi1', deleted: true }]);
+  assert.strictEqual(s.getAll().length, 1);
+  s.removeLocal(r.record.uid);
+  assert.strictEqual(s.getAll().length, 0);
+  assert.strictEqual(events.length, 2, 'dữ liệu từ máy chủ không bị gửi ngược lại');
+  s.remove('khong-co');
+  assert.strictEqual(events.length, 2);
+});
+
+test('v87: remove báo delete kèm bản ghi trước khi xóa; mergeBackup báo create cho từng mẫu thêm; clearSyncMeta xóa rv/seq', () => {
+  const events = [];
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType, { onChange: (e) => events.push(e) });
+  const r = s.add({ testId: 'EV3', typeId: 'sp', results: {} });
+  s.remove(r.record.uid);
+  assert.strictEqual(events[events.length - 1].kind, 'delete');
+  assert.strictEqual(events[events.length - 1].before.testId, 'EV3');
+  const file = JSON.stringify({ records: [{ uid: 'f1', testId: 'F1', typeId: 'sp', results: {} }, { uid: 'f2', testId: 'F2', typeId: 'sp', results: {} }] });
+  events.length = 0;
+  s.mergeBackup(file);
+  assert.deepStrictEqual(events.map((e) => e.kind), ['create', 'create']);
+  s.applyRemote([Object.assign({}, s.getByUid('f1'), { rv: 3, seq: 9 })]);
+  s.clearSyncMeta();
+  assert.ok(s.getAll().every((x) => x.rv === undefined && x.seq === undefined));
+});
 
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

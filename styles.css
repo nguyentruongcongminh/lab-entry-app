@@ -945,3 +945,36 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 .sig-hint { color: #546e7a; font-size: 13px; margin: 4px 0 10px; }
 .sig-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pcfg-sig-row select { flex: 1 1 140px; min-width: 0; }
+
+/* ---------- Đồng bộ LAN (v87) ---------- */
+.sync-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 14px; font-size: 13.5px; line-height: 1.35; cursor: pointer; border-bottom: 1px solid var(--line);
+}
+.sync-bar.online { background: #e8f5e9; color: #1b5e20; border-bottom-color: #a5d6a7; }
+.sync-bar.offline { background: #fff3e0; color: #8a4b00; border-bottom: 2px solid #ffa726; }
+.sync-bar.alert { background: #ffebee; color: #b71c1c; border-bottom: 2px solid #e53935; font-weight: 700; }
+.sync-bar-go { flex: 0 0 auto; font-weight: 700; opacity: .8; }
+.sync-open-btn { grid-column: 1 / -1; }
+.sync-box { max-width: 560px; max-height: 92vh; overflow-y: auto; text-align: left; }
+.sync-status-line { padding: 10px 12px; border-radius: 8px; background: #eef3f8; font-size: 14.5px; line-height: 1.45; margin-bottom: 12px; }
+.sync-connect { margin-bottom: 8px; }
+.sync-url-label { display: block; font-size: 13.5px; color: var(--muted); margin-bottom: 4px; }
+.sync-connect input { width: 100%; box-sizing: border-box; padding: 11px 12px; font-size: 16px; border: 1.5px solid var(--line); border-radius: 8px; }
+.sync-btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+.sync-btns .primary-btn { width: auto; }
+.sync-discover-msg { font-size: 13.5px; color: var(--muted); min-height: 18px; }
+.sync-hint { font-size: 12.5px; line-height: 1.45; color: #8a4b00; background: #fff3e0; border-radius: 8px; padding: 8px 10px; margin: 6px 0 0; }
+.sync-h { margin: 14px 0 6px; font-size: 15px; }
+.sync-conflicts { display: flex; flex-direction: column; gap: 10px; }
+.sync-conflict { border: 1.5px solid #e53935; background: #fff; border-radius: 10px; padding: 10px 12px; }
+.sync-conflict.info { border-color: #90a4ae; background: #f5f8fa; }
+.sync-c-head { display: flex; justify-content: space-between; gap: 8px; font-size: 14.5px; flex-wrap: wrap; }
+.sync-c-when { font-size: 12px; color: var(--muted); }
+.sync-c-text { font-size: 14px; line-height: 1.45; margin: 6px 0; }
+.sync-row { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; padding: 6px 8px; background: #fafafa; border-radius: 6px; margin-top: 4px; }
+.sync-lbl { flex: 1 1 100%; font-weight: 700; color: var(--blue-dark); }
+.sync-mine { color: #b71c1c; }
+.sync-theirs { color: #1b5e20; }
+.sync-c-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.mini-btn.primary { background: var(--blue); color: #fff; }

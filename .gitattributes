@@ -1,0 +1,3 @@
+# .bat phải có CRLF để cmd.exe đọc chắc chắn đúng (gói máy chủ LAN)
+*.bat text eol=crlf
+*.txt text eol=crlf

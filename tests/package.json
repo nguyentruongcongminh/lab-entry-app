@@ -1,10 +1,10 @@
 {
   "name": "tests",
   "version": "1.0.0",
-  "description": "",
+  "description": "Test tự động của LabEntry: logic, giao diện (jsdom), lõi đồng bộ LAN, đồng bộ đầu-cuối, giao diện đồng bộ",
   "main": "logic.test.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node logic.test.js && node sync-core.test.js && node sync-e2e.test.js && node ui.test.js && node ui-single.test.js && node ui-sync.test.js"
   },
   "keywords": [],
   "author": "",

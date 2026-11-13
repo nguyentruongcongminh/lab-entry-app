@@ -1,7 +1,13 @@
 'use strict';
 /* app.js — Điều khiển giao diện LabEntry. Logic nghiệp vụ nằm ở store.js, khai báo loại XN ở config.js */
 
-const store = LabStore.createStore(null, getTestType);
+/* v87: cầu nối sang bộ đồng bộ LAN (sync.js). Chưa nối máy chủ thì onChange không làm gì cả. */
+const syncBridge = { onChange: null };
+const store = LabStore.createStore(null, getTestType, { onChange: (e) => { if (syncBridge.onChange) syncBridge.onChange(e); } });
+let labSync = null; /* bộ đồng bộ LAN (tạo trong initSync) */
+let applyingRemoteStaff = false; /* đang áp KTV từ máy chủ: không gửi ngược lại */
+let applyingRemoteTypes = false; /* đang áp danh mục từ máy chủ: không gửi ngược lại */
+function syncActive() { return !!(labSync && labSync.getState().enabled); }
 
 const $ = (id) => document.getElementById(id);
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -194,6 +200,7 @@ function handleListClick(e) {
     if (btn.dataset.action === 'edit') openForm(uid);
     if (btn.dataset.action === 'delete') {
       const rec = store.getByUid(uid);
+      if (rec && syncActive() && rec.releaseAt) { toast('Mẫu ' + rec.testId + ' đã phát hành — được bảo vệ, không xóa được. Cần xóa thì hủy phát hành trước (trang Xem).'); return; }
       if (rec && confirm('Xóa kết quả ' + rec.testId + ' (' + (getTestType(rec.typeId) || {}).name + ')?')) {
         if (!requireOperator('xóa kết quả')) return;
         audit('delete', deleteDetailOf(rec), rec);
@@ -899,6 +906,11 @@ function exportBackupFile() {
    danh mục của file; chế độ gộp -> hợp nhất (chỉ thêm loại mà máy này chưa có). */
 function importBackupText(text, mode) {
   const merge = mode === 'merge';
+  if (!merge && syncActive()) {
+    /* v87: "Phục hồi" thay TOÀN BỘ dữ liệu — khi dùng chung qua máy chủ LAN nó sẽ xóa dữ liệu của cả phòng. Chặn. */
+    alert('Máy này đang dùng chung dữ liệu qua máy chủ LAN nên KHÔNG dùng được "Phục hồi" (thay toàn bộ sẽ làm mất dữ liệu chung của các máy khác).\n\nHãy dùng nút "Gộp dữ liệu từ file…": mẫu chưa có sẽ được thêm, mẫu trùng khác nội dung sẽ báo xung đột để chọn.');
+    return false;
+  }
   let fileTypes = null;
   let fileLayout = null;
   let fileStaff = null;
@@ -959,7 +971,15 @@ function importBackupText(text, mode) {
     return false;
   }
   if (merge) {
+    /* v87: đang dùng chung dữ liệu -> mẫu trùng (ID + loại) nhưng KHÁC nội dung không được bỏ qua im lặng:
+       gửi lên máy chủ để so với bản chung; khác thì vào mục Xung đột cho KTV chọn. */
+    const differing = syncActive() ? parsed.records.filter((r) => { const d = store.findDuplicate(r); return d && !LabSyncCore.contentEqual(d, r); }) : [];
     const res = store.mergeBackup(text);
+    if (differing.length) {
+      labSync.importRecords(differing)
+        .then((st) => toast('Mẫu trùng khác nội dung: ' + (st.conflicts || 0) + ' xung đột cần xem (mở 🔗 Đồng bộ LAN), ' + (st.same || 0) + ' giống hệt đã gộp'))
+        .catch(() => toast('Máy đang mất kết nối máy chủ — ' + differing.length + ' mẫu trùng khác nội dung CHƯA được so sánh. Gộp lại file này khi có mạng.'));
+    }
     if (fileStaff) {
       const before = staffList.length;
       fileStaff.forEach((n) => { if (!staffList.some((x) => x.name.toLowerCase() === n.name.toLowerCase())) staffList.push(n); });
@@ -974,7 +994,7 @@ function importBackupText(text, mode) {
     }
     if (fileAudit) {
       const have = new Set(auditLog.map((e) => e.id));
-      fileAudit.forEach((e) => { if (!have.has(e.id)) auditLog.push(e); });
+      fileAudit.forEach((e) => { if (!have.has(e.id)) { auditLog.push(e); if (labSync) labSync.notifyAudit(e); } });
       auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
       if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
       saveAuditLog();
@@ -1101,6 +1121,7 @@ function loadSavedTypes() {
 function persistTypes() {
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
   typesCustom = true;
+  if (labSync && !applyingRemoteTypes) labSync.notifyTypes(); /* v87: danh mục đổi -> gửi cho các máy khác */
 }
 
 /* Dựng lại 3 ô chọn loại (form nhập, bộ lọc, máy quét) theo danh mục hiện hành, giữ lựa chọn cũ nếu còn */
@@ -1165,6 +1186,7 @@ function resetTypes() {
   try { localStorage.removeItem(TYPES_KEY); } catch (e) { /* bỏ qua */ }
   setTestTypes(null);
   typesCustom = false;
+  if (labSync && !applyingRemoteTypes) labSync.notifyTypes();
   refreshTypeSelects();
   renderTypes();
   toast('Đã khôi phục 6 loại mặc định');
@@ -1454,11 +1476,17 @@ function buildTypeOptions(selectEl, includeAll) {
 
 function openForm(uid) {
   const rec = uid ? store.getByUid(uid) : null;
+  /* v87: mẫu đã phát hành được bảo vệ khi dùng chung dữ liệu — không mở form sửa; muốn sửa phải Hủy phát hành (có chủ đích) ở trang Xem */
+  if (rec && rec.releaseAt && syncActive()) {
+    toast('Mẫu ' + rec.testId + ' đã phát hành nên không sửa trực tiếp được. Mở trang Xem → Hủy phát hành nếu cần sửa lại.');
+    return;
+  }
   formState = {
     uid: rec ? rec.uid : null,
     typeId: rec ? rec.typeId : getTestTypes()[0].id,
     results: rec ? Object.assign({}, rec.results) : {},
     createdAt: rec ? rec.createdAt : new Date().toISOString(),
+    base: rec ? JSON.parse(JSON.stringify(rec)) : null, /* v87: bản ghi lúc mở form — để biết KTV đã sửa những ô nào */
   };
   $('input-testid').value = rec ? rec.testId : '';
   $('select-type').value = formState.typeId;
@@ -1596,8 +1624,30 @@ function saveForm() {
   payload.releaser = payload.releaseAt ? ($('input-releaser').value || currentOperator) : '';
   const wasAdd = !formState.uid;
   const oldRec = wasAdd ? null : store.getByUid(formState.uid);
+  /* v87: form mở từ lúc nào đó, trong lúc ấy máy khác có thể đã sửa mẫu này. Chỉ ghi các ô KTV THỰC SỰ
+     sửa trong form lên bản mới nhất — ô không đụng tới giữ nguyên giá trị mới (không ghi đè im lặng). */
+  if (!wasAdd && syncActive() && oldRec && formState.base) {
+    if (oldRec.releaseAt && !formState.base.releaseAt) {
+      showFormError('Mẫu này vừa được phát hành ở máy khác nên không lưu được. Đóng form và mở lại mẫu để xem bản mới.');
+      return;
+    }
+    const base = formState.base;
+    const keepLatest = (key) => { if (JSON.stringify(payload[key]) === JSON.stringify(base[key])) payload[key] = oldRec[key]; };
+    ['testId', 'typeId', 'note', 'urgent', 'releaseAt', 'receiver', 'performer', 'releaser'].forEach(keepLatest);
+    const mergedResults = Object.assign({}, oldRec.results || {});
+    Object.keys(Object.assign({}, base.results || {}, payload.results || {})).forEach((k) => {
+      const mine = (payload.results || {})[k] || '';
+      const was = (base.results || {})[k] || '';
+      if (mine !== was) mergedResults[k] = mine;
+    });
+    payload.results = mergedResults;
+  }
   const oldReleaseAt = oldRec ? oldRec.releaseAt : null;
+  /* v87: mốc phiên bản của thao tác = bản KTV ĐÃ THẤY lúc mở form (không phải bản hiện tại lúc bấm Lưu) —
+     nhờ vậy nếu máy khác đã sửa CÙNG ô trong lúc form mở, máy chủ báo xung đột thay vì ghi đè im lặng. */
+  if (!wasAdd && syncActive() && formState.base && Number.isInteger(formState.base.rv)) labSync.setBaseHint(formState.uid, formState.base.rv);
   const res = formState.uid ? store.update(formState.uid, payload) : store.add(payload, new Date(formState.createdAt));
+  if (!wasAdd && labSync) labSync.clearBaseHint(formState.uid);
   if (!res.ok) {
     showFormError(res.errors.join('. '));
     return;
@@ -1659,7 +1709,7 @@ function openBatch() {
   const typeId = withPending.length
     ? withPending.slice().sort((a, b) => b.n - a.n)[0].type.id
     : (getTestTypes()[0] ? getTestTypes()[0].id : null);
-  batchState = { typeId, uids: [], work: {}, cur: 0, mode: null };
+  batchState = { typeId, uids: [], work: {}, snap: {}, cur: 0, mode: null };
   if (typeId) loadBatchType(typeId);
   switchView('batch');
 }
@@ -1668,7 +1718,11 @@ function loadBatchType(typeId) {
   const recs = batchPending(typeId);
   batchState.uids = recs.map((r) => r.uid);
   batchState.work = {};
-  recs.forEach((r) => { batchState.work[r.uid] = Object.assign({}, r.results || {}); });
+  batchState.snap = {}; /* v87: bản KTV đã thấy lúc mở lô (kết quả + phiên bản) — để chỉ ghi ô KTV thực sự nhập */
+  recs.forEach((r) => {
+    batchState.work[r.uid] = Object.assign({}, r.results || {});
+    batchState.snap[r.uid] = { results: Object.assign({}, r.results || {}), rv: r.rv };
+  });
   batchState.cur = 0;
   batchShownCur = -1; /* mở lô / đổi loại: lần vẽ thẻ đầu tiên luôn cuộn lên đầu */
 }
@@ -1693,28 +1747,44 @@ function batchDirty(uid) {
   const rec = store.getByUid(uid);
   if (!rec) return false;
   const type = getTestType(batchState.typeId);
-  return type.fields.some((f) => (batchState.work[uid][f.key] || '') !== ((rec.results || {})[f.key] || ''));
+  /* so với bản KTV đã thấy lúc mở lô (v87), KHÔNG so với bản hiện tại: máy khác có thể vừa nhập kết quả cho mẫu này */
+  const snap = (batchState.snap || {})[uid];
+  const seen = snap ? snap.results : (rec.results || {});
+  return type.fields.some((f) => (batchState.work[uid][f.key] || '') !== ((seen || {})[f.key] || ''));
 }
 function batchDirtyCount() { return batchState.uids.filter(batchDirty).length; }
 function saveBatch() {
   let saved = 0;
+  let skippedReleased = 0;
+  const type = getTestType(batchState.typeId);
   batchState.uids.slice().forEach((uid) => {
     if (!batchDirty(uid)) return;
     const oldRec = store.getByUid(uid);
     if (!oldRec) return;
+    if (syncActive() && oldRec.releaseAt) { skippedReleased += 1; return; } /* đã phát hành ở máy khác: được bảo vệ */
     const work = batchState.work[uid];
-    const payload = { results: Object.assign({}, work) };
-    if (store.hasResult({ typeId: batchState.typeId, results: work })) {
+    const snap = (batchState.snap || {})[uid] || { results: oldRec.results || {}, rv: oldRec.rv };
+    /* Chỉ ghi các ô KTV THỰC SỰ nhập, đặt lên bản mới nhất — ô không đụng tới giữ nguyên giá trị (kể cả giá trị máy khác vừa nhập) */
+    const merged = Object.assign({}, oldRec.results || {});
+    type.fields.forEach((f) => {
+      const mine = work[f.key] || '';
+      if (mine !== ((snap.results || {})[f.key] || '')) merged[f.key] = mine;
+    });
+    const payload = { results: merged };
+    if (store.hasResult({ typeId: batchState.typeId, results: merged })) {
       payload.timerEndsAt = null;
       payload.performer = currentOperator;
     }
+    if (syncActive() && Number.isInteger(snap.rv)) labSync.setBaseHint(uid, snap.rv); /* mốc = bản đã thấy → sửa trùng ô thì báo xung đột */
     const res = store.update(uid, payload);
+    if (labSync) labSync.clearBaseHint(uid);
     if (res.ok) {
       saved++;
       const parts = diffRecordChanges(oldRec, Object.assign({}, oldRec, payload));
       if (parts.length) audit('save', parts.join('; '), res.record);
     }
   });
+  if (skippedReleased) toast(skippedReleased + ' mẫu đã được phát hành ở máy khác nên không lưu thay đổi của lô');
   if (saved) {
     syncNativeAlarms();
     toast('Đã lưu kết quả ' + saved + ' mẫu');
@@ -2220,7 +2290,10 @@ function loadStaff() {
   } catch (e) { staffList = []; }
   try { currentOperator = localStorage.getItem(OPERATOR_KEY) || ''; } catch (e) { currentOperator = ''; }
 }
-function persistStaff() { try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ } }
+function persistStaff() {
+  try { localStorage.setItem(STAFF_KEY, JSON.stringify(staffList)); } catch (e) { /* bỏ qua */ }
+  if (labSync && !applyingRemoteStaff) labSync.notifyStaff(staffList); /* v87: KTV (tên, PIN băm, chữ ký) dùng chung */
+}
 function persistOperator() { try { localStorage.setItem(OPERATOR_KEY, currentOperator); } catch (e) { /* bỏ qua */ } }
 
 function staffNames() { return staffList.map((x) => x.name); }
@@ -2289,7 +2362,15 @@ async function hashPin(pin, salt) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
       return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
     }
-  } catch (e) { /* rơi xuống hàm băm dự phòng bên dưới */ }
+  } catch (e) { /* rơi xuống SHA-256 thuần JS bên dưới */ }
+  /* v87: trang mở bằng http://<IP máy chủ LAN> không có crypto.subtle -> dùng SHA-256 thuần JS,
+     cho kết quả GIỐNG HỆT, nên PIN tạo ở máy này vẫn kiểm tra đúng ở mọi máy khác. */
+  return LabStore.sha256Hex(text);
+}
+
+/* Băm dự phòng KIỂU CŨ (≤ v86, 16 ký tự hex, không phải SHA-256) — chỉ còn để kiểm tra PIN đã lưu
+   từ môi trường không có crypto.subtle trước v87. */
+function legacyFallbackHash(text) {
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < text.length; i++) {
     const ch = text.charCodeAt(i);
@@ -2304,7 +2385,8 @@ async function hashPin(pin, salt) {
 async function verifyStaffPin(name, pin) {
   const st = findStaff(name);
   if (!st || !st.pinHash) return false;
-  return (await hashPin(pin, st.salt)) === st.pinHash;
+  if ((await hashPin(pin, st.salt)) === st.pinHash) return true;
+  return st.pinHash.length === 16 && legacyFallbackHash((st.salt || '') + ':' + pin) === st.pinHash;
 }
 
 let pinSession = null; /* { mode: 'verify' | 'set', name, resolve } */
@@ -2630,7 +2712,7 @@ function saveAuditLog() {
 }
 
 function audit(action, detail, rec) {
-  auditLog.push({
+  const entry = {
     id: 'a' + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36),
     at: new Date().toISOString(),
     actor: currentOperator || '',
@@ -2638,9 +2720,11 @@ function audit(action, detail, rec) {
     testId: rec ? (rec.testId || '') : '',
     typeId: rec ? (rec.typeId || '') : '',
     detail: detail || '',
-  });
+  };
+  auditLog.push(entry);
   if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
   saveAuditLog();
+  if (labSync) labSync.notifyAudit(entry); /* v87: nhật ký chung của cả phòng xét nghiệm */
 }
 
 /* Cổng thao tác: chưa có KTV trực thì chặn + báo rõ, trả về false */
@@ -4440,6 +4524,262 @@ function initTheme() {
   applyTheme();
 }
 
+/* ================= Đồng bộ LAN (v87) =================
+ * Nhiều máy (PC, điện thoại Android) trong cùng mạng LAN dùng CHUNG một dữ liệu mẫu qua một máy chủ
+ * LabEntry (server/server.js) chạy trong phòng xét nghiệm. Mỗi máy vẫn là bản làm việc đầy đủ:
+ * mất mạng vẫn nhập/phát hành bình thường, có mạng lại tự khớp (engine ở sync.js, luật gộp/xung
+ * đột ở sync-core.js). Phần dưới đây chỉ là giao diện + nối với KTV/danh mục/nhật ký của app. */
+const SYNC_PATH_LABEL = {
+  note: 'Ghi chú', releaseAt: 'Phát hành', releaser: 'KTV phát hành', receiver: 'KTV nhận', testId: 'ID xét nghiệm',
+  typeId: 'Loại xét nghiệm', deferReason: 'Lý do hẹn lại', deferNote: 'Ghi chú hẹn lại', deferAt: 'Giờ hẹn lại',
+  performer: 'KTV thực hiện', resultAt: 'Giờ lưu kết quả', urgent: 'Mẫu khẩn', timerEndsAt: 'Hẹn giờ',
+};
+let syncRefreshTimer = null;
+
+function syncPathLabel(c, path) {
+  if (path.indexOf('results.') === 0) {
+    const type = getTestType(c.typeId);
+    const f = type && type.fields.find((x) => x.key === path.slice(8));
+    return f ? f.label : path.slice(8);
+  }
+  return SYNC_PATH_LABEL[path] || path;
+}
+function syncValueText(path, v) {
+  if (v === null || v === undefined || v === '') return '(trống)';
+  if (typeof v === 'boolean') return v ? 'Có' : 'Không';
+  if (/At$/.test(path) && typeof v === 'string') return fmtFull(v);
+  return String(v);
+}
+function syncWho(c) { return c.operator ? 'KTV ' + c.operator : 'một máy khác'; }
+
+/* Mỗi xung đột hiện bằng lời dễ hiểu + nút chọn. Trả về { html, choices } */
+function describeConflict(c) {
+  const typeName = (getTestType(c.typeId) || {}).name || c.typeId || '';
+  const head = c.testId ? '<b>Mẫu ' + esc(c.testId) + '</b>' + (typeName ? ' · ' + esc(typeName) : '') : '<b>Danh mục xét nghiệm</b>';
+  /* resultAt/timerEndsAt là dấu giờ tự động đi kèm thao tác — không đưa vào lời giải thích cho KTV */
+  const rows = (c.paths || []).filter((p) => p.reason !== 'content-changed' && p.path !== 'resultAt' && p.path !== 'timerEndsAt').map((p) =>
+    '<div class="sync-row"><span class="sync-lbl">' + esc(syncPathLabel(c, p.path)) + '</span>' +
+    '<span class="sync-mine">' + esc(syncWho(c)) + ': <b>' + esc(syncValueText(p.path, p.mine)) + '</b></span>' +
+    '<span class="sync-theirs">Đang lưu: <b>' + esc(syncValueText(p.path, p.theirs)) + '</b></span></div>').join('');
+  const stale = (c.paths || []).some((p) => p.reason === 'content-changed');
+  let text = '';
+  let choices = [['keep-server', 'Đã hiểu']];
+  if (c.kind === 'field') {
+    if (stale) text = 'Chưa phát hành được: kết quả đã bị máy khác đổi sau khi ' + esc(syncWho(c)) + ' xem. Hãy xem lại kết quả mới rồi phát hành.';
+    else { text = esc(syncWho(c)) + ' nhập khác với bản đang lưu (máy khác đã sửa trước). Bản đang lưu được giữ — chọn bản đúng:'; choices = [['keep-server', 'Giữ bản đang lưu'], ['apply-mine', 'Dùng bản của ' + (c.operator ? c.operator : 'máy kia')]]; }
+  } else if (c.kind === 'duplicate-intake') {
+    if (c.info) text = 'Mẫu này được tiếp nhận ở 2 máy cùng lúc — đã gộp thành MỘT bản ghi, không bị trùng.';
+    else { text = 'Mẫu này được tiếp nhận ở 2 máy với nội dung khác nhau. Bản ghi chung giữ bản đến trước — chọn giá trị đúng:'; choices = [['keep-server', 'Giữ bản đang lưu'], ['apply-mine', 'Dùng bản của ' + (c.operator ? c.operator : 'máy kia')]]; }
+  } else if (c.kind === 'edit-on-released') {
+    text = 'Mẫu đã PHÁT HÀNH nên được bảo vệ: thay đổi của ' + esc(syncWho(c)) + ' bị từ chối, kết quả phát hành giữ nguyên. Muốn sửa thật sự thì Hủy phát hành ở trang Xem trước.';
+  } else if (c.kind === 'delete-released') {
+    text = esc(syncWho(c)) + ' định xóa mẫu đã PHÁT HÀNH — bị từ chối, mẫu vẫn còn nguyên.';
+  } else if (c.kind === 'delete-stale') {
+    text = esc(syncWho(c)) + ' định xóa mẫu này nhưng mẫu vừa được máy khác sửa — chưa xóa. Mở mẫu xem lại, cần thì xóa lại.';
+  } else if (c.kind === 'unrelease-stale') {
+    text = 'Hủy phát hành bị từ chối vì mẫu đã thay đổi từ lúc ' + esc(syncWho(c)) + ' xem. Mở lại mẫu để xem bản mới.';
+  } else if (c.kind === 'edit-on-deleted') {
+    text = 'Mẫu này đã bị xóa ở máy khác, nhưng ' + esc(syncWho(c)) + ' vừa sửa nó. Giữ trạng thái xóa, hay khôi phục mẫu cùng thay đổi của ' + esc(c.operator || 'máy kia') + '?';
+    choices = [['keep-server', 'Giữ trạng thái xóa'], ['apply-mine', 'Khôi phục mẫu']];
+  } else if (c.kind === 'types-conflict') {
+    text = 'Danh mục xét nghiệm đã được sửa ở máy khác lúc ' + esc(syncWho(c)) + ' cũng sửa. Danh mục chung được giữ — chọn:';
+    choices = [['keep-server', 'Giữ danh mục chung'], ['apply-mine', 'Dùng danh mục của ' + (c.operator ? c.operator : 'máy kia')]];
+  } else {
+    text = 'Có thay đổi chưa áp dụng được.';
+  }
+  const btns = choices.map(([ch, label], i) =>
+    '<button type="button" class="mini-btn' + (i === 0 ? '' : ' primary') + '" data-sync-resolve="' + esc(c.id) + '" data-choice="' + ch + '">' + esc(label) + '</button>').join('');
+  return '<div class="sync-conflict ' + (c.info ? 'info' : '') + '"><div class="sync-c-head">' + head + '<span class="sync-c-when">' + esc(fmtFull(c.at)) + '</span></div>' +
+    '<div class="sync-c-text">' + text + '</div>' + rows + '<div class="sync-c-btns">' + btns + '</div></div>';
+}
+
+function syncStatusText(s) {
+  const when = s.lastOkAt ? ' · khớp lúc ' + fmtFull(s.lastOkAt) : '';
+  if (!s.enabled) return 'Chưa nối máy chủ — máy này đang dùng dữ liệu riêng.';
+  if (s.paused || s.mode === 'paused') return '⏸ Đang tạm ngắt đồng bộ' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : '') + '. Bấm “Nối lại” để dùng chung dữ liệu.';
+  if (s.mode === 'online') return '🟢 Đang dùng chung dữ liệu với máy chủ ' + s.url + when + (s.pending ? ' · đang gửi ' + s.pending + ' thay đổi' : '');
+  if (s.mode === 'connecting') return '🔄 Đang nối máy chủ ' + s.url + '…';
+  return '🟠 Mất kết nối máy chủ — bạn vẫn làm việc bình thường trên máy này' + (s.pending ? ' (' + s.pending + ' thay đổi sẽ tự gửi khi có mạng lại)' : '') + '.';
+}
+
+function renderSyncStatus(s) {
+  s = s || (labSync ? labSync.getStatus() : { enabled: false });
+  const bar = $('sync-bar');
+  if (bar) {
+    const conflicts = labSync ? labSync.getConflicts().filter((c) => !c.info).length : 0;
+    const infos = labSync ? labSync.getConflicts().length - conflicts : 0;
+    bar.classList.toggle('hidden', !s.enabled);
+    bar.classList.remove('online', 'offline', 'alert');
+    let text = '';
+    if (s.enabled) {
+      if (conflicts > 0) { bar.classList.add('alert'); text = '⚠ ' + conflicts + ' xung đột cần KTV xem và chọn' + (s.mode !== 'online' ? ' · mất kết nối' : ''); }
+      else if (s.paused || s.mode === 'paused') { bar.classList.add('offline'); text = '⏸ Tạm ngắt đồng bộ' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : ''); }
+      else if (s.mode === 'online') { bar.classList.add('online'); text = '🟢 Dùng chung dữ liệu · ' + (s.pending ? 'đang gửi ' + s.pending + ' thay đổi' : 'đã khớp') + (infos ? ' · ' + infos + ' thông báo' : ''); }
+      else if (s.mode === 'connecting') { bar.classList.add('offline'); text = '🔄 Đang nối máy chủ…'; }
+      else { bar.classList.add('offline'); text = '🟠 Mất mạng — làm việc riêng trên máy này' + (s.pending ? ' · ' + s.pending + ' thay đổi chờ gửi' : '') + '. Có mạng lại sẽ tự khớp.'; }
+    }
+    $('sync-bar-text').textContent = text;
+  }
+  const modal = $('sync-modal');
+  if (modal && !modal.classList.contains('hidden')) renderSyncDialog();
+}
+
+function renderSyncDialog() {
+  if (!labSync) return;
+  const s = labSync.getStatus();
+  $('sync-status-line').textContent = syncStatusText(s);
+  const urlEl = $('sync-url');
+  if (urlEl && document.activeElement !== urlEl && !urlEl.value) urlEl.value = (s.url || '').replace(/^http:\/\//, '').replace(/:8787$/, '');
+  $('btn-sync-now').classList.toggle('hidden', !s.enabled);
+  $('btn-sync-pause').classList.toggle('hidden', !s.enabled);
+  $('btn-sync-pause').textContent = (s.paused || s.mode === 'paused') ? '▶ Nối lại' : '⏸ Tạm ngắt';
+  $('btn-sync-forget').classList.toggle('hidden', !s.enabled);
+  const list = labSync.getConflicts();
+  $('sync-conflict-count').textContent = list.length ? '(' + list.length + ')' : '';
+  $('sync-conflicts').innerHTML = list.length ? list.map(describeConflict).join('') : '<div class="empty-msg">Không có xung đột nào cần xem.</div>';
+  const httpsBlock = location.protocol === 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !(window.LabAlarmNative);
+  $('sync-hint').classList.toggle('hidden', !httpsBlock);
+}
+
+function openSyncDialog() {
+  if (!labSync) { toast('Bản trình duyệt này chưa hỗ trợ đồng bộ LAN'); return; }
+  $('sync-discover-msg').textContent = '';
+  $('sync-modal').classList.remove('hidden');
+  renderSyncDialog();
+}
+function closeSyncDialog() { $('sync-modal').classList.add('hidden'); }
+
+async function syncConnectClicked() {
+  const msg = $('sync-discover-msg');
+  const val = $('sync-url').value.trim();
+  if (!val) { msg.textContent = 'Nhập địa chỉ máy chủ (ví dụ 192.168.1.10) — máy chủ hiện địa chỉ này trên màn hình của nó.'; return; }
+  msg.textContent = 'Đang nối…';
+  const r = await labSync.connect(val);
+  msg.textContent = r.ok ? '✅ Đã nối máy chủ. Dữ liệu từ giờ dùng chung.' : '❌ ' + r.error;
+  renderSyncDialog();
+}
+
+/* Tìm máy chủ: thử các địa chỉ LAN hay gặp (cổng 8787) — chạy được khi trang cho phép gọi http (app Android / trang do chính máy chủ phát) */
+async function syncDiscoverClicked() {
+  const msg = $('sync-discover-msg');
+  const prefixes = [];
+  const m = /(\d+\.\d+\.\d+)\.\d+/.exec($('sync-url').value || (labSync.getState().url || ''));
+  if (m) prefixes.push(m[1]);
+  ['192.168.1', '192.168.0', '192.168.100', '192.168.2', '10.0.0', '10.0.1', '172.16.0'].forEach((p) => { if (!prefixes.includes(p)) prefixes.push(p); });
+  const cands = [];
+  prefixes.forEach((p) => { for (let i = 1; i < 255; i++) cands.push('http://' + p + '.' + i + ':8787'); });
+  msg.textContent = 'Đang tìm máy chủ trong mạng… (có thể mất ~1 phút)';
+  const found = await labSync.discover(cands, (n) => { if (n % 60 === 0) msg.textContent = 'Đang tìm máy chủ… ' + Math.round(100 * n / cands.length) + '%'; });
+  if (found) {
+    $('sync-url').value = found.url.replace(/^http:\/\//, '').replace(/:8787$/, '');
+    msg.textContent = '✅ Thấy máy chủ ở ' + found.url + ' — bấm Kết nối.';
+  } else {
+    msg.textContent = 'Không thấy máy chủ. Kiểm tra: máy chủ đang chạy, cùng Wi-Fi/mạng, hoặc gõ địa chỉ do máy chủ hiển thị.';
+  }
+}
+
+function scheduleSyncRefresh() {
+  if (syncRefreshTimer) return;
+  syncRefreshTimer = setTimeout(() => {
+    syncRefreshTimer = null;
+    try {
+      refreshTypeSelects();
+      renderOperatorControls();
+      refreshCurrent();
+      syncNativeAlarms();
+      if (!$('summary-modal').classList.contains('hidden') && summaryUid) {
+        if (store.getByUid(summaryUid)) openSummary(summaryUid); else closeSummary();
+      }
+      if (!$('view-form').classList.contains('hidden') && formState.uid && formState.base) {
+        const cur = store.getByUid(formState.uid);
+        if (cur && cur.rv !== formState.base.rv && !formState.warnedRemote) {
+          formState.warnedRemote = true;
+          toast('⚠ Mẫu đang mở vừa được máy khác cập nhật. Ô bạn không sửa giữ giá trị mới; nếu bạn sửa đúng ô máy khác vừa sửa, app sẽ báo xung đột để chọn (không ghi đè).');
+        }
+      }
+    } catch (e) { /* lỗi vẽ lại không được làm hỏng đồng bộ */ }
+  }, 60);
+}
+
+function mergeRemoteAudit(list) {
+  const have = new Set(auditLog.map((e) => e.id));
+  let added = 0;
+  sanitizeAuditLog(list).forEach((e) => { if (!have.has(e.id)) { auditLog.push(e); have.add(e.id); added += 1; } });
+  if (!added) return;
+  auditLog.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
+  saveAuditLog();
+  if (!$('view-audit').classList.contains('hidden')) renderAuditLog();
+}
+
+function initSync() {
+  if (typeof LabSync === 'undefined' || typeof LabSyncCore === 'undefined') return;
+  let storage;
+  try { storage = localStorage; } catch (e) { storage = null; }
+  labSync = LabSync.create({
+    store,
+    storage: storage || undefined,
+    hooks: {
+      getTypes: () => getTestTypes(),
+      applyRemoteTypes: (list) => {
+        if (validateTypeDefs(list).length) return;
+        applyingRemoteTypes = true;
+        try { setTestTypes(list); persistTypes(); } finally { applyingRemoteTypes = false; }
+        refreshTypeSelects();
+        if (!$('view-types').classList.contains('hidden')) renderTypes();
+      },
+      getStaff: () => staffList,
+      applyRemoteStaff: (items) => {
+        applyingRemoteStaff = true;
+        try {
+          items.forEach((it) => {
+            const i = staffList.findIndex((x) => x.name.toLowerCase() === it.key);
+            if (it.deleted) { if (i >= 0) staffList.splice(i, 1); return; }
+            const e = normalizeStaffEntry(it.entry);
+            if (!e) return;
+            if (i >= 0) staffList[i] = e; else staffList.push(e);
+          });
+          persistStaff();
+        } finally { applyingRemoteStaff = false; }
+        if (currentOperator && !findStaff(currentOperator)) { setOperator(''); toast('KTV trực đã bị xóa khỏi danh sách ở máy khác — hãy chọn lại người trực'); }
+        renderOperatorControls();
+        if (!$('staff-modal').classList.contains('hidden')) renderStaffList();
+      },
+      getAudit: () => auditLog,
+      mergeAudit: mergeRemoteAudit,
+      getOperator: () => currentOperator,
+      onDataChanged: scheduleSyncRefresh,
+      onStatus: renderSyncStatus,
+      onNotice: (m) => toast(m),
+      confirmAdopt: (info) => {
+        if (!info.localRecords) return Promise.resolve(true);
+        return Promise.resolve(confirm('Máy này đang có ' + info.localRecords + ' mẫu.\n\nNối vào máy chủ LabEntry sẽ GỬI các mẫu này vào dữ liệu chung' +
+          (info.serverRecords ? ' (máy chủ đang có ' + info.serverRecords + ' mẫu)' : '') + ':\n• Mẫu trùng ID + loại và giống hệt nhau → gộp thành một.\n• Mẫu trùng nhưng khác nội dung → báo xung đột để KTV chọn, không mất gì.\n• Dữ liệu trên máy giữ nguyên và được lưu dự phòng.\n\nTiếp tục?'));
+      },
+    },
+  });
+  syncBridge.onChange = labSync.onStoreChange;
+  labSync.init();
+  renderSyncStatus();
+  trySameOriginConnect();
+}
+
+/* Mở app bằng địa chỉ do chính máy chủ phát (http://<IP>:8787) → tự nối, KTV không phải cài đặt gì.
+   Máy chủ đổi IP (DHCP) mà KTV mở lại bằng địa chỉ mới → tự cập nhật địa chỉ nếu đúng là máy chủ cũ. */
+async function trySameOriginConnect() {
+  try {
+    if (!labSync || !/^https?:$/.test(location.protocol) || /github\.io$/i.test(location.hostname)) return;
+    const st = labSync.getState();
+    if (st.enabled && st.url === location.origin) return;
+    let info;
+    try { info = await labSync.probe(location.origin, 2500); } catch (e) { return; }
+    if (st.enabled && st.serverId && info.serverId !== st.serverId) return; /* máy chủ khác: để KTV tự quyết trong hộp thoại */
+    const r = await labSync.connect(location.origin);
+    if (r.ok && !st.enabled) toast('Đã nối máy chủ LabEntry ' + location.host + ' — dữ liệu dùng chung với các máy khác');
+    else if (!r.ok && r.error) toast(r.error);
+  } catch (e) { /* không nối được: giữ chế độ riêng */ }
+}
+
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
@@ -4490,6 +4830,13 @@ function init() {
   $('btn-delete-selected').addEventListener('click', () => {
     if (!selectedUids.size) { toast('Chưa chọn kết quả nào'); return; }
     if (!requireOperator('xóa kết quả')) return;
+    if (syncActive()) {
+      const protectedIds = [...selectedUids].map((uid) => store.getByUid(uid)).filter((r) => r && r.releaseAt);
+      if (protectedIds.length) {
+        toast(protectedIds.length + ' mẫu đã phát hành được bảo vệ, không xóa được (' + protectedIds.slice(0, 3).map((r) => r.testId).join(', ') + (protectedIds.length > 3 ? '…' : '') + '). Bỏ chọn các mẫu đó rồi xóa lại.');
+        return;
+      }
+    }
     if (!confirm('Xóa ' + selectedUids.size + ' kết quả đã chọn?')) return;
     const snaps = [...selectedUids].map((uid) => store.getByUid(uid)).filter(Boolean);
     selectedUids.forEach((uid) => store.remove(uid));
@@ -4742,6 +5089,41 @@ function init() {
     inp.value = '';
     if (f) scanPhotoFile(f);
   });
+
+  /* v87: đồng bộ LAN */
+  $('btn-sync').addEventListener('click', openSyncDialog);
+  $('sync-bar').addEventListener('click', openSyncDialog);
+  $('btn-sync-close').addEventListener('click', closeSyncDialog);
+  $('btn-sync-connect').addEventListener('click', syncConnectClicked);
+  $('sync-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); syncConnectClicked(); } });
+  $('btn-sync-discover').addEventListener('click', syncDiscoverClicked);
+  $('btn-sync-now').addEventListener('click', async () => { await labSync.syncNow(); toast('Đã đồng bộ'); renderSyncDialog(); });
+  $('btn-sync-pause').addEventListener('click', async () => {
+    const s = labSync.getStatus();
+    if (s.paused || s.mode === 'paused') await labSync.resume(); else labSync.disconnect();
+    renderSyncDialog();
+  });
+  $('btn-sync-forget').addEventListener('click', () => {
+    if (!confirm('Ngừng dùng chung dữ liệu? Máy này giữ nguyên dữ liệu hiện có nhưng từ nay làm việc riêng; các thay đổi chưa gửi lên máy chủ sẽ KHÔNG còn được gửi.')) return;
+    labSync.forget();
+    renderSyncDialog();
+  });
+  $('sync-conflicts').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sync-resolve]');
+    if (!b) return;
+    b.disabled = true;
+    try {
+      await labSync.resolveConflict(b.dataset.syncResolve, b.dataset.choice);
+      toast(b.dataset.choice === 'apply-mine' ? 'Đã áp dụng bản bạn chọn cho mọi máy' : 'Đã xử lý');
+      refreshCurrent();
+    } catch (err) {
+      const reasons = { released: 'Mẫu đã phát hành — không sửa được nữa', deleted: 'Mẫu đã bị xóa', 'duplicate-key': 'ID này đã có mẫu khác' };
+      toast('Chưa áp dụng được: ' + ((err && err.data && reasons[err.data.reason]) || (err && err.message) || 'lỗi không rõ'));
+      b.disabled = false;
+    }
+    renderSyncDialog();
+  });
+  initSync();
 
   switchView('today');
 
