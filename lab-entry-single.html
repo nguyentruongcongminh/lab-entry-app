@@ -45,9 +45,19 @@ svg { width: 24px; height: 24px; display: block; }
   position: sticky; top: 0; z-index: 5;
 }
 .toolbar-spacer { flex: 1; }
-.app-version { color: #b0bec5; font-size: 11px; white-space: nowrap; align-self: center; }
-/* v90: chip ngày hôm nay nhỏ gọn cạnh tem phiên bản (tab Kết quả hôm nay) */
-.today-date { color: var(--muted); font-size: 12px; white-space: nowrap; align-self: center; }
+.app-version { color: #b0bec5; font-size: 11px; white-space: nowrap; align-self: center; flex: none; }
+/* v90: chip ngày hôm nay nhỏ gọn cạnh tem phiên bản (tab Kết quả hôm nay).
+   v91: min-width:0 + ellipsis — chip được phép co lại thay vì ép trang
+   rộng hơn màn hình (bản v90 làm trang giãn layout ở máy hẹp/phóng to,
+   nút + và linh vật neo mép phải bị cắt — Minh báo trên máy thật). */
+.today-date { color: var(--muted); font-size: 12px; white-space: nowrap; align-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* v91: màn hình hẹp — ẩn phần thứ trong chip ngày (chỉ còn dd/mm/yyyy) và
+   thu hẹp thanh công cụ, giữ tổng bề rộng tối thiểu luôn dưới bề rộng máy */
+@media (max-width: 480px) {
+  .td-wd { display: none; }
+  .toolbar { gap: 2px; padding: 10px 6px; }
+  .icon-btn { padding: 6px; }
+}
 .icon-btn { padding: 8px; border-radius: 8px; color: #37474f; }
 .icon-btn:active { background: #eceff1; }
 .icon-btn.ghost { visibility: hidden; }
@@ -1052,7 +1062,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v90</span>
+    <span class="app-version">LabEntry v91</span>
     <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
@@ -4266,7 +4276,8 @@ function updateTodayDate() {
   const now = new Date();
   const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
   const p = (n) => String(n).padStart(2, '0');
-  el.textContent = wd + ' · ' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+  /* Phần thứ nằm trong span .td-wd để CSS ẩn nó ở màn hình hẹp (v91) */
+  el.innerHTML = '<span class="td-wd">' + esc(wd) + ' · </span>' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
 }
 
 function renderToday() {

@@ -639,7 +639,8 @@ function updateTodayDate() {
   const now = new Date();
   const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
   const p = (n) => String(n).padStart(2, '0');
-  el.textContent = wd + ' · ' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+  /* Phần thứ nằm trong span .td-wd để CSS ẩn nó ở màn hình hẹp (v91) */
+  el.innerHTML = '<span class="td-wd">' + esc(wd) + ' · </span>' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
 }
 
 function renderToday() {

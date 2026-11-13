@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v90 và precache đúng URL ?v=90 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v91 và precache đúng URL ?v=91 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v90'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=90', 'print.css?v=90', 'config.js?v=90', 'store.js?v=90', 'sync-core.js?v=90', 'sync.js?v=90', 'mascot.js?v=90', 'app.js?v=90', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v91'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=91', 'print.css?v=91', 'config.js?v=91', 'store.js?v=91', 'sync-core.js?v=91', 'sync.js?v=91', 'mascot.js?v=91', 'app.js?v=91', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2428,6 +2428,13 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     const p2 = (n) => String(n).padStart(2, '0');
     const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
     assert.strictEqual($16('today-date').textContent, wd + ' · ' + p2(now.getDate()) + '/' + p2(now.getMonth() + 1) + '/' + now.getFullYear(), 'chip hiện đúng ngày hôm nay');
+    /* v91: phần thứ nằm trong span .td-wd (ẩn ở màn hẹp) + CSS chống tràn
+       ngang thanh công cụ — hồi quy lỗi v90 làm trang giãn rộng hơn màn
+       hình, nút + và linh vật neo mép phải bị cắt trên máy thật của Minh */
+    assert.ok($16('today-date').querySelector('.td-wd'), 'phần thứ của chip nằm trong span .td-wd');
+    const css91 = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+    assert.ok(/\.td-wd\s*\{\s*display:\s*none/.test(css91), 'màn hẹp ẩn phần thứ của chip ngày');
+    assert.ok(/\.today-date\s*\{[^}]*min-width:\s*0/.test(css91), 'chip ngày co lại được (min-width:0), không ép trang rộng ra');
 
     /* Gieo mẫu với các mốc giờ cố định trong hôm nay (giờ địa phương) */
     const isoAt = (h, m) => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(h) + ':' + p(m) + ':00'; };
