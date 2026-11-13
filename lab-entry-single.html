@@ -46,6 +46,8 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .toolbar-spacer { flex: 1; }
 .app-version { color: #b0bec5; font-size: 11px; white-space: nowrap; align-self: center; }
+/* v90: chip ngày hôm nay nhỏ gọn cạnh tem phiên bản (tab Kết quả hôm nay) */
+.today-date { color: var(--muted); font-size: 12px; white-space: nowrap; align-self: center; }
 .icon-btn { padding: 8px; border-radius: 8px; color: #37474f; }
 .icon-btn:active { background: #eceff1; }
 .icon-btn.ghost { visibility: hidden; }
@@ -192,6 +194,9 @@ svg { width: 24px; height: 24px; display: block; }
 .filter-row input, .filter-row select {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: #fff;
 }
+/* v90: hai ô giờ trong một hàng lọc + chú thích khoảng giờ */
+.time-range { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; width: auto; }
+.filter-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
 .filter-actions { display: flex; gap: 10px; margin-top: 16px; }
 .primary-btn {
   flex: 1; background: var(--blue); color: #fff; border-radius: 6px;
@@ -1047,7 +1052,8 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v89</span>
+    <span class="app-version">LabEntry v90</span>
+    <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -1186,6 +1192,18 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       </select>
     </label>
     <label class="filter-row"><span>ID xét nghiệm</span><input id="f-query" type="search" placeholder="Nhập một phần ID..."></label>
+    <label class="filter-row"><span>Kết quả (chứa chữ)</span><input id="f-result-text" type="search" placeholder="Ví dụ: Dương tính, 5.2..."></label>
+    <div class="filter-row"><span>Giờ nhận mẫu</span><span class="time-range"><input id="f-recv-from" type="time"> – <input id="f-recv-to" type="time"></span></div>
+    <div class="filter-row"><span>Giờ có kết quả</span><span class="time-range"><input id="f-result-from" type="time"> – <input id="f-result-to" type="time"></span></div>
+    <div class="filter-row"><span>Giờ phát hành</span><span class="time-range"><input id="f-rel-from" type="time"> – <input id="f-rel-to" type="time"></span></div>
+    <label class="filter-row"><span>Mẫu hẹn lại</span>
+      <select id="f-deferred">
+        <option value="">Tất cả</option>
+        <option value="only">Chỉ mẫu hẹn lại</option>
+        <option value="none">Không tính mẫu hẹn lại</option>
+      </select>
+    </label>
+    <p class="filter-note">Khoảng giờ tính theo giờ trong ngày, áp cho mọi ngày trong khoảng Từ–Đến ngày ở trên. Ca đêm để khoảng qua nửa đêm, ví dụ từ 22:00 đến 06:00.</p>
     <div class="filter-actions">
       <button type="button" id="btn-apply-filter" class="primary-btn">Lọc</button>
       <button type="button" id="btn-print" class="primary-btn outline">Xuất PDF</button>
@@ -2378,6 +2396,15 @@ const LabStore = (() => {
           if (c.from && day < c.from) return false;
           if (c.to && day > c.to) return false;
         }
+        /* v90: khoảng GIỜ trong ngày (giờ địa phương) cho 3 mốc — nhận mẫu
+           (createdAt), có kết quả (resultAt), phát hành (releaseAt); khoảng
+           qua nửa đêm (vd 22:00–06:00 ca đêm) cũng được. Mẫu thiếu mốc giờ
+           tương ứng bị loại khi có đặt khoảng giờ cho mốc đó. */
+        if (!hourInRange(rec.createdAt, c.recvFrom, c.recvTo)) return false;
+        if (!hourInRange(rec.resultAt, c.resultFrom, c.resultTo)) return false;
+        if (!hourInRange(rec.releaseAt, c.relFrom, c.relTo)) return false;
+        if (c.defer === 'only' && !rec.deferReason) return false;
+        if (c.defer === 'none' && rec.deferReason) return false;
         return true;
       });
     }
@@ -2388,6 +2415,21 @@ const LabStore = (() => {
   function localDayKey(d) {
     const p = (n) => String(n).padStart(2, '0');
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  /* v90: iso có thuộc khoảng giờ [from,to] ('HH:MM', giờ địa phương) không.
+     Không đặt đầu nào = không ràng buộc đầu đó; khoảng qua nửa đêm
+     (from > to, vd ca đêm 22:00–06:00) = [from..24h) ∪ [0h..to]. */
+  function hourInRange(iso, from, to) {
+    if (!from && !to) return true;
+    if (!iso) return false;
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return false;
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const f = from ? (+from.slice(0, 2)) * 60 + (+from.slice(3, 5)) : null;
+    const t = to ? (+to.slice(0, 2)) * 60 + (+to.slice(3, 5)) : null;
+    if (f !== null && t !== null) return f <= t ? (mins >= f && mins <= t) : (mins >= f || mins <= t);
+    return f !== null ? mins >= f : mins <= t;
   }
 
   /*
@@ -4216,7 +4258,19 @@ function refreshCurrent() {
 let selectMode = false;
 const selectedUids = new Set();
 
+/* v90: chip ngày hôm nay ở góc thanh công cụ tab Kết quả hôm nay —
+   cập nhật mỗi lần dựng lại danh sách (đổi ngày là tự mới) */
+function updateTodayDate() {
+  const el = $('today-date');
+  if (!el) return;
+  const now = new Date();
+  const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
+  const p = (n) => String(n).padStart(2, '0');
+  el.textContent = wd + ' · ' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+}
+
 function renderToday() {
+  updateTodayDate();
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
   recs = recs.filter((r) => !isDeferred(r)); /* F37: mẫu hẹn lại nằm ở trang riêng */
@@ -4306,6 +4360,15 @@ function currentExportCriteria() {
     typeId: $('f-type').value || '',
     status: $('f-status').value || '',
     query: $('f-query').value || '',
+    /* v90: lọc chi tiết — nội dung kết quả, khoảng giờ 3 mốc, mẫu hẹn lại */
+    resultText: $('f-result-text').value || '',
+    recvFrom: $('f-recv-from').value || '',
+    recvTo: $('f-recv-to').value || '',
+    resultFrom: $('f-result-from').value || '',
+    resultTo: $('f-result-to').value || '',
+    relFrom: $('f-rel-from').value || '',
+    relTo: $('f-rel-to').value || '',
+    defer: $('f-deferred').value || '',
   };
 }
 
@@ -4320,7 +4383,23 @@ function fmtDur(minutes) {
 
 function applyExport() {
   const c = currentExportCriteria();
-  const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
+  let recs = store.filter(null, c);
+  /* v90: lọc theo nội dung kết quả — so với đúng những gì người dùng THẤY:
+     tên loại + nhãn trường + giá trị hiển thị (trường chips để trống hiện
+     "Âm tính" thì tìm "âm tính" cũng thấy). */
+  const needle = (c.resultText || '').trim().toLowerCase();
+  if (needle) {
+    recs = recs.filter((rec) => {
+      const type = getTestType(rec.typeId);
+      const parts = [rec.testId, type ? type.name : ''];
+      if (type) type.fields.forEach((f) => {
+        const v = (rec.results && rec.results[f.key]) || '';
+        parts.push(f.label, f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : v);
+      });
+      return parts.join(' ').toLowerCase().indexOf(needle) >= 0;
+    });
+  }
+  recs = recs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
   fillList($('list-export'), $('empty-export'), recs, { readonly: true });
   $('export-count').textContent = 'Có ' + recs.length + ' kết quả';
   const tat = LabStore.tatStats(recs);

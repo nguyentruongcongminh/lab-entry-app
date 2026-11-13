@@ -32,6 +32,8 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .toolbar-spacer { flex: 1; }
 .app-version { color: #b0bec5; font-size: 11px; white-space: nowrap; align-self: center; }
+/* v90: chip ngày hôm nay nhỏ gọn cạnh tem phiên bản (tab Kết quả hôm nay) */
+.today-date { color: var(--muted); font-size: 12px; white-space: nowrap; align-self: center; }
 .icon-btn { padding: 8px; border-radius: 8px; color: #37474f; }
 .icon-btn:active { background: #eceff1; }
 .icon-btn.ghost { visibility: hidden; }
@@ -178,6 +180,9 @@ svg { width: 24px; height: 24px; display: block; }
 .filter-row input, .filter-row select {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: #fff;
 }
+/* v90: hai ô giờ trong một hàng lọc + chú thích khoảng giờ */
+.time-range { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; width: auto; }
+.filter-note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
 .filter-actions { display: flex; gap: 10px; margin-top: 16px; }
 .primary-btn {
   flex: 1; background: var(--blue); color: #fff; border-radius: 6px;

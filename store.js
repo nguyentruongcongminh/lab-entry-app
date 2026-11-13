@@ -343,6 +343,15 @@ const LabStore = (() => {
           if (c.from && day < c.from) return false;
           if (c.to && day > c.to) return false;
         }
+        /* v90: khoảng GIỜ trong ngày (giờ địa phương) cho 3 mốc — nhận mẫu
+           (createdAt), có kết quả (resultAt), phát hành (releaseAt); khoảng
+           qua nửa đêm (vd 22:00–06:00 ca đêm) cũng được. Mẫu thiếu mốc giờ
+           tương ứng bị loại khi có đặt khoảng giờ cho mốc đó. */
+        if (!hourInRange(rec.createdAt, c.recvFrom, c.recvTo)) return false;
+        if (!hourInRange(rec.resultAt, c.resultFrom, c.resultTo)) return false;
+        if (!hourInRange(rec.releaseAt, c.relFrom, c.relTo)) return false;
+        if (c.defer === 'only' && !rec.deferReason) return false;
+        if (c.defer === 'none' && rec.deferReason) return false;
         return true;
       });
     }
@@ -353,6 +362,21 @@ const LabStore = (() => {
   function localDayKey(d) {
     const p = (n) => String(n).padStart(2, '0');
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  /* v90: iso có thuộc khoảng giờ [from,to] ('HH:MM', giờ địa phương) không.
+     Không đặt đầu nào = không ràng buộc đầu đó; khoảng qua nửa đêm
+     (from > to, vd ca đêm 22:00–06:00) = [from..24h) ∪ [0h..to]. */
+  function hourInRange(iso, from, to) {
+    if (!from && !to) return true;
+    if (!iso) return false;
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return false;
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const f = from ? (+from.slice(0, 2)) * 60 + (+from.slice(3, 5)) : null;
+    const t = to ? (+to.slice(0, 2)) * 60 + (+to.slice(3, 5)) : null;
+    if (f !== null && t !== null) return f <= t ? (mins >= f && mins <= t) : (mins >= f || mins <= t);
+    return f !== null ? mins >= f : mins <= t;
   }
 
   /*

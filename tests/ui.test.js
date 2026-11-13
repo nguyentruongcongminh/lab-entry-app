@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v89 và precache đúng URL ?v=89 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v90 và precache đúng URL ?v=90 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v89'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=89', 'print.css?v=89', 'config.js?v=89', 'store.js?v=89', 'sync-core.js?v=89', 'sync.js?v=89', 'mascot.js?v=89', 'app.js?v=89', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v90'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=90', 'print.css?v=90', 'config.js?v=90', 'store.js?v=90', 'sync-core.js?v=90', 'sync.js?v=90', 'mascot.js?v=90', 'app.js?v=90', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2412,6 +2412,64 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(d15.getElementById('pcfg-sig1-title').value, 'Người duyệt riêng', 'chức danh ô ký đổi theo file');
     assert.strictEqual(d15.getElementById('pcfg-sig1-name').value, 'Tên Riêng Một', 'họ tên ô ký đổi theo file');
     w15.close();
+  });
+
+  test('v90: chip ngày hôm nay + tab Lọc thêm lọc nội dung kết quả, khoảng giờ 3 mốc, mẫu hẹn lại', async () => {
+    const dom16 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, {}); } });
+    const w16 = dom16.window;
+    const d16 = w16.document;
+    await new Promise((res) => { if (d16.readyState === 'complete') res(); else w16.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const $16 = (id) => d16.getElementById(id);
+
+    /* Chip ngày ở góc tab Kết quả hôm nay: đúng thứ + dd/mm/yyyy */
+    const now = new Date();
+    const p2 = (n) => String(n).padStart(2, '0');
+    const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
+    assert.strictEqual($16('today-date').textContent, wd + ' · ' + p2(now.getDate()) + '/' + p2(now.getMonth() + 1) + '/' + now.getFullYear(), 'chip hiện đúng ngày hôm nay');
+
+    /* Gieo mẫu với các mốc giờ cố định trong hôm nay (giờ địa phương) */
+    const isoAt = (h, m) => { const d = new Date(); const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(h) + ':' + p(m) + ':00'; };
+    const seed = (testId, results, created, extra) => w16.eval('(function(){ return store.add(Object.assign({ testId: ' + JSON.stringify(testId) + ", typeId: 'sp', results: " + JSON.stringify(results) + ' }, ' + JSON.stringify(extra || {}) + '), new Date(' + JSON.stringify(created) + ')).record.uid; })()');
+    seed('V90-A', { khac: 'Dương tính nhẹ' }, isoAt(7, 30), { resultAt: isoAt(8, 15), releaseAt: isoAt(9, 0) });
+    seed('V90-B', { hongCau: '(+)', bachCau: '(+)', khac: 'x' }, isoAt(23, 30), { resultAt: isoAt(23, 50) });
+    seed('V90-C', {}, isoAt(12, 0), {});
+    const uidE = seed('V90-E', {}, isoAt(8, 0), {});
+    w16.eval("store.update('" + uidE + "', { deferReason: 'hut-mau', deferNote: '', deferAt: '" + isoAt(8, 5) + "' })");
+
+    const run = () => { $16('btn-apply-filter').click(); return $16('list-export').textContent; };
+    const set = (id, v) => { $16(id).value = v; };
+    const clearAdv = () => { ['f-recv-from', 'f-recv-to', 'f-result-from', 'f-result-to', 'f-rel-from', 'f-rel-to', 'f-result-text'].forEach((i) => set(i, '')); set('f-deferred', ''); };
+
+    let txt = run();
+    assert.ok(txt.includes('V90-A') && txt.includes('V90-B') && txt.includes('V90-C') && txt.includes('V90-E'), 'mặc định hiện cả 4 mẫu (gồm mẫu hẹn lại)');
+
+    set('f-result-text', 'dương tính'); txt = run();
+    assert.ok(txt.includes('V90-A') && !txt.includes('V90-B') && !txt.includes('V90-C') && !txt.includes('V90-E'), 'lọc chữ "dương tính" chỉ còn A');
+    set('f-result-text', 'âm tính'); txt = run();
+    assert.ok(txt.includes('V90-C') && !txt.includes('V90-B'), 'tìm "âm tính" thấy mẫu chips chưa chọn (hiển thị Âm tính), mẫu đã chọn mức (+) thì không');
+    clearAdv();
+
+    set('f-recv-from', '07:00'); set('f-recv-to', '09:00'); txt = run();
+    assert.ok(txt.includes('V90-A') && txt.includes('V90-E') && !txt.includes('V90-B') && !txt.includes('V90-C'), 'giờ nhận 07–09 chỉ A + E');
+    set('f-recv-from', '22:00'); set('f-recv-to', '06:00'); txt = run();
+    assert.ok(txt.includes('V90-B') && !txt.includes('V90-A'), 'khoảng giờ qua nửa đêm 22–06 chỉ B (ca đêm)');
+    clearAdv();
+
+    set('f-result-from', '08:00'); set('f-result-to', '09:00'); txt = run();
+    assert.ok(txt.includes('V90-A') && !txt.includes('V90-C'), 'giờ có KQ 08–09 chỉ A; C chưa có KQ bị loại');
+    clearAdv();
+
+    set('f-rel-from', '08:30'); set('f-rel-to', '09:30'); txt = run();
+    assert.ok(txt.includes('V90-A') && !txt.includes('V90-B'), 'giờ phát hành 08:30–09:30 chỉ A');
+    clearAdv();
+
+    set('f-deferred', 'only'); txt = run();
+    assert.ok(txt.includes('V90-E') && !txt.includes('V90-A'), 'chỉ mẫu hẹn lại -> E');
+    set('f-deferred', 'none'); txt = run();
+    assert.ok(!txt.includes('V90-E') && txt.includes('V90-A'), 'không tính mẫu hẹn lại -> mất E');
+    w16.close();
   });
 
   await chain;

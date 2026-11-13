@@ -145,6 +145,30 @@ test('lọc theo ID (một phần, không phân biệt hoa thường), loại, t
   assert.strictEqual(s.filter(null, { typeId: 'sp', from: '2026-11-04', to: '2026-11-04' }).length, 1);
 });
 
+test('lọc theo khoảng giờ nhận mẫu / có kết quả / phát hành + mẫu hẹn lại (v90)', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  /* A: nhận 07:30, có KQ 08:15, phát hành 09:00 */
+  s.add({ testId: 'H1', typeId: 'sp', results: { hongCau: '(+)' }, resultAt: '2026-11-04T08:15:00', releaseAt: '2026-11-04T09:00:00' }, D('2026-11-04T07:30:00'));
+  /* B: nhận 23:30 (ca đêm), có KQ 23:50, chưa phát hành */
+  s.add({ testId: 'H2', typeId: 'sp', results: { hongCau: '(++)' }, resultAt: '2026-11-04T23:50:00' }, D('2026-11-04T23:30:00'));
+  /* C: nhận 12:00, chưa có kết quả */
+  s.add({ testId: 'H3', typeId: 'sp', results: {} }, D('2026-11-04T12:00:00'));
+  /* E: mẫu hẹn lại, nhận 08:00 */
+  const e = s.add({ testId: 'H4', typeId: 'sp', results: {} }, D('2026-11-04T08:00:00'));
+  s.update(e.record.uid, { deferReason: 'hut-mau', deferNote: '', deferAt: '2026-11-04T08:05:00' });
+
+  const ids = (c) => s.filter(null, c).map((r) => r.testId).sort().join(',');
+  assert.strictEqual(ids({ recvFrom: '07:00', recvTo: '09:00' }), 'H1,H4');
+  assert.strictEqual(ids({ recvFrom: '22:00', recvTo: '06:00' }), 'H2');      // khoảng qua nửa đêm (ca đêm)
+  assert.strictEqual(ids({ recvFrom: '12:00' }), 'H2,H3');                    // chỉ đặt giờ từ
+  assert.strictEqual(ids({ resultFrom: '08:00', resultTo: '09:00' }), 'H1');  // C chưa có KQ -> bị loại
+  assert.strictEqual(ids({ relFrom: '08:30', relTo: '09:30' }), 'H1');
+  assert.strictEqual(ids({ relFrom: '00:00', relTo: '23:59' }), 'H1');       // chưa phát hành -> bị loại
+  assert.strictEqual(ids({ defer: 'only' }), 'H4');
+  assert.strictEqual(ids({ defer: 'none' }), 'H1,H2,H3');
+  assert.strictEqual(ids({}), 'H1,H2,H3,H4');                                 // không đặt gì = tất cả
+});
+
 /* ---------- Chặn trùng ID + loại XN ---------- */
 test('cùng ID + cùng loại XN -> báo Đã tồn tại, không cho nhập', () => {
   const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);

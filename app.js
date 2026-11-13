@@ -631,7 +631,19 @@ function refreshCurrent() {
 let selectMode = false;
 const selectedUids = new Set();
 
+/* v90: chip ngày hôm nay ở góc thanh công cụ tab Kết quả hôm nay —
+   cập nhật mỗi lần dựng lại danh sách (đổi ngày là tự mới) */
+function updateTodayDate() {
+  const el = $('today-date');
+  if (!el) return;
+  const now = new Date();
+  const wd = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'][now.getDay()];
+  const p = (n) => String(n).padStart(2, '0');
+  el.textContent = wd + ' · ' + p(now.getDate()) + '/' + p(now.getMonth() + 1) + '/' + now.getFullYear();
+}
+
 function renderToday() {
+  updateTodayDate();
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
   recs = recs.filter((r) => !isDeferred(r)); /* F37: mẫu hẹn lại nằm ở trang riêng */
@@ -721,6 +733,15 @@ function currentExportCriteria() {
     typeId: $('f-type').value || '',
     status: $('f-status').value || '',
     query: $('f-query').value || '',
+    /* v90: lọc chi tiết — nội dung kết quả, khoảng giờ 3 mốc, mẫu hẹn lại */
+    resultText: $('f-result-text').value || '',
+    recvFrom: $('f-recv-from').value || '',
+    recvTo: $('f-recv-to').value || '',
+    resultFrom: $('f-result-from').value || '',
+    resultTo: $('f-result-to').value || '',
+    relFrom: $('f-rel-from').value || '',
+    relTo: $('f-rel-to').value || '',
+    defer: $('f-deferred').value || '',
   };
 }
 
@@ -735,7 +756,23 @@ function fmtDur(minutes) {
 
 function applyExport() {
   const c = currentExportCriteria();
-  const recs = store.filter(null, c).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
+  let recs = store.filter(null, c);
+  /* v90: lọc theo nội dung kết quả — so với đúng những gì người dùng THẤY:
+     tên loại + nhãn trường + giá trị hiển thị (trường chips để trống hiện
+     "Âm tính" thì tìm "âm tính" cũng thấy). */
+  const needle = (c.resultText || '').trim().toLowerCase();
+  if (needle) {
+    recs = recs.filter((rec) => {
+      const type = getTestType(rec.typeId);
+      const parts = [rec.testId, type ? type.name : ''];
+      if (type) type.fields.forEach((f) => {
+        const v = (rec.results && rec.results[f.key]) || '';
+        parts.push(f.label, f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : v);
+      });
+      return parts.join(' ').toLowerCase().indexOf(needle) >= 0;
+    });
+  }
+  recs = recs.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
   fillList($('list-export'), $('empty-export'), recs, { readonly: true });
   $('export-count').textContent = 'Có ' + recs.length + ' kết quả';
   const tat = LabStore.tatStats(recs);
