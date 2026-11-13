@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=88">
-<link rel="stylesheet" href="print.css?v=88">
+<link rel="stylesheet" href="styles.css?v=89">
+<link rel="stylesheet" href="print.css?v=89">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -43,7 +43,7 @@
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v88</span>
+    <span class="app-version">LabEntry v89</span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h6v6H3zM5 5v2h2V5zM15 3h6v6h-6zM17 5v2h2V5zM3 15h6v6H3zM5 17v2h2v-2zM15 15h2v2h-2zM19 15h2v2h-2zM17 17h2v2h2v2h-4zM15 19h2v2h-2z"/></svg>
@@ -120,11 +120,9 @@
   </div>
 
   <div class="manage-actions">
-  <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
-  <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
-  <button type="button" id="btn-batch" class="audit-open-btn">🧮 Nhập kết quả theo lô</button>
-  <button type="button" id="btn-deferred" class="audit-open-btn">⏸ Mẫu hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
-  <button type="button" id="btn-sync" class="audit-open-btn sync-open-btn" title="Dùng chung dữ liệu nhiều máy qua mạng LAN">🔗 Đồng bộ LAN</button>
+  <button type="button" id="btn-batch" class="audit-open-btn" title="Nhập kết quả theo lô">🧮 Nhập lô</button>
+  <button type="button" id="btn-deferred" class="audit-open-btn" title="Mẫu hẹn lại">⏸ Hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
+  <button type="button" id="btn-more" class="audit-open-btn" title="Nhật ký thao tác, bàn giao ca, đồng bộ LAN">⋯ Thêm</button>
   </div>
 
 
@@ -775,6 +773,17 @@
 </div>
 
 <!-- ============ ĐỒNG BỘ LAN (v87) ============ -->
+<div id="more-modal" class="modal hidden">
+  <div class="modal-box more-box">
+    <h3 class="more-title">Chức năng khác</h3>
+    <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
+    <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
+    <button type="button" id="btn-sync" class="audit-open-btn sync-open-btn">🔗 Đồng bộ LAN</button>
+    <p class="more-note">Đồng bộ LAN: dùng chung dữ liệu nhiều máy trong cùng một mạng.</p>
+    <button type="button" id="btn-more-close" class="btn-ghost">Đóng</button>
+  </div>
+</div>
+
 <div id="sync-modal" class="modal hidden">
   <div class="modal-box sync-box">
     <h3 class="staff-title">🔗 Đồng bộ LAN</h3>
@@ -903,11 +912,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=88"></script>
-<script src="store.js?v=88"></script>
-<script src="sync-core.js?v=88"></script>
-<script src="sync.js?v=88"></script>
-<script src="mascot.js?v=88"></script>
-<script src="app.js?v=88"></script>
+<script src="config.js?v=89"></script>
+<script src="store.js?v=89"></script>
+<script src="sync-core.js?v=89"></script>
+<script src="sync.js?v=89"></script>
+<script src="mascot.js?v=89"></script>
+<script src="app.js?v=89"></script>
 </body>
 </html>

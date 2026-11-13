@@ -5092,6 +5092,12 @@ function init() {
 
   /* v87: đồng bộ LAN */
   $('btn-sync').addEventListener('click', openSyncDialog);
+  /* v89 (Cách 2 Minh chọn): nút ⋯ Thêm ở tab Quản lý mở bảng chức năng khác
+     (Nhật ký / Bàn giao / Đồng bộ); chọn một chức năng thì bảng tự đóng */
+  $('btn-more').addEventListener('click', () => $('more-modal').classList.remove('hidden'));
+  $('btn-more-close').addEventListener('click', () => $('more-modal').classList.add('hidden'));
+  $('more-modal').addEventListener('click', (e) => { if (e.target === $('more-modal')) $('more-modal').classList.add('hidden'); });
+  for (const id of ['btn-audit', 'btn-handover', 'btn-sync']) $(id).addEventListener('click', () => $('more-modal').classList.add('hidden'));
   $('sync-bar').addEventListener('click', openSyncDialog);
   $('btn-sync-close').addEventListener('click', closeSyncDialog);
   $('btn-sync-connect').addEventListener('click', syncConnectClicked);

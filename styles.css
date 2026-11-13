@@ -645,7 +645,7 @@ svg { width: 24px; height: 24px; display: block; }
 .audit-open-btn { display: block; width: 100%; margin: 4px 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; color: var(--blue-dark); }
 /* v74 (Minh góp ý "hiện nằm dọc chiếm chỗ trang"): 4 nút chức năng của tab
    Quản lý xếp lưới 2 cột gọn thay vì 4 hàng dọc */
-.manage-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.manage-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 12px; }
 .manage-actions .audit-open-btn { margin: 0; width: auto; padding: 8px 6px; font-size: 15px; }
 .audit-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 .audit-tools select { flex: 0 0 auto; }
@@ -955,9 +955,14 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 .sync-bar.offline { background: #fff3e0; color: #8a4b00; border-bottom: 2px solid #ffa726; }
 .sync-bar.alert { background: #ffebee; color: #b71c1c; border-bottom: 2px solid #e53935; font-weight: 700; }
 .sync-bar-go { flex: 0 0 auto; font-weight: 700; opacity: .8; }
-/* v88 (Minh góp ý nút Đồng bộ LAN nguyên một hàng chiếm chỗ tab Quản lý):
-   nút nay là MỘT Ô thường trong lưới .manage-actions như các nút chức năng
-   khác, nhãn rút gọn "🔗 Đồng bộ LAN" — không còn span cả hàng. */
+/* v88: nút Đồng bộ LAN từng là một hàng riêng nguyên chiều ngang (chiếm
+   chỗ) → chuyển thành một ô trong lưới Quản lý. v89 (Cách 2 Minh chọn):
+   lưới chỉ còn 3 nút dùng hằng ngày (Nhập lô / Hẹn lại / ⋯ Thêm); Nhật ký,
+   Bàn giao ca và Đồng bộ LAN nằm trong bảng ⋯ Thêm (#more-modal) dưới đây. */
+.more-box .audit-open-btn { margin: 8px 0 0; }
+.more-title { margin: 0 0 2px; font-size: 17px; }
+.more-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+#btn-more-close { margin-top: 14px; width: 100%; padding: 9px; }
 .sync-box { max-width: 560px; max-height: 92vh; overflow-y: auto; text-align: left; }
 .sync-status-line { padding: 10px 12px; border-radius: 8px; background: #eef3f8; font-size: 14.5px; line-height: 1.45; margin-bottom: 12px; }
 .sync-connect { margin-bottom: 8px; }
