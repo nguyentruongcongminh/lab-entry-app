@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v87 và precache đúng URL ?v=87 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v88 và precache đúng URL ?v=88 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v87'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=87', 'print.css?v=87', 'config.js?v=87', 'store.js?v=87', 'sync-core.js?v=87', 'sync.js?v=87', 'mascot.js?v=87', 'app.js?v=87', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v88'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=88', 'print.css?v=88', 'config.js?v=88', 'store.js?v=88', 'sync-core.js?v=88', 'sync.js?v=88', 'mascot.js?v=88', 'app.js?v=88', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2187,10 +2187,13 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(recA.deferNote, 'Lấy lại sáng mai', 'ghi chú hẹn được lưu');
     assert.ok(recA.deferAt, 'có giờ đánh dấu hẹn');
 
-    /* v74: 4 nút chức năng của tab Quản lý nằm gọn trong một lưới; đoạn
+    /* v74: 4 nút chức năng của tab Quản lý nằm gọn trong một lưới;
+       v88: thêm nút Đồng bộ LAN vào CÙNG lưới thành 5 nút (trước nó là một
+       hàng riêng nguyên chiều ngang — Minh góp ý chiếm chỗ); đoạn
        giới thiệu trang Mẫu hẹn lại rút ngắn (Minh góp ý trên máy thật) */
     const ma = d13.querySelector('.manage-actions');
-    assert.ok(ma && ma.querySelectorAll('button').length === 4, '4 nút chức năng Quản lý nằm gọn trong một lưới');
+    assert.ok(ma && ma.querySelectorAll('button').length === 5, '5 nút chức năng Quản lý (gồm Đồng bộ LAN) nằm gọn trong một lưới');
+    assert.ok(ma && ma.querySelector('#btn-sync'), 'nút Đồng bộ LAN nằm trong lưới Quản lý, không còn hàng riêng');
     const intro = d13.querySelector('#view-deferred .types-note');
     assert.ok(intro && intro.textContent.trim().length <= 160, 'giới thiệu trang Mẫu hẹn lại ngắn gọn, không dài dòng');
 
