@@ -34,8 +34,10 @@
 | *Nhập theo lô: dạng bảng trên máy tính, dạng thẻ trên điện thoại, đúng thứ tự tiếp nhận · Batch entry: grid on desktop, cards on phone, strict intake order* | *Tab Giao diện: linh vật đồng ca và chủ đề lễ hội · Display tab: shift mascot and holiday themes* |
 | ![Chủ đề Tết](screenshots/17-theme-tet.png) | ![Chữ ký KTV trên phiếu in](screenshots/18-chu-ky-ktv.png) |
 | *Chủ đề Tết: banner chúc, hoa đào rơi, nhạc lễ hội · Tết theme: greeting banner, falling blossoms, festive music* | *Phiếu in có ảnh chữ ký của từng KTV, mỗi ô ký một vị trí riêng · Printed sheet with each technician's signature image, each block positioned independently* |
-| ![Chụp ảnh đọc mã](screenshots/19-chup-anh-doc-ma.png) | |
-| *Chụp ảnh đọc mã khi mã in xấu quét không ra — ảnh đọc xong xóa ngay, không lưu · Photo barcode capture for poor-quality codes — the image is discarded after decoding, never stored* | |
+| ![Chụp ảnh đọc mã](screenshots/19-chup-anh-doc-ma.png) | ![Lọc chi tiết](screenshots/20-loc-chi-tiet.png) |
+| *Chụp ảnh đọc mã khi mã in xấu quét không ra — ảnh đọc xong xóa ngay, không lưu · Photo barcode capture for poor-quality codes — the image is discarded after decoding, never stored* | *Lọc chi tiết (v90): theo nội dung kết quả, khoảng giờ trong ngày của cả 3 mốc nhận mẫu / có kết quả / phát hành (hỗ trợ ca đêm qua nửa đêm), mẫu hẹn lại · Detailed filters (v90): result content, time-of-day ranges for received / resulted / released (overnight ranges supported), deferred samples* |
+| ![Đồng bộ LAN](screenshots/21-dong-bo-lan.png) | |
+| *Đồng bộ LAN (v87): hộp thoại kết nối máy chủ dùng chung dữ liệu — trạng thái đã khớp, đồng bộ ngay / tạm ngắt, mục xung đột cho KTV xử lý · LAN sync (v87): shared-data server dialog — in-sync status, sync now / pause, and the conflict inbox for technicians* | |
 
 ![Giao diện trên máy tính](screenshots/09-ban-pc.png)
 *Trên máy tính: khung rộng, trang tùy chỉnh in hiện đủ mọi cột của tờ kết quả · On desktop: wide layout, the print studio shows the full result sheet*
