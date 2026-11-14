@@ -5232,10 +5232,45 @@ function kbFixApplies() {
   catch (e) { return false; }
 }
 function initKeyboardFix() {
+  /* v92 (Minh góp ý 2026-11-14): ở Nhập theo lô, khi đang mở bàn phím mà
+   * CHUYỂN sang mẫu khác (bấm viên ID) rồi chạm ô nhập, bàn phím đóng dở /
+   * mở lại theo nhiều nấc — lần cuộn duy nhất ở 350ms đáp xuống giữa chừng
+   * nên ô vẫn bị che, phải kéo tay. Nay: mỗi khi visualViewport còn thay
+   * đổi mà đang có ô chữ được focus thì cuộn hiệu chỉnh lại (tức thời) cho
+   * tới khi bàn phím ổn định, cộng thêm một lần hiệu chỉnh ở ~900ms cho
+   * WebView ít bắn sự kiện resize. Form thường (bàn phím mở một mạch từ
+   * trạng thái đóng) vốn đã đúng ở 350ms — hiệu chỉnh thêm là vô hại vì
+   * ô đã ở giữa thì cuộn vào giữa không đổi vị trí. */
+  let vvFixTimer = 0;
+  let lastVvH = window.visualViewport ? window.visualViewport.height : 0;
+  const scrollElCenter = (el, smooth) => {
+    try { el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' }); }
+    catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
+  };
+  const focusedTextEl = () => {
+    const el = document.activeElement;
+    if (!el || !el.matches || !el.matches('input, textarea')) return null;
+    if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return null;
+    return el;
+  };
   if (window.visualViewport) {
     const onVv = () => {
       const kb = kbFixApplies() && (window.innerHeight - window.visualViewport.height > 150);
       document.body.classList.toggle('kb-open', !!kb);
+      /* Hiệu chỉnh không phụ thuộc chế độ bàn phím: máy co layout
+       * (resizes-content) thì innerHeight co cùng visualViewport nên cờ
+       * kb ở trên không bật — cứ hễ chiều cao vùng hiển thị đổi >= 50px
+       * trong lúc đang focus ô chữ là cuộn lại vào giữa sau 150ms. */
+      const h = window.visualViewport.height;
+      const changed = Math.abs(h - lastVvH) >= 50;
+      lastVvH = h;
+      if (!changed || !kbFixApplies()) return;
+      const el = focusedTextEl();
+      if (!el) return;
+      clearTimeout(vvFixTimer);
+      vvFixTimer = setTimeout(() => {
+        if (document.activeElement === el) scrollElCenter(el, false);
+      }, 150);
     };
     window.visualViewport.addEventListener('resize', onVv);
     onVv();
@@ -5247,9 +5282,12 @@ function initKeyboardFix() {
     if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return;
     setTimeout(() => {
       if (document.activeElement !== el) return;
-      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-      catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
+      scrollElCenter(el, true);
     }, 350);
+    setTimeout(() => {
+      if (document.activeElement !== el) return;
+      scrollElCenter(el, false);
+    }, 900);
   });
 }
 
