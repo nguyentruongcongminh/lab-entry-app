@@ -5267,13 +5267,28 @@ function initKeyboardFix() {
   let kbLoopTimer = 0;
   let kbLoopUntil = 0;
   const ensureFocusedVisible = () => {
+    /* v94 (Minh chỉ điểm: "đặc biệt với xét nghiệm có 1 trường nhập duy
+     * nhất"): thẻ lô của loại 1 trường NGẮN tới mức trang không cuộn được
+     * chút nào (scrollHeight == chiều cao màn hình, biên cuộn = 0) — mọi
+     * lệnh cuộn, kể cả vòng lặp của v93, đều vô hiệu vì trang không còn
+     * chỗ mà nhích. Hai thay đổi:
+     * 1) body.kb-pad (bật khi focus ô chữ, CSS ở styles.css): đệm thêm
+     *    100vh + 80px ở cuối trang trong lúc gõ -> luôn có biên cuộn
+     *    để nâng ô (đệm nhỏ hơn bị "sàn" chiều cao trang nuốt mất).
+     * 2) Vòng lặp cuộn TAY theo dải visualViewport thay vì scrollIntoView
+     *    (vốn luôn nhắm giữa khung layout — sai khi bàn phím phủ kiểu
+     *    overlay): ô vượt khỏi dải đang thấy bao nhiêu px thì scrollBy
+     *    đúng bấy nhiêu. */
     const el = focusedTextEl();
     if (!el || !window.visualViewport) return;
     const r = el.getBoundingClientRect();
     const vv = window.visualViewport;
-    const top = vv.offsetTop;
-    const bottom = vv.offsetTop + vv.height;
-    if (r.top < top + 8 || r.bottom > bottom - 8) scrollElCenter(el, false);
+    const bandTop = vv.offsetTop;
+    const bandBottom = vv.offsetTop + vv.height;
+    let dy = 0;
+    if (r.bottom > bandBottom - 8) dy = r.bottom - (bandBottom - 8);
+    else if (r.top < bandTop + 8) dy = r.top - (bandTop + 8);
+    if (dy) { try { window.scrollBy(0, dy); } catch (e) { /* bỏ qua */ } }
   };
   const startKbLoop = () => {
     if (!kbFixApplies()) return;
@@ -5293,11 +5308,17 @@ function initKeyboardFix() {
     const el = e.target;
     if (!el || !el.matches || !el.matches('input, textarea')) return;
     if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return;
+    document.body.classList.add('kb-pad');
     setTimeout(() => {
       if (document.activeElement !== el) return;
       scrollElCenter(el, true);
     }, 350);
     startKbLoop();
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!focusedTextEl()) document.body.classList.remove('kb-pad');
+    }, 0);
   });
   if (window.visualViewport) {
     /* Bàn phím còn đang di chuyển sau khi focus -> gia hạn vòng hiệu chỉnh */

@@ -964,6 +964,15 @@ body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476
    đang mở (cờ kb-open do visualViewport gắn) thì ẩn các phần tử nổi và
    thu gọn thanh điều hướng của màn hình nhập lô cho thoáng vùng nhập. */
 input, textarea { scroll-margin-top: 76px; scroll-margin-bottom: 96px; }
+/* v94: đệm cuộn trong lúc gõ — thẻ lô của loại 1 trường ngắn tới mức trang
+   không cuộn được (biên cuộn = 0) nên bàn phím che ô là không cuộn cứu
+   nổi; đệm ở cuối body khi đang focus ô chữ (cờ kb-pad do app gắn) để
+   luôn có biên cuộn nâng ô lên khỏi bàn phím. Đệm phải là 100vh + 80px
+   (không phải 60vh): trang ngắn hơn màn hình thì một phần đệm bị "sàn"
+   chiều cao tối thiểu của trang nuốt mất — đo thật: nội dung 545px +
+   đệm 60vh chỉ dư biên cuộn 179px; với 100vh + 80px biên cuộn dư bằng
+   chiều cao nội dung + 80px (>= 600px), dư sức nâng ô qua bàn phím. */
+body.kb-pad { padding-bottom: calc(100vh + 80px); }
 body.kb-open #mascot { display: none; }
 body.kb-open #bottom-nav { display: none; }
 body.kb-open .fab { display: none; }
@@ -1062,7 +1071,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v93</span>
+    <span class="app-version">LabEntry v94</span>
     <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
@@ -8904,13 +8913,28 @@ function initKeyboardFix() {
   let kbLoopTimer = 0;
   let kbLoopUntil = 0;
   const ensureFocusedVisible = () => {
+    /* v94 (Minh chỉ điểm: "đặc biệt với xét nghiệm có 1 trường nhập duy
+     * nhất"): thẻ lô của loại 1 trường NGẮN tới mức trang không cuộn được
+     * chút nào (scrollHeight == chiều cao màn hình, biên cuộn = 0) — mọi
+     * lệnh cuộn, kể cả vòng lặp của v93, đều vô hiệu vì trang không còn
+     * chỗ mà nhích. Hai thay đổi:
+     * 1) body.kb-pad (bật khi focus ô chữ, CSS ở styles.css): đệm thêm
+     *    100vh + 80px ở cuối trang trong lúc gõ -> luôn có biên cuộn
+     *    để nâng ô (đệm nhỏ hơn bị "sàn" chiều cao trang nuốt mất).
+     * 2) Vòng lặp cuộn TAY theo dải visualViewport thay vì scrollIntoView
+     *    (vốn luôn nhắm giữa khung layout — sai khi bàn phím phủ kiểu
+     *    overlay): ô vượt khỏi dải đang thấy bao nhiêu px thì scrollBy
+     *    đúng bấy nhiêu. */
     const el = focusedTextEl();
     if (!el || !window.visualViewport) return;
     const r = el.getBoundingClientRect();
     const vv = window.visualViewport;
-    const top = vv.offsetTop;
-    const bottom = vv.offsetTop + vv.height;
-    if (r.top < top + 8 || r.bottom > bottom - 8) scrollElCenter(el, false);
+    const bandTop = vv.offsetTop;
+    const bandBottom = vv.offsetTop + vv.height;
+    let dy = 0;
+    if (r.bottom > bandBottom - 8) dy = r.bottom - (bandBottom - 8);
+    else if (r.top < bandTop + 8) dy = r.top - (bandTop + 8);
+    if (dy) { try { window.scrollBy(0, dy); } catch (e) { /* bỏ qua */ } }
   };
   const startKbLoop = () => {
     if (!kbFixApplies()) return;
@@ -8930,11 +8954,17 @@ function initKeyboardFix() {
     const el = e.target;
     if (!el || !el.matches || !el.matches('input, textarea')) return;
     if (el.type && ['checkbox', 'radio', 'button', 'submit', 'file', 'range', 'color', 'hidden'].includes(el.type)) return;
+    document.body.classList.add('kb-pad');
     setTimeout(() => {
       if (document.activeElement !== el) return;
       scrollElCenter(el, true);
     }, 350);
     startKbLoop();
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!focusedTextEl()) document.body.classList.remove('kb-pad');
+    }, 0);
   });
   if (window.visualViewport) {
     /* Bàn phím còn đang di chuyển sau khi focus -> gia hạn vòng hiệu chỉnh */

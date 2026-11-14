@@ -950,6 +950,15 @@ body.theme-qdnd .theme-banner { background: linear-gradient(90deg, #3c5229, #476
    đang mở (cờ kb-open do visualViewport gắn) thì ẩn các phần tử nổi và
    thu gọn thanh điều hướng của màn hình nhập lô cho thoáng vùng nhập. */
 input, textarea { scroll-margin-top: 76px; scroll-margin-bottom: 96px; }
+/* v94: đệm cuộn trong lúc gõ — thẻ lô của loại 1 trường ngắn tới mức trang
+   không cuộn được (biên cuộn = 0) nên bàn phím che ô là không cuộn cứu
+   nổi; đệm ở cuối body khi đang focus ô chữ (cờ kb-pad do app gắn) để
+   luôn có biên cuộn nâng ô lên khỏi bàn phím. Đệm phải là 100vh + 80px
+   (không phải 60vh): trang ngắn hơn màn hình thì một phần đệm bị "sàn"
+   chiều cao tối thiểu của trang nuốt mất — đo thật: nội dung 545px +
+   đệm 60vh chỉ dư biên cuộn 179px; với 100vh + 80px biên cuộn dư bằng
+   chiều cao nội dung + 80px (>= 600px), dư sức nâng ô qua bàn phím. */
+body.kb-pad { padding-bottom: calc(100vh + 80px); }
 body.kb-open #mascot { display: none; }
 body.kb-open #bottom-nav { display: none; }
 body.kb-open .fab { display: none; }
