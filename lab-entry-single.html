@@ -1062,7 +1062,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v92</span>
+    <span class="app-version">LabEntry v93</span>
     <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
@@ -8872,14 +8872,17 @@ function initKeyboardFix() {
   /* v92 (Minh góp ý 2026-11-14): ở Nhập theo lô, khi đang mở bàn phím mà
    * CHUYỂN sang mẫu khác (bấm viên ID) rồi chạm ô nhập, bàn phím đóng dở /
    * mở lại theo nhiều nấc — lần cuộn duy nhất ở 350ms đáp xuống giữa chừng
-   * nên ô vẫn bị che, phải kéo tay. Nay: mỗi khi visualViewport còn thay
-   * đổi mà đang có ô chữ được focus thì cuộn hiệu chỉnh lại (tức thời) cho
-   * tới khi bàn phím ổn định, cộng thêm một lần hiệu chỉnh ở ~900ms cho
-   * WebView ít bắn sự kiện resize. Form thường (bàn phím mở một mạch từ
-   * trạng thái đóng) vốn đã đúng ở 350ms — hiệu chỉnh thêm là vô hại vì
-   * ô đã ở giữa thì cuộn vào giữa không đổi vị trí. */
-  let vvFixTimer = 0;
-  let lastVvH = window.visualViewport ? window.visualViewport.height : 0;
+   * nên ô vẫn bị che, phải kéo tay.
+   * v93 (cùng ngày, máy thật vẫn bị): cách sửa theo SỰ KIỆN (resize của
+   * visualViewport + mốc 900ms) vẫn hụt trên máy thật — sau khi chuyển mẫu
+   * màn hình không nhích lên chút nào, nghĩa là sự kiện/mốc giờ không cứu
+   * được nhịp mở bàn phím của WebView Samsung. Đổi sang VÒNG HIỆU CHỈNH
+   * THEO VỊ TRÍ THẬT: trong 2,5 giây sau khi focus ô chữ, cứ 200ms đo lại
+   * hình chữ nhật của ô so với dải đang thấy của visualViewport; ô nằm
+   * ngoài dải thì cuộn tức thời vào giữa. Cơ chế này không phụ thuộc sự
+   * kiện nào của trình duyệt — bàn phím mở theo nhịp nào, có cuộn tự
+   * nhiên của trình duyệt chen vào hay không, vòng lặp vẫn đưa ô về chỗ
+   * thấy được cho tới khi vị trí ổn định. Mất focus thì vòng lặp tự dừng. */
   const scrollElCenter = (el, smooth) => {
     try { el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' }); }
     catch (err) { try { el.scrollIntoView(); } catch (e2) { /* bỏ qua */ } }
@@ -8894,24 +8897,34 @@ function initKeyboardFix() {
     const onVv = () => {
       const kb = kbFixApplies() && (window.innerHeight - window.visualViewport.height > 150);
       document.body.classList.toggle('kb-open', !!kb);
-      /* Hiệu chỉnh không phụ thuộc chế độ bàn phím: máy co layout
-       * (resizes-content) thì innerHeight co cùng visualViewport nên cờ
-       * kb ở trên không bật — cứ hễ chiều cao vùng hiển thị đổi >= 50px
-       * trong lúc đang focus ô chữ là cuộn lại vào giữa sau 150ms. */
-      const h = window.visualViewport.height;
-      const changed = Math.abs(h - lastVvH) >= 50;
-      lastVvH = h;
-      if (!changed || !kbFixApplies()) return;
-      const el = focusedTextEl();
-      if (!el) return;
-      clearTimeout(vvFixTimer);
-      vvFixTimer = setTimeout(() => {
-        if (document.activeElement === el) scrollElCenter(el, false);
-      }, 150);
     };
     window.visualViewport.addEventListener('resize', onVv);
     onVv();
   }
+  let kbLoopTimer = 0;
+  let kbLoopUntil = 0;
+  const ensureFocusedVisible = () => {
+    const el = focusedTextEl();
+    if (!el || !window.visualViewport) return;
+    const r = el.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const top = vv.offsetTop;
+    const bottom = vv.offsetTop + vv.height;
+    if (r.top < top + 8 || r.bottom > bottom - 8) scrollElCenter(el, false);
+  };
+  const startKbLoop = () => {
+    if (!kbFixApplies()) return;
+    kbLoopUntil = Date.now() + 2500;
+    if (kbLoopTimer) return;
+    const step = () => {
+      kbLoopTimer = 0;
+      if (Date.now() > kbLoopUntil) return;
+      if (!focusedTextEl()) return;
+      ensureFocusedVisible();
+      kbLoopTimer = setTimeout(step, 200);
+    };
+    kbLoopTimer = setTimeout(step, 200);
+  };
   document.addEventListener('focusin', (e) => {
     if (!kbFixApplies()) return;
     const el = e.target;
@@ -8921,11 +8934,12 @@ function initKeyboardFix() {
       if (document.activeElement !== el) return;
       scrollElCenter(el, true);
     }, 350);
-    setTimeout(() => {
-      if (document.activeElement !== el) return;
-      scrollElCenter(el, false);
-    }, 900);
+    startKbLoop();
   });
+  if (window.visualViewport) {
+    /* Bàn phím còn đang di chuyển sau khi focus -> gia hạn vòng hiệu chỉnh */
+    window.visualViewport.addEventListener('resize', startKbLoop);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
