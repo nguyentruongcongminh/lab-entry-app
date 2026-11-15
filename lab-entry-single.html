@@ -1071,7 +1071,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v94</span>
+    <span class="app-version">LabEntry v95</span>
     <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
@@ -1175,7 +1175,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   <div class="display-wrap">
   <div class="mascot-settings">
     <div class="mascot-set-head">
-      <span class="mascot-settings-title">🐾 Linh vật đồng ca</span>
+      <span class="mascot-settings-title">🐾 Bot</span>
       <select id="mascot-enabled"><option value="on">Bật</option><option value="off">Tắt</option></select>
     </div>
     <div class="mascot-set-btns">
@@ -1186,13 +1186,6 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
     <p class="mascot-set-note">Bé nhắc khi: sắp tới giờ (≤5 phút) · quá giờ · ≥3 mẫu chờ quá 15 phút. Khung thoại tự tắt sau 5 giây. Ảnh riêng chỉ lưu trên máy này.</p>
   </div>
 
-  <div class="mascot-settings">
-    <div class="mascot-set-head">
-      <span class="mascot-settings-title">🎨 Chủ đề lễ hội</span>
-      <select id="theme-mode"><option value="auto">Tự động</option><option value="tet">🧧 Tết</option><option value="thaythuoc">🩺 Thầy thuốc VN (27/2)</option><option value="phunuqt">🌸 Quốc tế Phụ nữ (8/3)</option><option value="gioto">🏯 Giỗ Tổ Hùng Vương</option><option value="giaiphong">🎉 Giải phóng 30/4</option><option value="laodong">🛠️ Quốc tế Lao động (1/5)</option><option value="trungthu">🏮 Trung Thu</option><option value="phunuvn">🌺 Phụ nữ VN (20/10)</option><option value="nhagiao">💐 Nhà giáo VN (20/11)</option><option value="qdnd">⭐ Quân đội Nhân dân (22/12)</option><option value="xmas">🎄 Giáng Sinh</option><option value="off">Tắt</option></select>
-    </div>
-    <p class="mascot-set-note">Tự động theo các ngày lễ Việt Nam và quốc tế — chỉ đổi màu giao diện và lời chúc, không đụng dữ liệu.</p>
-  </div>
   </div>
 </section>
 
@@ -7639,7 +7632,7 @@ function bindPrintCfg() {
 }
 
 /* ================= Khởi tạo ================= */
-/* ================= F31: Linh vật đồng ca =================
+/* ================= F31: Bot =================
    Bé kính hiển vi nổi ở góc phải dưới 3 tab chính, nhắc theo tình hình ca.
    Thuần trang trí: chỉ ĐỌC store.getAll(), không sửa dữ liệu; trạng thái
    tính lại mỗi giây ở cuối timerTick() (bọc try/catch) và khi đổi cài đặt.
@@ -7881,8 +7874,10 @@ function initMascot() {
  * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
  * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
  * Tết (âm lịch 23/12 → 5/1), Trung Thu (âm lịch 13–17/8), Giáng Sinh
- * (dương lịch 20–26/12); chọn tay ở tab Quản lý. Lưu ở khóa riêng
- * labentry.theme.v1 (chỉ máy này, không vào file sao lưu). */
+ * (dương lịch 20–26/12). v95 (Minh, 2026-11-15): bỏ hẳn ô chọn tay ở
+ * tab Giao diện — chủ đề LUÔN tự động theo ngày, không còn chế độ chọn
+ * lễ hay tắt; máy nào từng lưu lựa chọn cũ ở labentry.theme.v1 cũng bị
+ * bỏ qua, mặc định tự động cho mọi máy. */
 const THEME_KEY = 'labentry.theme.v1';
 const THEME_KEYS = ['tet', 'thaythuoc', 'phunuqt', 'gioto', 'giaiphong', 'laodong', 'trungthu', 'phunuvn', 'nhagiao', 'qdnd', 'xmas'];
 const THEME_GREETINGS = {
@@ -7919,18 +7914,10 @@ const DECOR_FALLS = {
   snow: { ch: '❄', n: 12, size: [11, 17], dur: [7, 12] },
 };
 function loadThemeSettings() {
-  try {
-    const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
-    if (o && typeof o === 'object') {
-      return { mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto' };
-    }
-  } catch (e) { /* bỏ qua */ }
+  /* v95: luôn tự động — không đọc lựa chọn cũ nữa */
   return { mode: 'auto' };
 }
 let themeSettings = loadThemeSettings();
-function saveThemeSettings() {
-  try { localStorage.setItem(THEME_KEY, JSON.stringify(themeSettings)); } catch (e) { /* bỏ qua */ }
-}
 
 /* --- Lịch âm Việt Nam: thuật toán Hồ Ngọc Đức, múi giờ 7 --- */
 function jdFromDate(dd, mm, yy) {
@@ -8012,8 +7999,6 @@ function convertSolar2Lunar(dd, mm, yy) {
   return [lunarDay, lunarMonth, lunarYear, lunarLeap];
 }
 function themeForDate(date) {
-  if (themeSettings.mode === 'off') return '';
-  if (themeSettings.mode !== 'auto') return themeSettings.mode;
   const d = date.getDate();
   const m = date.getMonth() + 1;
   /* Ngày lễ dương lịch (đúng ngày) — kiểm tra trước các khoảng nhiều ngày
@@ -8186,15 +8171,6 @@ function applyTheme() {
   }
 }
 function initTheme() {
-  const sel = $('theme-mode');
-  if (sel) {
-    sel.value = themeSettings.mode;
-    sel.addEventListener('change', () => {
-      themeSettings.mode = sel.value;
-      saveThemeSettings();
-      applyTheme();
-    });
-  }
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
     bannerDismissedTheme = themeForDate(new Date());
@@ -8475,7 +8451,7 @@ function init() {
   renderOperatorControls();
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
-  initMascot(); /* linh vật đồng ca (F31) */
+  initMascot(); /* Bot (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
   initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */

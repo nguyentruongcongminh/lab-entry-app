@@ -3993,7 +3993,7 @@ function bindPrintCfg() {
 }
 
 /* ================= Khởi tạo ================= */
-/* ================= F31: Linh vật đồng ca =================
+/* ================= F31: Bot =================
    Bé kính hiển vi nổi ở góc phải dưới 3 tab chính, nhắc theo tình hình ca.
    Thuần trang trí: chỉ ĐỌC store.getAll(), không sửa dữ liệu; trạng thái
    tính lại mỗi giây ở cuối timerTick() (bọc try/catch) và khi đổi cài đặt.
@@ -4235,8 +4235,10 @@ function initMascot() {
  * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
  * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
  * Tết (âm lịch 23/12 → 5/1), Trung Thu (âm lịch 13–17/8), Giáng Sinh
- * (dương lịch 20–26/12); chọn tay ở tab Quản lý. Lưu ở khóa riêng
- * labentry.theme.v1 (chỉ máy này, không vào file sao lưu). */
+ * (dương lịch 20–26/12). v95 (Minh, 2026-11-15): bỏ hẳn ô chọn tay ở
+ * tab Giao diện — chủ đề LUÔN tự động theo ngày, không còn chế độ chọn
+ * lễ hay tắt; máy nào từng lưu lựa chọn cũ ở labentry.theme.v1 cũng bị
+ * bỏ qua, mặc định tự động cho mọi máy. */
 const THEME_KEY = 'labentry.theme.v1';
 const THEME_KEYS = ['tet', 'thaythuoc', 'phunuqt', 'gioto', 'giaiphong', 'laodong', 'trungthu', 'phunuvn', 'nhagiao', 'qdnd', 'xmas'];
 const THEME_GREETINGS = {
@@ -4273,18 +4275,10 @@ const DECOR_FALLS = {
   snow: { ch: '❄', n: 12, size: [11, 17], dur: [7, 12] },
 };
 function loadThemeSettings() {
-  try {
-    const o = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
-    if (o && typeof o === 'object') {
-      return { mode: (['auto', 'off'].includes(o.mode) || THEME_KEYS.includes(o.mode)) ? o.mode : 'auto' };
-    }
-  } catch (e) { /* bỏ qua */ }
+  /* v95: luôn tự động — không đọc lựa chọn cũ nữa */
   return { mode: 'auto' };
 }
 let themeSettings = loadThemeSettings();
-function saveThemeSettings() {
-  try { localStorage.setItem(THEME_KEY, JSON.stringify(themeSettings)); } catch (e) { /* bỏ qua */ }
-}
 
 /* --- Lịch âm Việt Nam: thuật toán Hồ Ngọc Đức, múi giờ 7 --- */
 function jdFromDate(dd, mm, yy) {
@@ -4366,8 +4360,6 @@ function convertSolar2Lunar(dd, mm, yy) {
   return [lunarDay, lunarMonth, lunarYear, lunarLeap];
 }
 function themeForDate(date) {
-  if (themeSettings.mode === 'off') return '';
-  if (themeSettings.mode !== 'auto') return themeSettings.mode;
   const d = date.getDate();
   const m = date.getMonth() + 1;
   /* Ngày lễ dương lịch (đúng ngày) — kiểm tra trước các khoảng nhiều ngày
@@ -4540,15 +4532,6 @@ function applyTheme() {
   }
 }
 function initTheme() {
-  const sel = $('theme-mode');
-  if (sel) {
-    sel.value = themeSettings.mode;
-    sel.addEventListener('change', () => {
-      themeSettings.mode = sel.value;
-      saveThemeSettings();
-      applyTheme();
-    });
-  }
   const close = $('theme-banner-close');
   if (close) close.addEventListener('click', () => {
     bannerDismissedTheme = themeForDate(new Date());
@@ -4829,7 +4812,7 @@ function init() {
   renderOperatorControls();
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
-  initMascot(); /* linh vật đồng ca (F31) */
+  initMascot(); /* Bot (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
   initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
