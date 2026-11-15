@@ -23,6 +23,14 @@
   --bg: #f5f6f8;
   --card: #ffffff;
   --danger: #d32f2f;
+  /* v96: design tokens — một thang bo góc/bóng đổ/màu trạng thái dùng chung */
+  --radius: 10px;
+  --radius-s: 7px;
+  --shadow-1: 0 1px 3px rgba(16, 24, 40, .08), 0 1px 2px rgba(16, 24, 40, .05);
+  --shadow-2: 0 8px 28px rgba(16, 24, 40, .18);
+  --ok: #43a047;
+  --warn: #ef6c00;
+  --st-none: #b0bec5;
   --app-max: 560px; /* bề rộng khung ứng dụng trên màn hình lớn; bản PC (v35) nâng lên 1180px */
 }
 html { -webkit-text-size-adjust: 100%; }
@@ -45,7 +53,7 @@ svg { width: 24px; height: 24px; display: block; }
   position: sticky; top: 0; z-index: 5;
 }
 .toolbar-spacer { flex: 1; }
-.app-version { color: #b0bec5; font-size: 11px; white-space: nowrap; align-self: center; flex: none; }
+.app-version { color: var(--text); font-size: 15px; font-weight: 700; white-space: nowrap; align-self: center; flex: none; }
 /* v90: chip ngày hôm nay nhỏ gọn cạnh tem phiên bản (tab Kết quả hôm nay).
    v91: min-width:0 + ellipsis — chip được phép co lại thay vì ép trang
    rộng hơn màn hình (bản v90 làm trang giãn layout ở máy hẹp/phóng to,
@@ -83,7 +91,7 @@ svg { width: 24px; height: 24px; display: block; }
 .record-id { font-weight: 700; font-size: 17px; }
 .record-type { color: var(--muted); margin-top: 3px; font-size: 15px; }
 .record-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.record-time { color: var(--muted); font-size: 13.5px; white-space: nowrap; }
+.record-time { color: var(--muted); font-size: 13.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .record-actions { display: flex; gap: 4px; }
 .record-actions .icon-btn { padding: 5px; color: #546e7a; }
 .record-actions .release-btn { color: var(--blue); }
@@ -162,7 +170,7 @@ svg { width: 24px; height: 24px; display: block; }
 .form-label .required { color: var(--blue); }
 .form-row input[type="text"], .form-row select, .form-row input[type="datetime-local"] {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px;
-  padding: 11px 10px; background: #fff; font-size: 16px;
+  padding: 11px 10px; background: var(--card); color: var(--text); font-size: 16px;
 }
 .form-row select:focus, .form-row input:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
 .id-input-wrap { flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0; }
@@ -202,7 +210,7 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .filter-row span { width: 34%; color: var(--muted); font-size: 15.5px; }
 .filter-row input, .filter-row select {
-  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: #fff;
+  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: var(--card); color: var(--text);
 }
 /* v90: hai ô giờ trong một hàng lọc + chú thích khoảng giờ */
 .time-range { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; width: auto; }
@@ -212,7 +220,7 @@ svg { width: 24px; height: 24px; display: block; }
   flex: 1; background: var(--blue); color: #fff; border-radius: 6px;
   padding: 12px; font-size: 16.5px; font-weight: 600;
 }
-.primary-btn.outline { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+.primary-btn.outline { background: var(--card); color: var(--blue); border: 1.5px solid var(--blue); }
 .export-count { padding: 14px 16px 4px; color: var(--muted); font-size: 15px; }
 
 /* ---------- Quét mã + toast ---------- */
@@ -220,7 +228,7 @@ svg { width: 24px; height: 24px; display: block; }
   position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.55);
   display: flex; align-items: center; justify-content: center; padding: 20px;
 }
-.modal-box { background: #fff; border-radius: 10px; padding: 16px; width: 100%; max-width: 420px; text-align: center; }
+.modal-box { background: var(--card); color: var(--text); border-radius: var(--radius); box-shadow: var(--shadow-2); padding: 16px; width: 100%; max-width: 420px; text-align: center; }
 .modal-box video { width: 100%; border-radius: 8px; background: #000; }
 .scanner-msg { padding: 12px 4px; color: var(--muted); }
 .scanner-msg.ok { color: #2e7d32; font-weight: 600; }
@@ -228,7 +236,7 @@ svg { width: 24px; height: 24px; display: block; }
 .scanner-type-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; text-align: left; }
 .scanner-type-row label { color: var(--muted); font-size: 15px; white-space: nowrap; }
 .scanner-type-row select {
-  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: #fff;
+  flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px; background: var(--card); color: var(--text);
 }
 .scanner-type-row select:disabled { background: #eceff1; color: var(--muted); }
 .scanner-manual { display: flex; gap: 8px; margin-top: 4px; }
@@ -398,6 +406,14 @@ svg { width: 24px; height: 24px; display: block; }
 .stat-num.ok { color: #2e7d32; }
 .stat-label { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.25; }
 
+/* v96 (ý 2): vạch màu trạng thái ở mép trái thẻ mẫu — xám chưa kết quả,
+   cam chờ phát hành, xanh lá đã phát hành. Quá giờ / tới giờ / hẹn lại đã
+   có quy tắc riêng ở dưới (đỏ / đỏ đậm / vàng) và thắng theo độ ưu tiên. */
+.record-item { box-shadow: inset 4px 0 0 var(--stc, transparent); }
+.record-item.st-no-result { --stc: var(--st-none); }
+.record-item.st-pending-release { --stc: var(--warn); }
+.record-item.st-released { --stc: var(--ok); }
+
 /* Mẫu chờ quá ngưỡng: tô đỏ cảnh báo */
 .record-item.overdue { background: #fff5f5; box-shadow: inset 4px 0 0 #ef5350; }
 .record-wait { color: #d32f2f; font-size: 13px; font-weight: 700; margin-top: 2px; }
@@ -407,6 +423,7 @@ svg { width: 24px; height: 24px; display: block; }
   display: inline-flex; align-items: center; gap: 6px;
   background: #fff3e0; color: #e65100; border: 1.5px solid #ffb74d;
   border-radius: 8px; padding: 8px 12px; font-size: 14.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .timer-btn svg { width: 18px; height: 18px; }
 .timer-btn.running { background: #e3f2fd; color: #1565c0; border-color: #64b5f6; font-variant-numeric: tabular-nums; }
@@ -497,7 +514,7 @@ svg { width: 24px; height: 24px; display: block; }
 .form-row-stack .form-label { width: auto; }
 .form-row input[type="number"] {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px;
-  padding: 11px 10px; background: #fff; font-size: 16px;
+  padding: 11px 10px; background: var(--card); color: var(--text); font-size: 16px;
 }
 #type-form { padding-bottom: 96px; } /* chừa chỗ cho thanh Lưu/Hủy cố định ở đáy */
 #tf-fields { display: flex; flex-direction: column; gap: 10px; }
@@ -934,6 +951,75 @@ svg { width: 24px; height: 24px; display: block; }
 .decor-fall { position: absolute; top: -6vh; line-height: 1; animation-name: decor-fall; animation-timing-function: linear; animation-iteration-count: infinite; }
 @keyframes decor-fall { to { transform: translate3d(4vw, 114vh, 0) rotate(320deg); } }
 @media (prefers-reduced-motion: reduce) { .decor-fall { display: none; } .decor-bl { animation: none; } }
+/* ================= v96: giao diện chuyên nghiệp (ý 1, 3, 5, 6, 7) =================
+ * Icon SVG nội tuyến thay emoji ở các nút/nhãn chính: một nét vẽ thống
+ * nhất, mọi máy hiển thị giống nhau. */
+.ic { width: 1.05em; height: 1.05em; vertical-align: -0.16em; flex: none; }
+
+/* Ý 6: thanh ứng dụng gọn ở đầu mọi tab — logo + tên bản + avatar KTV trực.
+   Dính trên cùng khi cuộn (z 6: trên toolbar, dưới mọi lớp cố định khác). */
+#app-bar {
+  position: sticky; top: 0; z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+.app-bar-logo { width: 26px; height: 26px; border-radius: 6px; flex: none; }
+.op-avatar {
+  margin-left: auto; width: 30px; height: 30px; border-radius: 50%;
+  border: none; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thẻ Hiển thị (tab Giao diện): hàng chọn chế độ màu / hiệu ứng */
+.appear-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 0; font-size: 14px; font-weight: 600; color: #0A3556;
+}
+.appear-row select { font-size: 14px; padding: 4px 8px; border-radius: 8px; border: 1px solid #B9CCDB; background: #fff; color: var(--text); }
+
+/* Ý 5: chuyển động nhỏ — mở tab/hộp thoại mượt, nút có phản hồi chạm.
+   Tắt bằng cài đặt (body.no-anim) hoặc khi hệ thống yêu cầu giảm chuyển động. */
+@keyframes viewIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+body:not(.no-anim) .view:not(.hidden) { animation: viewIn .18s ease-out; }
+body:not(.no-anim) .modal:not(.hidden) .modal-box { animation: viewIn .16s ease-out; }
+.nav-btn:active, .audit-open-btn:active, .mini-btn:active, .primary-btn:active,
+.icon-btn:active, .text-btn:active, .mascot-set-btn:active, .view-btn:active,
+.timer-btn:active, .fab:active { transform: scale(.96); }
+@media (prefers-reduced-motion: reduce) {
+  body .view:not(.hidden), body .modal:not(.hidden) .modal-box { animation: none; }
+}
+
+/* Ý 7: màn hình PC rộng — thẻ tùy chỉnh ở tab Giao diện dàn 2 cột */
+@media (min-width: 900px) {
+  .display-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .display-wrap .mascot-settings { margin-top: 12px; }
+}
+
+/* Ý 3: chế độ tối — chỉ đổi biến màu nền/chữ/viền; màu nhấn do chủ đề lễ
+ * hội quyết định (khối này nằm TRƯỚC các quy tắc body.theme-* ở dưới để
+ * --blue của lễ hội thắng khi cả hai cùng bật). In ấn không đổi (print.css). */
+body.dark {
+  color-scheme: dark;
+  --bg: #101214; --card: #1c1f24; --text: #e9ebee; --muted: #a7adb5; --line: #333842;
+  --blue: #4dabf5; --blue-dark: #8ec9f8; --st-none: #5f6b73;
+}
+body.dark .record-item.overdue { background: #2b1c1c; }
+body.dark .record-item.timer-due { background: #33191d; }
+body.dark .record-item.deferred { background: #26200f; }
+body.dark .mascot-settings { background: #182430; border-color: #2b4257; }
+body.dark .mascot-settings-title, body.dark .appear-row { color: #d3e6f5; }
+body.dark .mascot-set-note { color: #93a7b8; }
+body.dark .mascot-set-btn { background: var(--card); color: #8ec9f8; border-color: #4dabf5; }
+body.dark .mascot-set-head select, body.dark .appear-row select { background: var(--card); border-color: #3d5a74; }
+body.dark .timer-btn { background: #2b2118; color: #ffb74d; }
+body.dark .timer-btn.running { background: #17303f; color: #8ec9f8; border-color: #3d6a8a; }
+body.dark .timer-btn.cal-btn { background: #2b2413; color: #ffd54f; }
+body.dark .status-tag { background: #17303f; }
+body.dark .status-tag.no-result { background: #2c1e33; color: #ce93d8; }
+body.dark .status-tag.released { background: #1c2e1e; color: #81c784; }
+body.dark .empty-msg { color: var(--muted); }
+
 body.theme-tet { --blue: #d32f2f; --blue-dark: #a52727; }
 body.theme-tet .theme-banner { background: linear-gradient(90deg, #a52727, #d32f2f); color: #ffe082; }
 body.theme-trungthu { --blue: #31579e; --blue-dark: #1e3a6e; }
@@ -1044,6 +1130,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <style id="print-page-style"></style>
 </head>
 <body>
+<script>try{var a=JSON.parse(localStorage.getItem('labentry.appearance.v1')||'null');if(a){if(a.mode==='dark'||(a.mode==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches))document.body.classList.add('dark');if(a.anim===false)document.body.classList.add('no-anim');}}catch(e){}</script>
 <div id="theme-banner" class="theme-banner hidden"><span id="theme-banner-decor-l" class="theme-banner-decor"></span><span id="theme-banner-text"></span><span id="theme-banner-decor-r" class="theme-banner-decor"></span><button type="button" id="theme-banner-close" aria-label="Ẩn lời chúc">✕</button></div>
 <div id="theme-decor" class="theme-decor hidden" aria-hidden="true"></div>
 
@@ -1065,13 +1152,19 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   <span class="sync-bar-go">Chi tiết ›</span>
 </div>
 
+<!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
+<header id="app-bar">
+  <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
+  <span class="app-version">LabEntry v96</span>
+  <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
+</header>
+
 <!-- ============ TAB: KẾT QUẢ HÔM NAY ============ -->
 <section id="view-today" class="view">
   <header class="toolbar">
     <button id="btn-filter-nav" class="icon-btn" title="Lọc & xuất PDF" aria-label="Lọc">
       <svg viewBox="0 0 24 24"><path d="M3 5h13M3 12h9M3 19h5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="19" cy="5" r="2.2" fill="currentColor"/><circle cx="15" cy="12" r="2.2" fill="currentColor"/><circle cx="11" cy="19" r="2.2" fill="currentColor"/></svg>
     </button>
-    <span class="app-version">LabEntry v95</span>
     <span id="today-date" class="today-date"></span>
     <span class="toolbar-spacer"></span>
     <button id="btn-scan-today" class="icon-btn" title="Quét mã tiếp nhận mẫu" aria-label="Quét mã tiếp nhận mẫu">
@@ -1100,10 +1193,10 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   </div>
 
   <div id="operator-bar" class="operator-bar">
-    <label for="operator-select">👤 KTV trực:</label>
+    <label for="operator-select"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.2-3.2 3.8-4.5 7-4.5s5.8 1.3 7 4.5"/></svg> KTV trực:</label>
     <select id="operator-select"></select>
     <button type="button" id="btn-staff-manage" class="mini-btn">Danh sách KTV</button>
-    <label class="autolock-label" for="autolock-select">🔒 Tự khóa:</label>
+    <label class="autolock-label" for="autolock-select"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg> Tự khóa:</label>
     <select id="autolock-select" class="mini-select">
       <option value="0">Tắt</option>
       <option value="5">5 phút</option>
@@ -1111,7 +1204,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <option value="15">15 phút</option>
       <option value="30">30 phút</option>
     </select>
-    <label class="speak-label"><input type="checkbox" id="chk-speak-due"> 🔊 Đọc mã khi tới giờ</label>
+    <label class="speak-label"><input type="checkbox" id="chk-speak-due"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3l5 4V6l-5 4H4z" fill="currentColor" stroke="none"/><path d="M15.5 9.5a4 4 0 0 1 0 5M18 7a7.5 7.5 0 0 1 0 10"/></svg> Đọc mã khi tới giờ</label>
   </div>
 
   <ul id="list-today" class="record-list"></ul>
@@ -1149,9 +1242,9 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
   </div>
 
   <div class="manage-actions">
-  <button type="button" id="btn-batch" class="audit-open-btn" title="Nhập kết quả theo lô">🧮 Nhập lô</button>
-  <button type="button" id="btn-deferred" class="audit-open-btn" title="Mẫu hẹn lại">⏸ Hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
-  <button type="button" id="btn-more" class="audit-open-btn" title="Nhật ký thao tác, bàn giao ca, đồng bộ LAN">⋯ Thêm</button>
+  <button type="button" id="btn-batch" class="audit-open-btn" title="Nhập kết quả theo lô"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg> Nhập lô</button>
+  <button type="button" id="btn-deferred" class="audit-open-btn" title="Mẫu hẹn lại"> <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg> Hẹn lại <span id="count-deferred" class="switch-count">0</span></button>
+  <button type="button" id="btn-more" class="audit-open-btn" title="Nhật ký thao tác, bàn giao ca, đồng bộ LAN"> <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg> Thêm</button>
   </div>
 
 
@@ -1171,26 +1264,33 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- ============ TAB: LỌC & XUẤT PDF ============ -->
 <!-- ============ TAB GIAO DIỆN ============ -->
 <section id="view-display" class="view hidden">
-  <h2 class="page-title">Giao diện</h2>
   <div class="display-wrap">
   <div class="mascot-settings">
     <div class="mascot-set-head">
-      <span class="mascot-settings-title">🐾 Bot</span>
+      <span class="mascot-settings-title"><svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="10" r="1.9"/><circle cx="9.3" cy="6.8" r="2"/><circle cx="14.7" cy="6.8" r="2"/><circle cx="18.5" cy="10" r="1.9"/><path d="M12 11.5c2.9 0 5.5 2.4 5.5 5 0 1.9-1.4 3-3.2 3-.9 0-1.4-.3-2.3-.3s-1.4.3-2.3.3c-1.8 0-3.2-1.1-3.2-3 0-2.6 2.6-5 5.5-5z"/></svg> Bot</span>
       <select id="mascot-enabled"><option value="on">Bật</option><option value="off">Tắt</option></select>
     </div>
     <div class="mascot-set-btns">
-      <button type="button" id="btn-mascot-img" class="mascot-set-btn">🖼 Đổi ảnh riêng</button>
-      <button type="button" id="btn-mascot-reset" class="mascot-set-btn">↩ Mặc định</button>
+      <button type="button" id="btn-mascot-img" class="mascot-set-btn"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 3 3 3.5-3.5L20 17"/></svg> Đổi ảnh riêng</button>
+      <button type="button" id="btn-mascot-reset" class="mascot-set-btn"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5L4 9l4 4"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg> Mặc định</button>
       <input type="file" id="mascot-file" accept="image/*" class="hidden">
     </div>
     <p class="mascot-set-note">Bé nhắc khi: sắp tới giờ (≤5 phút) · quá giờ · ≥3 mẫu chờ quá 15 phút. Khung thoại tự tắt sau 5 giây. Ảnh riêng chỉ lưu trên máy này.</p>
+  </div>
+
+  <div class="mascot-settings">
+    <div class="mascot-set-head">
+      <span class="mascot-settings-title"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.2"/><circle cx="10" cy="16" r="2.2"/></svg> Hiển thị</span>
+    </div>
+    <label class="appear-row"><span>Chế độ màu</span><select id="appearance-mode"><option value="light">Sáng</option><option value="dark">Tối (ca đêm)</option><option value="auto">Theo máy</option></select></label>
+    <label class="appear-row"><span>Hiệu ứng chuyển động</span><select id="appearance-anim"><option value="on">Bật</option><option value="off">Tắt</option></select></label>
+    <p class="mascot-set-note">Chế độ tối dịu mắt khi trực đêm; chủ đề lễ hội vẫn tự bật theo ngày. Cài đặt chỉ lưu trên máy này.</p>
   </div>
 
   </div>
 </section>
 
 <section id="view-export" class="view hidden">
-  <h2 class="page-title">Lọc &amp; Xuất kết quả PDF</h2>
   <form id="filter-form" class="filter-form">
     <label class="filter-row"><span>Từ ngày</span><input id="f-from" type="date"></label>
     <label class="filter-row"><span>Đến ngày</span><input id="f-to" type="date"></label>
@@ -1810,9 +1910,9 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <div id="more-modal" class="modal hidden">
   <div class="modal-box more-box">
     <h3 class="more-title">Chức năng khác</h3>
-    <button type="button" id="btn-audit" class="audit-open-btn">📋 Nhật ký thao tác</button>
-    <button type="button" id="btn-handover" class="audit-open-btn">🤝 Bàn giao ca</button>
-    <button type="button" id="btn-sync" class="audit-open-btn sync-open-btn">🔗 Đồng bộ LAN</button>
+    <button type="button" id="btn-audit" class="audit-open-btn"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 11h6M9 15h4"/></svg> Nhật ký thao tác</button>
+    <button type="button" id="btn-handover" class="audit-open-btn"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></svg> Bàn giao ca</button>
+    <button type="button" id="btn-sync" class="audit-open-btn sync-open-btn"> <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.6-5.6L12 7.2"/><path d="M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.6 5.6L12 16.8"/></svg> Đồng bộ LAN</button>
     <p class="more-note">Đồng bộ LAN: dùng chung dữ liệu nhiều máy trong cùng một mạng.</p>
     <button type="button" id="btn-more-close" class="btn-ghost">Đóng</button>
   </div>
@@ -3694,7 +3794,7 @@ function isDeferred(rec) { return !!(rec && rec.deferReason); }
 function deferReasonLabel(rec) { return DEFER_REASONS[rec.deferReason] || ''; }
 function deferTagHTML(rec) {
   if (!isDeferred(rec)) return '';
-  return '<span class="defer-tag">⏸ Hẹn lại · ' + esc(deferReasonLabel(rec)) + '</span>';
+  return '<span class="defer-tag"><svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg> Hẹn lại · ' + esc(deferReasonLabel(rec)) + '</span>';
 }
 function deferredRecords() {
   return store.getAll().filter(isDeferred)
@@ -3780,7 +3880,7 @@ function recordItemHTML(rec, opts) {
         /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ.
            Chỉ hiện trên điện thoại/máy tính bảng (v45): trên PC cửa sổ app luôn mở trên
            màn hình làm việc, bộ đếm trong app chạy bình thường nên không cần nhắc qua Lịch. */
-        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>' : '');
+        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg> Lịch</button>' : '');
     } else {
       timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
@@ -3806,7 +3906,7 @@ function recordItemHTML(rec, opts) {
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
     '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
-  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
+  return '<li class="record-item st-' + status + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
@@ -5990,6 +6090,7 @@ function renderOperatorControls() {
     el.innerHTML = staffOptionsHTML([currentOperator]);
     el.value = currentOperator;
   });
+  updateOpAvatar();
 }
 
 function setOperator(name) {
@@ -6644,7 +6745,7 @@ function renderHandover() {
   $('handover-counts').textContent = 'Chưa kết quả: ' + h.noresult.length + ' · Chờ phát hành: ' + h.pending.length + ' · Tổng bàn giao: ' + (h.noresult.length + h.pending.length);
   const rowHtml = (r) => {
     const status = store.statusOf(r);
-    return '<li class="record-item' + (r.urgent ? ' urgent' : '') + '"><div class="record-main">' +
+    return '<li class="record-item st-' + status + (r.urgent ? ' urgent' : '') + '"><div class="record-main">' +
       '<div class="record-id">' + esc(r.testId) + (r.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + '</div>' +
       '<div class="record-type">' + esc((getTestType(r.typeId) || {}).name || r.typeId) + '</div></div>' +
       '<div class="record-side"><span class="record-time">' + esc(fmtList(r.createdAt)) + '</span>' +
@@ -7870,6 +7971,69 @@ function initMascot() {
   updateMascot();
 }
 
+/* ================= v96: Hiển thị (chế độ tối + hiệu ứng) =================
+ * Cài đặt riêng máy (labentry.appearance.v1, không vào file sao lưu):
+ * mode 'light' | 'dark' | 'auto' (theo hệ điều hành) + anim bật/tắt.
+ * Một đoạn script nhỏ ngay đầu <body> đã áp sẵn class dark/no-anim trước
+ * khi vẽ để không chớp sáng; khối này lo phần còn lại + ô chọn ở tab
+ * Giao diện. Chủ đề lễ hội vẫn thắng ở màu nhấn (xem styles.css). */
+const APPEAR_KEY = 'labentry.appearance.v1';
+function loadAppearance() {
+  try {
+    const o = JSON.parse(localStorage.getItem(APPEAR_KEY) || 'null');
+    if (o && typeof o === 'object') {
+      return { mode: ['light', 'dark', 'auto'].includes(o.mode) ? o.mode : 'light', anim: o.anim !== false };
+    }
+  } catch (e) { /* bỏ qua */ }
+  return { mode: 'light', anim: true };
+}
+let appearance = loadAppearance();
+function saveAppearance() {
+  try { localStorage.setItem(APPEAR_KEY, JSON.stringify(appearance)); } catch (e) { /* bỏ qua */ }
+}
+function appearanceDark() {
+  if (appearance.mode === 'dark') return true;
+  if (appearance.mode === 'auto' && window.matchMedia) return matchMedia('(prefers-color-scheme: dark)').matches;
+  return false;
+}
+function applyAppearance() {
+  const dark = appearanceDark();
+  document.body.classList.toggle('dark', dark);
+  document.body.classList.toggle('no-anim', !appearance.anim);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = dark ? '#101214' : '#1e88e5';
+  const s1 = $('appearance-mode'); if (s1) s1.value = appearance.mode;
+  const s2 = $('appearance-anim'); if (s2) s2.value = appearance.anim ? 'on' : 'off';
+}
+function initAppearance() {
+  applyAppearance();
+  const s1 = $('appearance-mode');
+  if (s1) s1.addEventListener('change', () => { appearance.mode = s1.value; saveAppearance(); applyAppearance(); });
+  const s2 = $('appearance-anim');
+  if (s2) s2.addEventListener('change', () => { appearance.anim = s2.value === 'on'; saveAppearance(); applyAppearance(); });
+  if (window.matchMedia) {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', () => { if (appearance.mode === 'auto') applyAppearance(); });
+  }
+}
+
+/* Avatar KTV trực trên thanh ứng dụng (v96): vòng tròn màu + chữ cái đầu
+ * của tên riêng (từ cuối cùng của họ tên); bấm vào về tab Hôm nay để đổi. */
+const AVATAR_COLORS = ['#1e88e5', '#00897b', '#7b1fa2', '#c2185b', '#ef6c00', '#43a047', '#5e35b1', '#00838f'];
+function updateOpAvatar() {
+  const b = $('op-avatar');
+  if (!b) return;
+  const name = (typeof currentOperator !== 'undefined' && currentOperator) ? String(currentOperator).trim() : '';
+  if (!name) { b.classList.add('hidden'); b.textContent = ''; return; }
+  const parts = name.split(/\s+/);
+  b.textContent = (parts[parts.length - 1].charAt(0) || '?').toUpperCase();
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  b.style.background = AVATAR_COLORS[h % AVATAR_COLORS.length];
+  b.title = 'KTV trực: ' + name + ' — bấm để đổi';
+  b.classList.remove('hidden');
+}
+
 /* ================= F32: Chủ đề lễ hội (ý tưởng 14) =================
  * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
  * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
@@ -8453,6 +8617,13 @@ function init() {
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* Bot (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
+  initAppearance(); /* v96: chế độ tối + hiệu ứng */
+  const opAv = $('op-avatar');
+  if (opAv) opAv.addEventListener('click', () => {
+    switchView('today');
+    const sel = $('operator-select');
+    if (sel) { sel.focus(); sel.scrollIntoView({ block: 'center' }); }
+  });
   initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);

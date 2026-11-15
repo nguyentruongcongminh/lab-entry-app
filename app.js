@@ -55,7 +55,7 @@ function isDeferred(rec) { return !!(rec && rec.deferReason); }
 function deferReasonLabel(rec) { return DEFER_REASONS[rec.deferReason] || ''; }
 function deferTagHTML(rec) {
   if (!isDeferred(rec)) return '';
-  return '<span class="defer-tag">⏸ Hẹn lại · ' + esc(deferReasonLabel(rec)) + '</span>';
+  return '<span class="defer-tag"><svg class="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg> Hẹn lại · ' + esc(deferReasonLabel(rec)) + '</span>';
 }
 function deferredRecords() {
   return store.getAll().filter(isDeferred)
@@ -141,7 +141,7 @@ function recordItemHTML(rec, opts) {
         /* Nút tùy chọn nhắc qua Lịch (F25): tải file .ics có chuông báo đúng lúc tới giờ.
            Chỉ hiện trên điện thoại/máy tính bảng (v45): trên PC cửa sổ app luôn mở trên
            màn hình làm việc, bộ đếm trong app chạy bình thường nên không cần nhắc qua Lịch. */
-        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch">🔔 Lịch</button>' : '');
+        (calRemindAvailable() ? '<button class="timer-btn cal-btn" data-action="calremind" data-uid="' + rec.uid + '" title="Tạo lời nhắc trong Lịch điện thoại — chuông báo đúng lúc tới giờ, kể cả khi app đã đóng" aria-label="Nhắc qua Lịch"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg> Lịch</button>' : '');
     } else {
       timerBtn = '<button class="timer-btn due" data-action="timer" data-uid="' + rec.uid + '" title="Đã tới giờ — bấm để nhập kết quả ngay" aria-label="Tới giờ nhập kết quả">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 2M9.5 3.5h5"/></svg>Nhập KQ ngay</button>';
@@ -167,7 +167,7 @@ function recordItemHTML(rec, opts) {
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
     '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
-  return '<li class="record-item' + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
+  return '<li class="record-item st-' + status + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
     '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
     '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
@@ -2351,6 +2351,7 @@ function renderOperatorControls() {
     el.innerHTML = staffOptionsHTML([currentOperator]);
     el.value = currentOperator;
   });
+  updateOpAvatar();
 }
 
 function setOperator(name) {
@@ -3005,7 +3006,7 @@ function renderHandover() {
   $('handover-counts').textContent = 'Chưa kết quả: ' + h.noresult.length + ' · Chờ phát hành: ' + h.pending.length + ' · Tổng bàn giao: ' + (h.noresult.length + h.pending.length);
   const rowHtml = (r) => {
     const status = store.statusOf(r);
-    return '<li class="record-item' + (r.urgent ? ' urgent' : '') + '"><div class="record-main">' +
+    return '<li class="record-item st-' + status + (r.urgent ? ' urgent' : '') + '"><div class="record-main">' +
       '<div class="record-id">' + esc(r.testId) + (r.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + '</div>' +
       '<div class="record-type">' + esc((getTestType(r.typeId) || {}).name || r.typeId) + '</div></div>' +
       '<div class="record-side"><span class="record-time">' + esc(fmtList(r.createdAt)) + '</span>' +
@@ -4231,6 +4232,69 @@ function initMascot() {
   updateMascot();
 }
 
+/* ================= v96: Hiển thị (chế độ tối + hiệu ứng) =================
+ * Cài đặt riêng máy (labentry.appearance.v1, không vào file sao lưu):
+ * mode 'light' | 'dark' | 'auto' (theo hệ điều hành) + anim bật/tắt.
+ * Một đoạn script nhỏ ngay đầu <body> đã áp sẵn class dark/no-anim trước
+ * khi vẽ để không chớp sáng; khối này lo phần còn lại + ô chọn ở tab
+ * Giao diện. Chủ đề lễ hội vẫn thắng ở màu nhấn (xem styles.css). */
+const APPEAR_KEY = 'labentry.appearance.v1';
+function loadAppearance() {
+  try {
+    const o = JSON.parse(localStorage.getItem(APPEAR_KEY) || 'null');
+    if (o && typeof o === 'object') {
+      return { mode: ['light', 'dark', 'auto'].includes(o.mode) ? o.mode : 'light', anim: o.anim !== false };
+    }
+  } catch (e) { /* bỏ qua */ }
+  return { mode: 'light', anim: true };
+}
+let appearance = loadAppearance();
+function saveAppearance() {
+  try { localStorage.setItem(APPEAR_KEY, JSON.stringify(appearance)); } catch (e) { /* bỏ qua */ }
+}
+function appearanceDark() {
+  if (appearance.mode === 'dark') return true;
+  if (appearance.mode === 'auto' && window.matchMedia) return matchMedia('(prefers-color-scheme: dark)').matches;
+  return false;
+}
+function applyAppearance() {
+  const dark = appearanceDark();
+  document.body.classList.toggle('dark', dark);
+  document.body.classList.toggle('no-anim', !appearance.anim);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = dark ? '#101214' : '#1e88e5';
+  const s1 = $('appearance-mode'); if (s1) s1.value = appearance.mode;
+  const s2 = $('appearance-anim'); if (s2) s2.value = appearance.anim ? 'on' : 'off';
+}
+function initAppearance() {
+  applyAppearance();
+  const s1 = $('appearance-mode');
+  if (s1) s1.addEventListener('change', () => { appearance.mode = s1.value; saveAppearance(); applyAppearance(); });
+  const s2 = $('appearance-anim');
+  if (s2) s2.addEventListener('change', () => { appearance.anim = s2.value === 'on'; saveAppearance(); applyAppearance(); });
+  if (window.matchMedia) {
+    const mq = matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', () => { if (appearance.mode === 'auto') applyAppearance(); });
+  }
+}
+
+/* Avatar KTV trực trên thanh ứng dụng (v96): vòng tròn màu + chữ cái đầu
+ * của tên riêng (từ cuối cùng của họ tên); bấm vào về tab Hôm nay để đổi. */
+const AVATAR_COLORS = ['#1e88e5', '#00897b', '#7b1fa2', '#c2185b', '#ef6c00', '#43a047', '#5e35b1', '#00838f'];
+function updateOpAvatar() {
+  const b = $('op-avatar');
+  if (!b) return;
+  const name = (typeof currentOperator !== 'undefined' && currentOperator) ? String(currentOperator).trim() : '';
+  if (!name) { b.classList.add('hidden'); b.textContent = ''; return; }
+  const parts = name.split(/\s+/);
+  b.textContent = (parts[parts.length - 1].charAt(0) || '?').toUpperCase();
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  b.style.background = AVATAR_COLORS[h % AVATAR_COLORS.length];
+  b.title = 'KTV trực: ' + name + ' — bấm để đổi';
+  b.classList.remove('hidden');
+}
+
 /* ================= F32: Chủ đề lễ hội (ý tưởng 14) =================
  * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
  * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
@@ -4814,6 +4878,13 @@ function init() {
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* Bot (F31) */
   initTheme(); /* chủ đề lễ hội (F32) */
+  initAppearance(); /* v96: chế độ tối + hiệu ứng */
+  const opAv = $('op-avatar');
+  if (opAv) opAv.addEventListener('click', () => {
+    switchView('today');
+    const sel = $('operator-select');
+    if (sel) { sel.focus(); sel.scrollIntoView({ block: 'center' }); }
+  });
   initKeyboardFix(); /* chống bàn phím che ô nhập (v66) */
   wrapWithMic($('input-note')); /* ô ghi chú cũng nhập giọng nói được */
   buildTypeOptions($('select-type'), false);
