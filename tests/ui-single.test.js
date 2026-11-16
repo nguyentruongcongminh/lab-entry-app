@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v94 và precache đúng URL ?v=94 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v97 và precache đúng URL ?v=97 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v94'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=94', 'print.css?v=94', 'config.js?v=94', 'store.js?v=94', 'sync-core.js?v=94', 'sync.js?v=94', 'mascot.js?v=94', 'app.js?v=94', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v97'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=97', 'print.css?v=97', 'config.js?v=97', 'store.js?v=97', 'sync-core.js?v=97', 'sync.js?v=97', 'mascot.js?v=97', 'app.js?v=97', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1803,7 +1803,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w8.close();
   });
 
-  test('linh vật đồng ca: trạng thái theo ca (êm/chờ/vội/quá giờ/quá tải), cài đặt + ảnh riêng chỉ máy này (v55 F31, bong bóng 5 giây v56)', async () => {
+  test('Bot: trạng thái theo ca (êm/chờ/vội/quá giờ/quá tải), cài đặt + ảnh riêng chỉ máy này (v55 F31, bong bóng 5 giây v56; tên gọi Bot từ v95)', async () => {
     const dom9 = new JSDOM(htmlText, {
       url: 'file://' + htmlPath,
       runScripts: 'dangerously',
@@ -1928,9 +1928,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w9.close();
   });
 
-  test('F32 (v58, nới rộng v60–v64): chủ đề lễ hội — lịch âm đúng ngày lễ thật, tự động + chọn tay, thẻ cài đặt gọn', async () => {
+  test('F32 (v58, nới rộng v60–v64; v95 bỏ chọn tay): chủ đề lễ hội — lịch âm đúng ngày lễ thật, luôn tự động theo ngày', async () => {
     const dom10 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
-      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lễ', salt: 's10', pinHash: 'h10' }]), 'labentry.operator.v1': 'KTV Lễ' }); } });
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Lễ', salt: 's10', pinHash: 'h10' }]), 'labentry.operator.v1': 'KTV Lễ', 'labentry.theme.v1': JSON.stringify({ mode: 'off' }) }); } });
     const w10 = dom10.window;
     await new Promise((res) => { if (w10.document.readyState === 'complete') res(); else w10.addEventListener('load', res); });
     await new Promise((r) => setTimeout(r, 300));
@@ -1942,7 +1942,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(JSON.stringify(w10.eval('convertSolar2Lunar(6, 2, 2027)').slice(0, 3)), '[1,1,2027]', '06/02/2027 = mùng 1 Tết 2027');
 
     /* Tự động theo ngày */
-    assert.strictEqual(w10.eval("themeSettings.mode = 'auto'; themeForDate(new Date(2026, 1, 17))"), 'tet', 'mùng 1 Tết -> chủ đề tet');
+    assert.strictEqual(w10.eval('themeSettings.mode'), 'auto', 'v95: máy từng lưu chọn Tắt vẫn mặc định tự động');
+    assert.strictEqual(w10.eval('themeForDate(new Date(2026, 1, 17))'), 'tet', 'mùng 1 Tết -> chủ đề tet');
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 8, 25))'), 'trungthu', 'rằm tháng 8 -> trungthu');
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 24))'), 'xmas', '24/12 -> xmas');
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 10, 8))'), '', 'ngày thường không có chủ đề');
@@ -1959,43 +1960,40 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 22))'), 'qdnd', '22/12 -> Quân đội (không phải Giáng Sinh)');
     assert.strictEqual(w10.eval('themeForDate(new Date(2026, 11, 24))'), 'xmas', '24/12 vẫn là Giáng Sinh');
 
-    /* Chọn tay ghi đè; áp dụng lên body + dải lời chúc */
-    const sel = d10.getElementById('theme-mode');
-    assert.ok(sel && sel.options.length === 13, 'ô chọn chủ đề có 13 mức (tự động + 11 lễ + tắt)');
-    sel.value = 'tet';
-    sel.dispatchEvent(new w10.Event('change'));
-    assert.ok(d10.body.classList.contains('theme-tet'), 'chọn Tết thì body mang theme-tet');
+    /* v95: không còn ô chọn tay ở tab Giao diện */
+    assert.strictEqual(d10.getElementById('theme-mode'), null, 'v95: đã xóa ô chọn chủ đề lễ hội');
+
+    /* Áp chủ đề lên body + dải lời chúc: thay themeForDate bằng bản trỏ cố
+       định một lễ để kiểm tra applyTheme (ngày chạy test không cố định) */
     const banner = d10.getElementById('theme-banner');
+    const decor = d10.getElementById('theme-decor');
+    w10.eval("themeForDate = () => 'tet'; applyTheme();");
+    assert.ok(d10.body.classList.contains('theme-tet'), 'ngày Tết thì body mang theme-tet');
     assert.ok(!banner.classList.contains('hidden'), 'dải lời chúc hiện khi có chủ đề');
     assert.ok(d10.getElementById('theme-banner-text').textContent.includes('Chúc Mừng Năm Mới'), 'lời chúc Tết đúng');
-    assert.strictEqual(JSON.parse(w10.localStorage.getItem('labentry.theme.v1')).mode, 'tet', 'lựa chọn lưu ở labentry.theme.v1');
 
     /* Nút ✕ chỉ ẩn tạm thời khi còn ở chủ đề đó */
     d10.getElementById('theme-banner-close').click();
     assert.ok(banner.classList.contains('hidden'), 'bấm ✕ thì ẩn dải chúc');
-    sel.dispatchEvent(new w10.Event('change'));
+    w10.eval('applyTheme();');
     assert.ok(banner.classList.contains('hidden'), 'còn ở nguyên chủ đề Tết thì vẫn ẩn');
 
-    /* Tắt hẳn: gỡ class + ẩn dải */
-    sel.value = 'off';
-    sel.dispatchEvent(new w10.Event('change'));
-    assert.ok(!d10.body.classList.contains('theme-tet'), 'chọn Tắt thì gỡ chủ đề');
-    assert.ok(banner.classList.contains('hidden'), 'tắt thì ẩn dải chúc');
+    /* Ngày thường: không chủ đề — gỡ class + ẩn dải */
+    w10.eval("themeForDate = () => ''; applyTheme();");
+    assert.ok(!d10.body.classList.contains('theme-tet'), 'ngày thường thì gỡ chủ đề');
+    assert.ok(banner.classList.contains('hidden'), 'ngày thường thì ẩn dải chúc');
 
     /* v61–v63: tắt lời chúc là tạm thời — rời sang chủ đề khác rồi quay lại
        là hiện tiếp (Minh chốt: "quay lại cần hiện thông báo tiếp, không tắt") */
-    sel.value = 'xmas';
-    sel.dispatchEvent(new w10.Event('change'));
-    assert.ok(!banner.classList.contains('hidden'), 'đã tắt chúc Tết, chọn Giáng Sinh thì chúc Giáng Sinh vẫn hiện');
-    assert.ok(d10.getElementById('theme-banner-text').textContent.includes('Giáng Sinh'), 'lời chúc là của chủ đề mới chọn');
-    const decor = d10.getElementById('theme-decor');
+    w10.eval("themeForDate = () => 'xmas'; applyTheme();");
+    assert.ok(!banner.classList.contains('hidden'), 'đã tắt chúc Tết, sang Giáng Sinh thì chúc Giáng Sinh vẫn hiện');
+    assert.ok(d10.getElementById('theme-banner-text').textContent.includes('Giáng Sinh'), 'lời chúc là của chủ đề mới');
     assert.ok(!decor.classList.contains('hidden') && decor.textContent.includes('❄') && decor.textContent.includes('⛄'), 'Giáng Sinh có tuyết rơi + người tuyết ở góc');
     assert.strictEqual(d10.getElementById('theme-banner-decor-l').textContent, '🎄', 'đầu trái dải chúc có cây thông');
     d10.getElementById('theme-banner-close').click();
     assert.ok(banner.classList.contains('hidden'), 'tắt chúc Giáng Sinh thì ẩn');
 
-    sel.value = 'tet';
-    sel.dispatchEvent(new w10.Event('change'));
+    w10.eval("themeForDate = () => 'tet'; applyTheme();");
     assert.ok(!banner.classList.contains('hidden'), 'quay lại Tết là lời chúc hiện tiếp, không tắt hẳn (kể cả khi đã từng tắt)');
     assert.ok(decor.textContent.includes('🌸') && decor.textContent.includes('🧧'), 'trang trí Tết vẫn có hoa đào rơi + bao lì xì ở góc');
     /* v64a: vật rơi rải đều toàn chiều ngang (trước đây công thức cũ dồn
@@ -2017,9 +2015,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     w10.eval("playThemeMusic('tet'); stopThemeMusic();");
     assert.strictEqual(w10.eval('themeMusicState.playing'), false, 'không có WebAudio thì không phát, không lỗi');
 
-    sel.value = 'trungthu';
-    sel.dispatchEvent(new w10.Event('change'));
+    w10.eval("themeForDate = () => 'trungthu'; applyTheme();");
     assert.ok(!banner.classList.contains('hidden'), 'Trung Thu lời chúc hiện bình thường');
+    w10.eval("themeForDate = () => ''; applyTheme();");
 
     /* Thẻ cài đặt linh vật đã gọn: tiêu đề + ô chọn cùng hàng, ghi chú ngắn */
     assert.ok(d10.querySelector('.mascot-set-head select#mascot-enabled'), 'ô chọn linh vật nằm cùng hàng tiêu đề (thẻ gọn v58)');
@@ -2029,17 +2027,79 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const bk = JSON.stringify(w10.eval('store.exportBackup()'));
     assert.ok(!bk.includes('labentry.theme'), 'file sao lưu không mang cài đặt chủ đề');
 
-    /* v59: hai thẻ tùy chỉnh nằm ở tab riêng Giao diện, cạnh Quản lý */
+    /* v59: thẻ tùy chỉnh nằm ở tab riêng Giao diện, cạnh Quản lý (v95: bỏ thẻ chọn lễ; v97 thêm thẻ Hiển thị) */
     const navBtns = [...d10.querySelectorAll('.nav-btn')];
     assert.deepStrictEqual(navBtns.map((b) => b.dataset.view), ['today', 'manage', 'display', 'export'], 'thanh dưới có 4 tab, Giao diện ngay sau Quản lý');
     const viewDisplay = d10.getElementById('view-display');
-    assert.ok(viewDisplay.querySelector('#mascot-enabled') && viewDisplay.querySelector('#theme-mode'), 'tab Giao diện chứa cả hai thẻ tùy chỉnh');
+    assert.ok(viewDisplay.querySelector('#mascot-enabled') && !viewDisplay.querySelector('#theme-mode'), 'tab Giao diện có thẻ Bot, không còn ô chọn chủ đề');
     assert.ok(!d10.getElementById('view-manage').querySelector('#mascot-enabled'), 'tab Quản lý không còn thẻ linh vật');
     navBtns.find((b) => b.dataset.view === 'display').click();
     assert.ok(!viewDisplay.classList.contains('hidden') && d10.getElementById('view-manage').classList.contains('hidden'), 'bấm tab Giao diện thì mở đúng trang');
     assert.ok(d10.getElementById('fab-add').classList.contains('hidden'), 'nút + ẩn ở tab Giao diện');
     assert.strictEqual(w10.eval('mascotVisibleHere()'), true, 'linh vật vẫn hiện ở tab Giao diện để xem trước khi tùy chỉnh');
     w10.close();
+  });
+
+
+  test('v96: giao diện chuyên nghiệp — thanh ứng dụng + avatar KTV, icon SVG thay emoji, vạch màu trạng thái, chế độ tối + hiệu ứng ở thẻ Hiển thị', async () => {
+    const dom96 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'Trần An', salt: 's96', pinHash: 'h96' }]), 'labentry.operator.v1': 'Trần An' }); } });
+    const w96 = dom96.window;
+    await new Promise((res) => { if (w96.document.readyState === 'complete') res(); else w96.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const d96 = w96.document;
+    const $96 = (id) => d96.getElementById(id);
+
+    /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
+    assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v97', 'thanh ứng dụng mang tên bản');
+    assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
+
+    /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
+    const av = $96('op-avatar');
+    assert.ok(av && !av.classList.contains('hidden'), 'có avatar KTV trực khi đã chọn người trực');
+    assert.strictEqual(av.textContent, 'A', 'avatar là chữ cái đầu của tên riêng (Trần An -> A)');
+    assert.ok(av.style.background, 'avatar có màu nền riêng');
+
+    /* Icon SVG thay emoji ở các nút chính */
+    for (const id of ['btn-batch', 'btn-deferred', 'btn-more', 'btn-audit', 'btn-handover', 'btn-sync', 'btn-mascot-img', 'btn-mascot-reset']) {
+      const b = $96(id);
+      assert.ok(b && b.querySelector('svg.ic'), id + ' dùng icon SVG');
+    }
+    assert.ok(!$96('btn-batch').textContent.includes('🧮') && !$96('btn-deferred').textContent.includes('⏸'), 'không còn emoji ở cụm nút Quản lý');
+    assert.ok(!$96('btn-audit').textContent.includes('📋') && !$96('btn-handover').textContent.includes('🤝') && !$96('btn-sync').textContent.includes('🔗'), 'không còn emoji ở hộp Chức năng khác');
+    const botTitle = d96.querySelector('#view-display .mascot-settings-title');
+    assert.ok(botTitle.textContent.includes('Bot') && botTitle.querySelector('svg.ic'), 'thẻ Bot có icon SVG + tên Bot');
+
+    /* Vạch màu trạng thái trên thẻ mẫu ở danh sách hôm nay */
+    w96.eval("store.add({ testId: 'V96-01', typeId: 'cao-tim-nam', results: {} });");
+    w96.eval("store.add({ testId: 'V96-02', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' } });");
+    w96.eval("store.add({ testId: 'V96-03', typeId: 'cao-tim-nam', results: { ketQua: 'Âm tính' }, releaseAt: new Date().toISOString() });");
+    w96.eval('renderToday();');
+    const liOf = (tid) => [...d96.querySelectorAll('#list-today .record-item')].find((li) => li.textContent.includes(tid));
+    assert.ok(liOf('V96-01').classList.contains('st-no-result'), 'mẫu chưa kết quả mang vạch xám');
+    assert.ok(liOf('V96-02').classList.contains('st-pending-release'), 'mẫu chờ phát hành mang vạch cam');
+    assert.ok(liOf('V96-03').classList.contains('st-released'), 'mẫu đã phát hành mang vạch xanh lá');
+
+    /* Thẻ Hiển thị: chế độ tối + hiệu ứng, lưu riêng máy */
+    const modeSel = $96('appearance-mode');
+    const animSel = $96('appearance-anim');
+    assert.ok(modeSel && animSel, 'tab Giao diện có thẻ Hiển thị với hai ô chọn');
+    modeSel.value = 'dark';
+    modeSel.dispatchEvent(new w96.Event('change'));
+    assert.ok(d96.body.classList.contains('dark'), 'chọn Tối thì body mang class dark');
+    assert.strictEqual(JSON.parse(w96.localStorage.getItem('labentry.appearance.v1')).mode, 'dark', 'chế độ màu lưu ở labentry.appearance.v1');
+    assert.ok(!JSON.stringify(w96.eval('store.exportBackup()')).includes('labentry.appearance'), 'cài đặt hiển thị không đi theo file sao lưu');
+    modeSel.value = 'light';
+    modeSel.dispatchEvent(new w96.Event('change'));
+    assert.ok(!d96.body.classList.contains('dark'), 'chọn Sáng thì gỡ class dark');
+    animSel.value = 'off';
+    animSel.dispatchEvent(new w96.Event('change'));
+    assert.ok(d96.body.classList.contains('no-anim'), 'tắt hiệu ứng thì body mang class no-anim');
+    animSel.value = 'on';
+    animSel.dispatchEvent(new w96.Event('change'));
+    assert.ok(!d96.body.classList.contains('no-anim'), 'bật lại hiệu ứng thì gỡ no-anim');
+    w96.close();
   });
 
   test('F35 (v71): chụp ảnh đọc mã trong màn hình quét + khối chữ ký in không tách trang', async () => {
@@ -2076,6 +2136,67 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   /* v71: khối chữ ký không được tách đôi qua trang khi in */
   const printCss = fs.readFileSync(path.join(__dirname, '..', 'print.css'), 'utf8');
   assert.ok(printCss.includes('.sh-sigs') && printCss.includes('break-inside: avoid'), 'print.css giữ nguyên khối chữ ký khi ngắt trang');
+});
+
+test('v97: camera quét tự mở lại sau khi chụp ảnh đọc mã + tự hồi phục khi luồng bị cắt', async () => {
+  const dom97 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+    beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Quét', salt: 's97', pinHash: 'h97' }]), 'labentry.operator.v1': 'KTV Quét' }); } });
+  const w97 = dom97.window;
+  const d97 = w97.document;
+  await new Promise((res) => { if (d97.readyState === 'complete') res(); else w97.addEventListener('load', res); });
+  await new Promise((r) => setTimeout(r, 300));
+
+  /* Giả lập camera: mỗi lần getUserMedia là một luồng mới có track riêng */
+  w97.HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+  w97.HTMLMediaElement.prototype.pause = function () {};
+  const video97 = d97.getElementById('scanner-video');
+  let so97 = null;
+  Object.defineProperty(video97, 'srcObject', { configurable: true, get() { return so97; }, set(v) { so97 = v; } });
+  let gumCalls = 0;
+  const tracks97 = [];
+  const streams97 = [];
+  const gum = async () => {
+    gumCalls++;
+    const tr = { readyState: 'live', stopped: false, stop() { this.readyState = 'ended'; this.stopped = true; } };
+    const st = { getTracks: () => [tr], getVideoTracks: () => [tr] };
+    tracks97.push(tr); streams97.push(st);
+    return st;
+  };
+  try { Object.defineProperty(w97.navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: gum } }); }
+  catch (e) { w97.navigator.mediaDevices = { getUserMedia: gum }; }
+  let detectResult = [];
+  w97.BarcodeDetector = class { async detect() { return detectResult; } };
+  w97.createImageBitmap = async () => ({ width: 400, height: 300, close() {} });
+
+  w97.eval("currentOperator = 'KTV Quét'");
+  w97.eval("openScanner('today')");
+  await new Promise((r) => setTimeout(r, 250));
+  assert.strictEqual(gumCalls, 1, 'mở màn hình quét là mở camera');
+  assert.strictEqual(w97.eval('scanStream'), streams97[0], 'luồng đầu tiên đang chạy');
+
+  /* Chụp ảnh đọc mã thành công -> camera trực tiếp PHẢI được mở lại bằng luồng mới */
+  detectResult = [{ rawValue: 'V97-ANH-01' }];
+  await w97.eval("(async () => { await scanPhotoFile(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); })()");
+  detectResult = [];
+  assert.ok(w97.eval("store.getAll().some((r) => r.testId === 'V97-ANH-01')"), 'ảnh đọc được mã thì nhận mẫu');
+  assert.strictEqual(gumCalls, 2, 'xử lý ảnh xong là mở lại camera (luồng mới)');
+  assert.ok(tracks97[0].stopped, 'luồng cũ bị dừng hẳn, không còn khung hình chết');
+  assert.strictEqual(w97.eval('scanStream'), streams97[1], 'luồng hiện tại là luồng mới sau khi chụp ảnh');
+  assert.ok(d97.getElementById('scanner-msg').textContent.includes('Đã nhận mẫu'), 'thông báo nhận mẫu không bị thông báo mở camera đè mất');
+
+  /* Hệ điều hành cắt luồng giữa chừng (track ended) -> vòng quét tự mở lại */
+  tracks97[1].readyState = 'ended';
+  await new Promise((r) => setTimeout(r, 1100));
+  assert.strictEqual(gumCalls, 3, 'track bị cắt thì camera tự mở lại');
+  assert.strictEqual(w97.eval('scanStream'), streams97[2], 'luồng hồi phục là luồng mới');
+  assert.strictEqual(tracks97[2].readyState, 'live', 'luồng hồi phục đang sống');
+
+  /* Đóng màn hình quét: dừng hẳn, xóa khung hình */
+  w97.eval('closeScanner()');
+  assert.ok(tracks97[2].stopped, 'đóng quét là dừng camera');
+  assert.strictEqual(w97.eval('scanStream'), null, 'đóng quét thì không còn luồng');
+  assert.strictEqual(video97.srcObject, null, 'đóng quét thì khung hình bị xóa trắng');
+  w97.close();
 });
 
 test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, gắn vào ô ký của bản in', async () => {

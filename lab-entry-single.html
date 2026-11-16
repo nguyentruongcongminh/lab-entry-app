@@ -1155,7 +1155,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v96</span>
+  <span class="app-version">LabEntry v97</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -5897,6 +5897,17 @@ function acceptScanCode(rawCode) {
    như quét trực tiếp (tiếp nhận / tìm mẫu / điền form đều dùng chung). */
 async function scanPhotoFile(file) {
   if (!file || !scannerState) return;
+  try {
+    await scanPhotoFileInner(file);
+  } finally {
+    /* v97: trong lúc app camera của máy mở lên, hệ điều hành cắt luồng camera
+       trực tiếp của màn hình quét — xử lý ảnh xong (đọc được hay không) đều
+       phải mở lại luồng live, nếu không khung hình đứng yên ở hình cũ */
+    await restartScanCamera();
+  }
+}
+
+async function scanPhotoFileInner(file) {
   if (!('BarcodeDetector' in window) || typeof createImageBitmap !== 'function') {
     setScanMsg('Trình duyệt này không đọc được mã từ ảnh — hãy mở app bằng Chrome trên điện thoại hoặc bản APK để chụp ảnh đọc mã.', 'err');
     beepErr();
@@ -5938,6 +5949,42 @@ async function scanPhotoFile(file) {
   }
 }
 
+/* v97: dừng hẳn luồng camera quét — xóa cả srcObject để khung hình chết
+   (khung cuối đứng yên) không còn hiển thị trên màn hình quét */
+function stopScanCamera() {
+  if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
+  if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+  const v = $('scanner-video');
+  if (v) { try { v.pause(); } catch (e) { /* bỏ qua */ } v.srcObject = null; }
+}
+
+/* v97 (lỗi Minh báo 16/11): chụp ảnh đọc mã xong, quay lại quét tiếp thì camera
+   đứng yên ở hình ID cũ — khi app camera của máy mở lên, hệ điều hành cắt luồng
+   camera trực tiếp của app mà không ai mở lại; vòng đọc mã chạy trên khung hình
+   chết còn có thể nhận trùng mã cũ. Hàm này mở lại luồng mới (thử lại 1 lần sau
+   800ms nếu máy chưa nhả camera), giữ nguyên dòng thông báo đang hiện
+   (vd "Đã nhận mẫu...") để KTV không mất ngữ cảnh. */
+let scanRestarting = false;
+async function restartScanCamera() {
+  if (!scannerState || scanRestarting) return;
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  scanRestarting = true;
+  const msgEl = $('scanner-msg');
+  const msgText = msgEl ? msgEl.textContent : '';
+  const msgCls = msgEl ? msgEl.className : '';
+  try {
+    stopScanCamera();
+    await startCamera();
+    if (scannerState && !scanStream) {
+      await new Promise((r) => setTimeout(r, 800));
+      if (scannerState && !scanStream) { stopScanCamera(); await startCamera(); }
+    }
+  } finally {
+    scanRestarting = false;
+    if (scannerState && msgEl && msgText) { msgEl.textContent = msgText; msgEl.className = msgCls; }
+  }
+}
+
 async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('scan-frame').classList.add('hidden');
@@ -5958,10 +6005,16 @@ async function startCamera() {
     video.srcObject = scanStream;
     await video.play();
     if (!scannerState) return;
+    $('scan-frame').classList.remove('hidden');
     setScanMsg(scannerState.single ? 'Đưa mã vào khung hình...' : 'Đang quét liên tục — đưa từng mã vào khung hình, bấm "Dừng quét" khi xong...');
     const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
     scanTimer = setInterval(async () => {
       try {
+        /* v97: luồng bị hệ điều hành cắt (mở app camera chụp ảnh, cuộc gọi đến...)
+           thì track về 'ended' và hình đứng yên ở khung cuối — tự mở lại camera,
+           không đọc mã trên khung hình chết (tránh nhận trùng mã cũ) */
+        const vt = scanStream && scanStream.getVideoTracks ? scanStream.getVideoTracks()[0] : null;
+        if (scanStream && (!vt || vt.readyState === 'ended')) { restartScanCamera(); return; }
         const codes = await detector.detect(video);
         if (codes && codes.length && codes[0].rawValue && scannerState) {
           const code = String(codes[0].rawValue);
@@ -6022,8 +6075,7 @@ function initWedgeListener() {
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
   $('scanner-modal').classList.add('hidden');
-  if (scanTimer) { clearInterval(scanTimer); scanTimer = null; }
-  if (scanStream) { scanStream.getTracks().forEach((t) => t.stop()); scanStream = null; }
+  stopScanCamera();
   scannerState = null;
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
@@ -8920,6 +8972,9 @@ function init() {
     inp.value = '';
     if (f) scanPhotoFile(f);
   });
+  /* v97: thoát app camera mà không chụp (bấm quay lại) — luồng quét trực tiếp
+     cũng có thể đã bị hệ điều hành cắt, mở lại cho chắc */
+  $('scan-photo-input').addEventListener('cancel', () => { restartScanCamera(); });
 
   /* v87: đồng bộ LAN */
   $('btn-sync').addEventListener('click', openSyncDialog);
