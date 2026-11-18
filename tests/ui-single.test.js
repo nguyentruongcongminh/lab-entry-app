@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v97 và precache đúng URL ?v=97 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v98 và precache đúng URL ?v=98 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v97'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=97', 'print.css?v=97', 'config.js?v=97', 'store.js?v=97', 'sync-core.js?v=97', 'sync.js?v=97', 'mascot.js?v=97', 'app.js?v=97', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v98'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=98', 'print.css?v=98', 'config.js?v=98', 'store.js?v=98', 'sync-core.js?v=98', 'sync.js?v=98', 'mascot.js?v=98', 'app.js?v=98', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1059,6 +1059,34 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('print-area').textContent.includes('BANG KQ T28'), 'sau phục hồi, vùng in thật phải dùng bố cục trong file');
     /* Dọn bố cục về mặc định cho các test sau */
     $('btn-printcfg').click();
+    $('btn-pcfg-reset').click();
+    $('btn-pcfg-back').click();
+  });
+
+  test('khối chữ ký sau khi áp dụng mẫu (v98): sửa chữ ký sau "Dùng mẫu" phải vào cài đặt đã lưu + hiện ở xem trước', () => {
+    window.prompt = () => 'Mẫu T98';
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    $('btn-preset-save').click();
+    assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T98'), 'mẫu T98 phải có trong danh sách mẫu');
+    setSelect($('pcfg-preset'), 'Mẫu T98');
+    $('btn-preset-apply').click();
+    /* Sửa khối chữ ký 1 SAU khi áp dụng mẫu — trước v98 handler giữ object chữ ký
+       của printSettings cũ nên sửa xong bản in không đổi (Minh báo 2026-11-18) */
+    if (!$('pcfg-sig1-on').checked) $('pcfg-sig1-on').click();
+    setInput($('pcfg-sig1-title'), 'BAC SI PHU TRACH T98');
+    setInput($('pcfg-sig1-name'), 'Ten Ky T98');
+    setSelect($('pcfg-sig1-align'), 'right');
+    const savedSig = JSON.parse(window.localStorage.getItem('labentry.print.v1')).sigs[0];
+    assert.strictEqual(savedSig.on, true, 'bật khối chữ ký sau áp dụng mẫu phải được lưu');
+    assert.strictEqual(savedSig.title, 'BAC SI PHU TRACH T98', 'tiêu đề khối chữ ký sau áp dụng mẫu phải được lưu');
+    assert.strictEqual(savedSig.name, 'Ten Ky T98', 'họ tên khối chữ ký sau áp dụng mẫu phải được lưu');
+    assert.strictEqual(savedSig.align, 'right', 'căn lề khối chữ ký sau áp dụng mẫu phải được lưu');
+    assert.ok($('pcfg-preview').textContent.includes('BAC SI PHU TRACH T98'), 'xem trước phải hiện tiêu đề khối chữ ký vừa sửa');
+    assert.ok($('pcfg-preview').textContent.includes('Ten Ky T98'), 'xem trước phải hiện họ tên khối chữ ký vừa sửa');
+    /* Dọn: xóa mẫu T98, khôi phục mặc định */
+    setSelect($('pcfg-preset'), 'Mẫu T98');
+    $('btn-preset-del').click();
     $('btn-pcfg-reset').click();
     $('btn-pcfg-back').click();
   });
@@ -2052,7 +2080,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v97', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v98', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
