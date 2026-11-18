@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v100 và precache đúng URL ?v=100 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v101 và precache đúng URL ?v=101 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v100'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=100', 'print.css?v=100', 'config.js?v=100', 'store.js?v=100', 'sync-core.js?v=100', 'sync.js?v=100', 'mascot.js?v=100', 'app.js?v=100', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v101'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=101', 'print.css?v=101', 'config.js?v=101', 'store.js?v=101', 'sync-core.js?v=101', 'sync.js?v=101', 'mascot.js?v=101', 'app.js?v=101', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1078,6 +1078,27 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('pcfg-preview').querySelector('.sh-tat'), 'tờ Sổ phải có dòng thống kê TAT khi bật');
     assert.ok(sheet.classList.contains('hc-dark'), 'màu tiêu đề xanh đậm -> tờ Sổ mang lớp hc-dark');
     assert.ok((sheet.getAttribute('style') || '').includes('--sh-head:#1e88e5'), 'tờ Sổ mang đúng màu tiêu đề đã chọn');
+    /* Dọn về mặc định cho các test sau */
+    $('btn-pcfg-reset').click();
+    $('btn-pcfg-back').click();
+  });
+
+  test('mục Cột sửa theo kiểu phiếu đang chọn (v101): chọn Sổ thì sửa bộ cột Sổ, cột Danh sách không đổi', () => {
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    setSelect($('pcfg-style'), 'ledger');
+    const rows = document.querySelectorAll('#pcfg-columns .pcfg-col');
+    assert.strictEqual(rows.length, 12, 'kiểu Sổ có 12 cột cấu hình riêng');
+    assert.strictEqual($('pcfg-columns-for').textContent, 'Sổ theo dõi', 'mục Cột ghi rõ đang sửa cho kiểu Sổ');
+    const firstLabel = rows[0].querySelector('.pc-label');
+    assert.strictEqual(firstLabel.value, 'SID', 'cột đầu tiên của Sổ là SID');
+    setInput(firstLabel, 'MA MAU UI V101');
+    const saved = JSON.parse(window.localStorage.getItem('labentry.print.v1'));
+    assert.strictEqual(saved.ledgerColumns[0].label, 'MA MAU UI V101', 'tên cột Sổ đã sửa được lưu vào ledgerColumns');
+    assert.ok($('pcfg-preview').textContent.includes('MA MAU UI V101'), 'xem trước tờ Sổ dùng tên cột mới');
+    setSelect($('pcfg-style'), 'list');
+    const listRows = document.querySelectorAll('#pcfg-columns .pcfg-col');
+    assert.strictEqual(listRows[0].querySelector('.pc-label').value, 'STT', 'cột Danh sách không bị đụng khi sửa cột Sổ');
     /* Dọn về mặc định cho các test sau */
     $('btn-pcfg-reset').click();
     $('btn-pcfg-back').click();
@@ -2100,7 +2121,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v100', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v101', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2572,6 +2593,15 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(topCenter.includes('lg-top center'), 'bố cục đầu trang Giữa áp dụng cho tờ Sổ');
     const topGrid = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', headerLayout: 'grid3' })); return renderSheet(st, store.getAll(), {}); })()");
     assert.ok(topGrid.includes('lg-top grid3'), 'bố cục đầu trang 3 vùng áp dụng cho tờ Sổ');
+
+    /* v101: cột của phiếu Sổ theo cấu hình ledgerColumns — ẩn/đổi tên + tách cột kết quả */
+    const colHtml = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', ledgerColumns: printSettings.ledgerColumns.map((c) => Object.assign({}, c, c.id === 't3check' ? { visible: false } : {})) })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.strictEqual((colHtml.match(/NV kiểm tra/g) || []).length, 2, 'ẩn cột NV kiểm tra giai đoạn 3 -> tờ Sổ còn đúng 2 cột NV kiểm tra');
+    const colHtml2 = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', ledgerColumns: printSettings.ledgerColumns.map((c) => Object.assign({}, c, c.id === 'sid' ? { label: 'MA MAU V101' } : {})) })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.ok(colHtml2.includes('MA MAU V101'), 'đổi tên cột SID -> đầu bảng Sổ dùng tên mới');
+    const colHtml3 = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', resultsMode: 'split' })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.ok(colHtml3.includes('Bạch cầu'), 'chế độ tách cột: tờ Sổ có cột riêng cho trường Bạch cầu');
+    assert.ok(!colHtml3.includes('KẾT QUẢ'), 'chế độ tách cột: cột Kết quả gộp được thay bằng các cột trường');
 
     /* Nhập file mẫu: MỌI tùy chọn bên dưới (cột + khối chữ ký + tiêu đề) đồng bộ theo file */
     const fileObj = { app: 'LabEntry', kind: 'labentry-print-layout', version: 1, settings: {

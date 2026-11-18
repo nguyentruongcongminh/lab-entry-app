@@ -2882,6 +2882,27 @@ const PRINT_COLUMNS = [
   { id: 'releaser', label: 'KTV phát hành' },
 ];
 const PRINT_DEFAULT_VISIBLE = ['stt', 'testId', 'type', 'results', 'note', 'created', 'released'];
+/* Cột của phiếu Sổ theo dõi (F38 + v101): mặc định đúng 12 cột BM04, độ
+   rộng % là các mốc của khung BM04 cũ. stage: 0 = cột thường (gộp dọc theo
+   khối mẫu), 1/2/3 = cột thuộc nhóm giai đoạn ở tầng tiêu đề trên. Từ v101
+   người dùng ẩn/hiện, đổi tên, đổi thứ tự, đặt độ rộng và căn lề cho các
+   cột này y như cột của phiếu Danh sách — Minh chốt 2026-11-18: người dùng
+   tùy chỉnh sao thì bản in ra vậy, không ngoại lệ. */
+const LEDGER_COLUMNS = [
+  { id: 'sid', label: 'SID', stage: 0, align: 'center', width: 11 },
+  { id: 'type', label: 'XÉT NGHIỆM', stage: 0, align: 'left', width: 10 },
+  { id: 'results', label: 'KẾT QUẢ', stage: 0, align: 'left', width: 16 },
+  { id: 't1time', label: 'Giờ', stage: 1, align: 'center', width: 5.5 },
+  { id: 't1by', label: 'NV thực hiện', stage: 1, align: 'center', width: 8 },
+  { id: 't1check', label: 'NV kiểm tra', stage: 1, align: 'center', width: 7.5 },
+  { id: 't2time', label: 'Giờ', stage: 2, align: 'center', width: 5.5 },
+  { id: 't2by', label: 'NV thực hiện', stage: 2, align: 'center', width: 8 },
+  { id: 't2check', label: 'NV kiểm tra', stage: 2, align: 'center', width: 7.5 },
+  { id: 't3time', label: 'Giờ', stage: 3, align: 'center', width: 5.5 },
+  { id: 't3by', label: 'NV thực hiện', stage: 3, align: 'center', width: 8 },
+  { id: 't3check', label: 'NV kiểm tra', stage: 3, align: 'center', width: 7.5 },
+];
+const LEDGER_STAGE_NAMES = { 1: 'Thực hiện XN', 2: 'Đọc kết quả', 3: 'Nhập kết quả' };
 let printSettings = null;
 
 /* ================= Gói cải tiến ca trực (F24, v43) =================
@@ -3272,6 +3293,9 @@ function defaultPrintSettings() {
       visible: PRINT_DEFAULT_VISIBLE.includes(c.id),
       width: 0, align: c.id === 'stt' ? 'center' : 'left',
     })),
+    ledgerColumns: LEDGER_COLUMNS.map((c) => ({
+      id: c.id, label: c.label, visible: true, width: c.width, align: c.align,
+    })),
     pageSize: 'A4', orient: 'portrait', margin: 'normal',
     font: 'arial', fontSize: '12.5', density: 'normal', borders: 'full',
     footnote: '', printDate: false, tat: false,
@@ -3300,6 +3324,28 @@ function normalizePrintSettings(saved) {
       width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : 0,
       align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : dc.align,
     } : dc;
+  });
+  /* Cột phiếu Sổ (v101): giữ nguyên thứ tự người dùng đã sắp, bổ sung cột
+     còn thiếu ở cuối; mẫu cũ (chưa có ledgerColumns) nhận đủ 12 cột mặc định */
+  const savedLedgerCols = Array.isArray(saved.ledgerColumns) ? saved.ledgerColumns : [];
+  const seenLedgerIds = new Set();
+  merged.ledgerColumns = [];
+  savedLedgerCols.forEach((sc) => {
+    const reg = sc && LEDGER_COLUMNS.find((c) => c.id === sc.id);
+    if (!reg || seenLedgerIds.has(reg.id)) return;
+    seenLedgerIds.add(reg.id);
+    merged.ledgerColumns.push({
+      id: reg.id,
+      label: typeof sc.label === 'string' && sc.label ? sc.label : reg.label,
+      visible: !!sc.visible,
+      width: isFinite(sc.width) ? Math.max(0, Math.min(60, Number(sc.width))) : reg.width,
+      align: ['left', 'center', 'right'].includes(sc.align) ? sc.align : reg.align,
+    });
+  });
+  LEDGER_COLUMNS.forEach((reg) => {
+    if (!seenLedgerIds.has(reg.id)) {
+      merged.ledgerColumns.push({ id: reg.id, label: reg.label, visible: true, width: reg.width, align: reg.align });
+    }
   });
   if (!Array.isArray(merged.sigs) || merged.sigs.length !== 3) merged.sigs = def.sigs;
   if (!['left', 'center', 'right'].includes(merged.sigsAlign)) merged.sigsAlign = 'center';
@@ -3642,34 +3688,74 @@ function renderLedgerSheet(s, recs, opts) {
     const list = s.groupBy === 'type' ? groupRecords(s, entry[1]) : entry[1];
     let lastGroup = null;
     let blockIdx = 0;
+    /* v101: bảng Sổ dựng theo cấu hình cột của chính kiểu Sổ
+       (s.ledgerColumns) — ẩn/hiện, tên, thứ tự, độ rộng, căn lề và cả chế
+       độ tách cột kết quả đều theo người dùng, không ngoại lệ. Cấu hình
+       mặc định cho ra đúng bảng BM04 12 cột như trước v101. */
+    const stageOf = (id) => { const d = LEDGER_COLUMNS.find((c) => c.id === id); return d ? d.stage : 0; };
+    let lcols = (Array.isArray(s.ledgerColumns) ? s.ledgerColumns : []).filter((c) => c && c.visible);
+    if (s.resultsMode === 'split') {
+      const expanded = [];
+      lcols.forEach((c) => {
+        if (c.id === 'results') splitFieldColumns(s, list).forEach((fc) => expanded.push(fc));
+        else expanded.push(c);
+      });
+      lcols = expanded;
+    }
+    let th1 = '', th2 = '', hasStageCols = false;
+    for (let i = 0; i < lcols.length;) {
+      const c = lcols[i];
+      const st = c.id === 'field' ? 0 : stageOf(c.id);
+      if (!st) { th1 += '<th rowspan="2">' + esc(c.label) + '</th>'; i += 1; continue; }
+      let j = i, cells = '';
+      while (j < lcols.length && lcols[j].id !== 'field' && stageOf(lcols[j].id) === st) {
+        cells += '<th>' + esc(lcols[j].label) + '</th>'; j += 1;
+      }
+      th1 += '<th colspan="' + (j - i) + '">' + esc(LEDGER_STAGE_NAMES[st] || '') + '</th>';
+      th2 += cells; hasStageCols = true; i = j;
+    }
+    const thead = '<thead><tr>' + th1 + '</tr>' + (hasStageCols ? '<tr>' + th2 + '</tr>' : '') + '</thead>';
+    const colgroup = '<colgroup>' + lcols.map((c) =>
+      c.width > 0 ? '<col style="width:' + c.width + '%">' : '<col>').join('') + '</colgroup>';
+    const cellCls = (c) => c.align === 'center' ? ' class="lg-c"' : (c.align === 'right' ? ' style="text-align:right"' : '');
+    const ledgerCell = (c, rec, type, fields, rowIdx, span) => {
+      const sp = span > 1 ? ' rowspan="' + span + '"' : '';
+      switch (c.id) {
+        case 'sid': return '<td' + sp + cellCls(c) + '>' + esc(rec.testId) + '</td>';
+        case 'type': return '<td' + sp + cellCls(c) + '>' + esc(type ? type.name : rec.typeId) +
+          (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>';
+        case 'results': return '<td' + cellCls(c) + '>' +
+          (fields.length ? '<b>' + esc(fields[rowIdx].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[rowIdx])) : '') + '</td>';
+        case 'field': return '<td' + cellCls(c) + '>' + fieldCellValue(rec, c.fieldLabel) + '</td>';
+        case 't1time': return '<td' + sp + cellCls(c) + '>' + esc(fmtClock(rec.createdAt)) + '</td>';
+        case 't1by': return '<td' + sp + cellCls(c) + '>' + esc(rec.performer || '') + '</td>';
+        case 't2time': return '<td' + sp + cellCls(c) + '>' + esc(fmtClock(rec.resultAt)) + '</td>';
+        case 't2by': return '<td' + sp + cellCls(c) + '>' + esc(rec.performer || '') + '</td>';
+        case 't3time': return '<td' + sp + cellCls(c) + '>' + esc(fmtClock(rec.releaseAt)) + '</td>';
+        case 't3by': return '<td' + sp + cellCls(c) + '>' + esc(rec.releaser || '') + '</td>';
+        default: return '<td' + sp + cellCls(c) + '></td>'; /* cột NV kiểm tra: để trống ghi tay */
+      }
+    };
     const rows = list.map((rec) => {
       let groupRow = '';
       if (s.groupBy === 'type') {
         const gk = sheetGroupKey(s, rec);
         if (gk !== lastGroup) {
           lastGroup = gk;
-          groupRow = '<tr class="sh-group"><td colspan="12">' + esc(gk) + '</td></tr>';
+          groupRow = '<tr class="sh-group"><td colspan="' + lcols.length + '">' + esc(gk) + '</td></tr>';
         }
       }
       const alt = s.zebra && blockIdx % 2 === 1 ? ' class="alt"' : '';
       blockIdx += 1;
       const type = getTestType(rec.typeId);
       const fields = type ? type.fields : [];
-      const n = Math.max(1, fields.length);
-      const span = ' rowspan="' + n + '"';
-      let html = '<tr' + alt + '>' +
-        '<td' + span + ' class="lg-c">' + esc(rec.testId) + '</td>' +
-        '<td' + span + '>' + esc(type ? type.name : rec.typeId) +
-          (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>' +
-        '<td>' + (fields.length ? '<b>' + esc(fields[0].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[0])) : '') + '</td>' +
-        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.createdAt)) + '</td>' +
-        '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
-        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.resultAt)) + '</td>' +
-        '<td' + span + ' class="lg-c">' + esc(rec.performer || '') + '</td><td' + span + '></td>' +
-        '<td' + span + ' class="lg-c">' + esc(fmtClock(rec.releaseAt)) + '</td>' +
-        '<td' + span + ' class="lg-c">' + esc(rec.releaser || '') + '</td><td' + span + '></td></tr>';
-      for (let i = 1; i < n; i++) {
-        html += '<tr' + alt + '><td><b>' + esc(fields[i].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[i])) + '</td></tr>';
+      const stacked = lcols.some((c) => c.id === 'results');
+      const n = stacked ? Math.max(1, fields.length) : 1;
+      let html = '';
+      for (let r = 0; r < n; r++) {
+        html += '<tr' + alt + '>' + lcols.map((c) =>
+          c.id === 'results' ? ledgerCell(c, rec, type, fields, r, 1)
+            : (r === 0 ? ledgerCell(c, rec, type, fields, 0, n) : '')).join('') + '</tr>';
       }
       return groupRow + html;
     }).join('');
@@ -3680,13 +3766,7 @@ function renderLedgerSheet(s, recs, opts) {
       (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
       '<div class="lg-meta' + (s.metaCenter ? ' center' : '') + '"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
       (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
-      '<table><colgroup><col style="width:11%"><col style="width:10%"><col style="width:16%">' +
-      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
-      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
-      '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%"></colgroup>' +
-      '<thead><tr><th rowspan="2">SID</th><th rowspan="2">XÉT NGHIỆM</th><th rowspan="2">KẾT QUẢ</th>' +
-      '<th colspan="3">Thực hiện XN</th><th colspan="3">Đọc kết quả</th><th colspan="3">Nhập kết quả</th></tr>' +
-      '<tr><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th></tr></thead>' +
+      '<table>' + colgroup + thead +
       '<tbody>' + rows + '</tbody></table>' + sheetSigHtml(s) + footHtml + '</div>';
   };
   return days.map(daySheet).join('');
@@ -3955,10 +4035,19 @@ function fillPrintCfgControls() {
   renderPrintCfgColumns();
 }
 
+/* Tập cột đang sửa ở mục "Cột bảng kết quả": theo kiểu phiếu đang chọn
+   (v101) — Sổ theo dõi sửa ledgerColumns, Danh sách sửa columns */
+function printCfgColumns() {
+  return printSettings.style === 'ledger' ? printSettings.ledgerColumns : printSettings.columns;
+}
+
 function renderPrintCfgColumns() {
   const wrap = $('pcfg-columns');
   wrap.innerHTML = '';
-  printSettings.columns.forEach((col, i) => {
+  const cols = printCfgColumns();
+  const forEl = $('pcfg-columns-for');
+  if (forEl) forEl.textContent = printSettings.style === 'ledger' ? 'Sổ theo dõi' : 'Danh sách kết quả';
+  cols.forEach((col, i) => {
     const row = document.createElement('div');
     row.className = 'pcfg-col';
     row.innerHTML =
@@ -3977,12 +4066,12 @@ function renderPrintCfgColumns() {
     row.querySelector('.pc-align').addEventListener('change', (e) => { col.align = e.target.value; upd(); });
     row.querySelector('.pc-up').addEventListener('click', () => {
       if (i === 0) return;
-      const t = printSettings.columns[i - 1]; printSettings.columns[i - 1] = col; printSettings.columns[i] = t;
+      const t = cols[i - 1]; cols[i - 1] = col; cols[i] = t;
       savePrintSettings(); renderPrintCfgColumns(); renderPrintPreview();
     });
     row.querySelector('.pc-down').addEventListener('click', () => {
-      if (i === printSettings.columns.length - 1) return;
-      const t = printSettings.columns[i + 1]; printSettings.columns[i + 1] = col; printSettings.columns[i] = t;
+      if (i === cols.length - 1) return;
+      const t = cols[i + 1]; cols[i + 1] = col; cols[i] = t;
       savePrintSettings(); renderPrintCfgColumns(); renderPrintPreview();
     });
     wrap.appendChild(row);
@@ -4030,7 +4119,11 @@ function bindPrintCfg() {
   sel('pcfg-logo-pos', 'logoPos'); sel('pcfg-logo-size', 'logoSize');
   txt('pcfg-org', 'org'); txt('pcfg-dept', 'dept'); txt('pcfg-address', 'address');
   txt('pcfg-phone', 'phone'); txt('pcfg-email', 'email'); txt('pcfg-title', 'title');
-  sel('pcfg-style', 'style'); txt('pcfg-section', 'section'); txt('pcfg-formcode', 'formCode');
+  sel('pcfg-style', 'style');
+  /* v101: đổi kiểu phiếu phải dựng lại mục Cột theo bộ cột của kiểu mới —
+     handler sel chung chỉ lưu + vẽ lại xem trước nên không tự làm việc này */
+  $('pcfg-style').addEventListener('change', () => renderPrintCfgColumns());
+  txt('pcfg-section', 'section'); txt('pcfg-formcode', 'formCode');
   chk('pcfg-centerdept', 'centerDept'); chk('pcfg-metacenter', 'metaCenter');
   $('btn-layout-export').addEventListener('click', downloadPrintLayout);
   $('btn-layout-import').addEventListener('click', () => $('pcfg-layout-file').click());
