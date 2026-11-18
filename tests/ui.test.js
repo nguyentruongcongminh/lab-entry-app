@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v98 và precache đúng URL ?v=98 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v99 và precache đúng URL ?v=99 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v98'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=98', 'print.css?v=98', 'config.js?v=98', 'store.js?v=98', 'sync-core.js?v=98', 'sync.js?v=98', 'mascot.js?v=98', 'app.js?v=98', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v99'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=99', 'print.css?v=99', 'config.js?v=99', 'store.js?v=99', 'sync-core.js?v=99', 'sync.js?v=99', 'mascot.js?v=99', 'app.js?v=99', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1059,6 +1059,26 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('print-area').textContent.includes('BANG KQ T28'), 'sau phục hồi, vùng in thật phải dùng bố cục trong file');
     /* Dọn bố cục về mặc định cho các test sau */
     $('btn-printcfg').click();
+    $('btn-pcfg-reset').click();
+    $('btn-pcfg-back').click();
+  });
+
+  test('phiếu Sổ theo dõi tôn trọng tùy chỉnh (v99): khối chữ ký + dòng TAT + màu tiêu đề hiện trên tờ Sổ', () => {
+    document.querySelector('[data-view="export"]').click();
+    $('btn-printcfg').click();
+    setSelect($('pcfg-style'), 'ledger');
+    if (!$('pcfg-sig1-on').checked) $('pcfg-sig1-on').click();
+    setInput($('pcfg-sig1-title'), 'BAC SI PHU TRACH T99');
+    if (!$('pcfg-tat').checked) $('pcfg-tat').click();
+    setSelect($('pcfg-headercolor'), '#1e88e5');
+    const sheet = $('pcfg-preview').querySelector('.sheet.ledger');
+    assert.ok(sheet, 'xem trước phải là tờ Sổ theo dõi');
+    assert.ok($('pcfg-preview').querySelector('.sh-sigs'), 'tờ Sổ phải có khối chữ ký (.sh-sigs) như kiểu Danh sách');
+    assert.ok($('pcfg-preview').textContent.includes('BAC SI PHU TRACH T99'), 'chức danh chữ ký đã bật phải in trên tờ Sổ');
+    assert.ok($('pcfg-preview').querySelector('.sh-tat'), 'tờ Sổ phải có dòng thống kê TAT khi bật');
+    assert.ok(sheet.classList.contains('hc-dark'), 'màu tiêu đề xanh đậm -> tờ Sổ mang lớp hc-dark');
+    assert.ok((sheet.getAttribute('style') || '').includes('--sh-head:#1e88e5'), 'tờ Sổ mang đúng màu tiêu đề đã chọn');
+    /* Dọn về mặc định cho các test sau */
     $('btn-pcfg-reset').click();
     $('btn-pcfg-back').click();
   });
@@ -2080,7 +2100,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v98', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v99', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */

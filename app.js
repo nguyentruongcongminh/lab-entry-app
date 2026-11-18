@@ -3504,6 +3504,43 @@ function drawSheetBarcodes(root) {
   });
 }
 
+/* ---------- Khối chữ ký + chân trang của tờ kết quả (dùng chung 2 kiểu) ----------
+ * v99: kiểu Sổ theo dõi cũng in khối chữ ký, dòng TAT, dòng khoảng ngày và
+ * dùng màu tiêu đề như kiểu Danh sách. Trước v99 renderLedgerSheet bỏ qua
+ * toàn bộ các mục này (khung BM04 "cố định" theo quyết định v83) — người
+ * dùng bật chữ ký mà bản in Sổ không có. Minh chốt lại 2026-11-18: người
+ * dùng đã tùy chỉnh thì bất kể mẫu nào, kể cả mẫu nạp từ file mẫu, bản in
+ * cũng phải theo tùy chọn hiện tại. */
+function sheetSigHtml(s) {
+  const sigs = (s.sigs || []).filter((g) => g && g.on);
+  if (!sigs.length) return '';
+  const sigBlockHtml = (g) => {
+    /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
+    const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
+    const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
+    return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
+      '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
+      '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
+  };
+  /* v70: xếp các ô vào 3 vùng Trái/Giữa/Phải. Vùng giữa luôn hiện diện (kể cả
+     khi rỗng) với lề tự động hai bên, nên ô Trái luôn sát trái và ô Phải luôn
+     sát phải bất kể thứ tự khai báo. (v69 dùng lề tự động cho từng ô: khi ô
+     Phải đứng trước ô Trái, hai lề chia nhau khoảng trống và cả cụm bị kéo
+     vào giữa trang — lỗi Minh gặp 2026-11-09.) Nội dung trong ô (chức danh,
+     ghi chú, chữ ký, họ tên) luôn canh giữa theo ô. */
+  return '<div class="sh-sigs">' + ['left', 'center', 'right'].map((z) =>
+    '<div class="sh-sig-group g-' + z + '">' +
+    sigs.filter((g) => (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') === z).map(sigBlockHtml).join('') +
+    '</div>').join('') + '</div>';
+}
+
+function sheetFootHtml(s) {
+  return (s.footnote && s.footnote.trim()) || s.printDate
+    ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
+      (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
+    : '';
+}
+
 /* ---------- Phiếu Sổ theo dõi thủ công (F38, dạng BM04) ----------
  * Theo mẫu sổ giấy: mỗi mẫu một khối — mỗi chỉ số kết quả nằm trên một
  * dòng riêng; SID / loại XN / các ô giai đoạn gộp dọc (rowspan) theo khối.
@@ -3524,7 +3561,8 @@ function fmtClock(iso) {
   const d = new Date(iso);
   return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
 }
-function renderLedgerSheet(s, recs) {
+function renderLedgerSheet(s, recs, opts) {
+  const o = opts || {};
   const byDay = new Map();
   recs.forEach((r) => {
     const k = LabStore.localDayKey(new Date(r.createdAt));
@@ -3539,7 +3577,9 @@ function renderLedgerSheet(s, recs) {
        Danh sách — phân nhóm theo loại (gom cụm + dòng tiêu đề nhóm), kẻ sọc
        theo khối mẫu, ghi chú chân trang và ngày giờ in. Trước v83 sổ bỏ qua
        hết các tùy chọn này nên chọn mà bản in không đổi. Phân nhóm theo
-       ngày là cấu trúc sẵn của sổ (mỗi ngày một tờ) nên không thêm dòng. */
+       ngày là cấu trúc sẵn của sổ (mỗi ngày một tờ) nên không thêm dòng.
+       v99: thêm khối chữ ký cuối tờ, dòng TAT, dòng khoảng ngày và màu
+       tiêu đề — cùng nguyên tắc: đã tùy chỉnh thì bản in phải theo. */
     const list = s.groupBy === 'type' ? groupRecords(s, entry[1]) : entry[1];
     let lastGroup = null;
     let blockIdx = 0;
@@ -3574,16 +3614,15 @@ function renderLedgerSheet(s, recs) {
       }
       return groupRow + html;
     }).join('');
-    const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
-      ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
-        (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
-      : '';
-    return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
+    const footHtml = sheetFootHtml(s);
+    return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + (s.headerColor === '#1e88e5' ? ' hc-dark' : '') + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
       '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
       '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div></div>' +
       '<div class="lg-code">' + esc(s.formCode || '') + '</div></div>' +
       '<h1 class="lg-title">' + esc(s.title || 'Sổ theo dõi kết quả xét nghiệm thủ công') + '</h1>' +
+      (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
       '<div class="lg-meta' + (s.metaCenter ? ' center' : '') + '"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
+      (s.tat && o.tatText ? '<div class="sh-tat">' + esc(o.tatText) + '</div>' : '') +
       '<table><colgroup><col style="width:11%"><col style="width:10%"><col style="width:16%">' +
       '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
       '<col style="width:5.5%"><col style="width:8%"><col style="width:7.5%">' +
@@ -3591,13 +3630,13 @@ function renderLedgerSheet(s, recs) {
       '<thead><tr><th rowspan="2">SID</th><th rowspan="2">XÉT NGHIỆM</th><th rowspan="2">KẾT QUẢ</th>' +
       '<th colspan="3">Thực hiện XN</th><th colspan="3">Đọc kết quả</th><th colspan="3">Nhập kết quả</th></tr>' +
       '<tr><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th><th>Giờ</th><th>NV thực hiện</th><th>NV kiểm tra</th></tr></thead>' +
-      '<tbody>' + rows + '</tbody></table>' + footHtml + '</div>';
+      '<tbody>' + rows + '</tbody></table>' + sheetSigHtml(s) + footHtml + '</div>';
   };
   return days.map(daySheet).join('');
 }
 
 function renderSheet(s, recs, opts) {
-  if (s.style === 'ledger') return renderLedgerSheet(s, recs); /* F38 */
+  if (s.style === 'ledger') return renderLedgerSheet(s, recs, opts); /* F38 */
   const o = opts || {};
   const logoHtml = s.logo
     ? '<img class="sh-logo sz-' + s.logoSize + '" src="' + s.logo + '" alt="">'
@@ -3669,31 +3708,8 @@ function renderSheet(s, recs, opts) {
     return groupRow + '<tr' + alt + '>' + cols.map((c) =>
       '<td style="text-align:' + c.align + '">' + (c.id === 'field' ? fieldCellValue(rec, c.fieldLabel) : printCellValue(c.id, rec, i)) + '</td>').join('') + '</tr>';
   }).join('');
-  const sigs = (s.sigs || []).filter((g) => g && g.on);
-  const sigBlockHtml = (g) => {
-    /* F34: ô ký gắn với một KTV có ảnh chữ ký -> in ảnh vào khoảng ký */
-    const st = g.staff ? staffList.find((x) => x.name === g.staff) : null;
-    const img = st && st.sig ? '<img class="sh-sig-img" src="' + st.sig + '" alt="">' : '';
-    return '<div class="sh-sig"><div class="sh-sig-title">' + esc(g.title || '') + '</div>' +
-      '<div class="sh-sig-note">(Ký, ghi rõ họ tên)</div><div class="sh-sig-space">' + img + '</div>' +
-      '<div class="sh-sig-name">' + esc(g.name || '') + '</div></div>';
-  };
-  /* v70: xếp các ô vào 3 vùng Trái/Giữa/Phải. Vùng giữa luôn hiện diện (kể cả
-     khi rỗng) với lề tự động hai bên, nên ô Trái luôn sát trái và ô Phải luôn
-     sát phải bất kể thứ tự khai báo. (v69 dùng lề tự động cho từng ô: khi ô
-     Phải đứng trước ô Trái, hai lề chia nhau khoảng trống và cả cụm bị kéo
-     vào giữa trang — lỗi Minh gặp 2026-11-09.) Nội dung trong ô (chức danh,
-     ghi chú, chữ ký, họ tên) luôn canh giữa theo ô. */
-  const sigHtml = sigs.length
-    ? '<div class="sh-sigs">' + ['left', 'center', 'right'].map((z) =>
-      '<div class="sh-sig-group g-' + z + '">' +
-      sigs.filter((g) => (['left', 'center', 'right'].includes(g.align) ? g.align : 'center') === z).map(sigBlockHtml).join('') +
-      '</div>').join('') + '</div>'
-    : '';
-  const footHtml = (s.footnote && s.footnote.trim()) || s.printDate
-    ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
-      (s.printDate ? '<span class="sh-printdate">In lúc: ' + esc(fmtFull(new Date().toISOString())) + '</span>' : '') + '</div>'
-    : '';
+  const sigHtml = sheetSigHtml(s); /* khối chữ ký dùng chung với phiếu Sổ (v99) */
+  const footHtml = sheetFootHtml(s);
   const dark = s.headerColor === '#1e88e5';
   return '<div class="sheet f-' + s.font + ' b-' + s.borders + ' d-' + s.density + (s.zebra ? ' zebra' : '') + (dark ? ' hc-dark' : '') +
     '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +

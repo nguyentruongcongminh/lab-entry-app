@@ -596,7 +596,7 @@ svg { width: 24px; height: 24px; display: block; }
 .sheet.ledger .lg-code { white-space: nowrap; font-size: 0.95em; padding-top: 2px; }
 .sheet.ledger .lg-title { text-align: center; font-size: 1.32em; font-weight: 700; text-transform: uppercase; margin: 10px 0 2px; }
 .sheet.ledger .lg-meta { display: flex; justify-content: space-between; gap: 14px; margin: 2px 0 8px; font-size: 1.02em; }
-.sheet.ledger th { background: #fff; text-align: center; vertical-align: middle; }
+.sheet.ledger th { background: var(--sh-head, #fff); text-align: center; vertical-align: middle; }
 .sheet.ledger td { vertical-align: middle; }
 .sheet.ledger td.lg-c { text-align: center; }
 .sheet.ledger .lg-dept.lg-c { text-align: center; } /* v79: bản v77 gắn lớp lg-c cho dòng Khoa nhưng quy tắc cũ chỉ áp cho ô bảng (td) nên dòng Khoa không canh giữa thật — Minh phát hiện trên máy thật */
