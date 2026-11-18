@@ -3534,6 +3534,65 @@ function sheetSigHtml(s) {
     '</div>').join('') + '</div>';
 }
 
+/* Vùng góc phải của đầu trang (F21): khối tài liệu / ảnh thứ hai / trống —
+   dùng chung cho cả hai kiểu phiếu (v100 đưa sang cả phiếu Sổ). */
+function sheetRightHtml(s) {
+  if (s.rightZone === 'doc') {
+    const rows = (Array.isArray(s.docRows) ? s.docRows : [])
+      .filter((r) => r && r.on && (String(r.label || '').trim() || String(r.value || '').trim()));
+    let inner = rows.map((r) =>
+      '<div class="sh-doc-row">' +
+      (String(r.label || '').trim() ? '<span class="sh-doc-label">' + esc(r.label.trim()) + ':</span> ' : '') +
+      '<span class="sh-doc-value">' + esc(r.value || '') + '</span></div>').join('');
+    if (s.docBarcode) {
+      const payload = barcodePayloadOf(s);
+      if (payload) {
+        inner += '<canvas class="sh-barcode sz-' + s.docBarcodeSize + '" data-text="' + esc(payload) + '"></canvas>' +
+          '<div class="sh-barcode-cap">' + esc(payload) + '</div>';
+      }
+    }
+    if (inner) return '<div class="sh-docbox' + (s.docBoxStyle === 'plain' ? ' plain' : '') + '">' + inner + '</div>';
+  } else if (s.rightZone === 'image' && s.logo2) {
+    return '<img class="sh-logo sz-' + s.logo2Size + '" src="' + s.logo2 + '" alt="">';
+  }
+  return '';
+}
+
+/* Đầu trang phiếu Sổ theo dõi (v100): logo, dòng liên hệ, khối tài liệu/ảnh
+   thứ hai, gạch phân cách và bố cục đầu trang (ngang/giữa/3 vùng) nay áp
+   dụng cho phiếu Sổ như phiếu Danh sách — trước v100 đầu sổ chỉ có đơn vị,
+   khoa và mã biểu mẫu. Mọi phần tử chỉ hiện khi người dùng đã đặt, nên mẫu
+   BM04 hiện tại (chưa gắn logo/liên hệ/khối tài liệu) in y như cũ. */
+function ledgerTopHtml(s) {
+  const logoHtml = s.logo
+    ? '<img class="sh-logo sz-' + s.logoSize + '" src="' + s.logo + '" alt="">'
+    : '';
+  const contact = [s.address, s.phone, s.email].filter((x) => x && x.trim()).map(esc).join(' · ');
+  const infoHtml = '<div class="lg-org">' + esc(s.org || '') + '</div>' +
+    '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div>' +
+    (contact ? '<div class="lg-contact">' + contact + '</div>' : '');
+  const codeHtml = s.formCode ? '<div class="lg-code">' + esc(s.formCode) + '</div>' : '';
+  const rightHtml = sheetRightHtml(s);
+  /* Vị trí logo hiệu dụng: như phiếu Danh sách ('auto' theo bố cục) */
+  const effLogoPos = s.logoPos === 'auto' ? (s.headerLayout === 'center' ? 'center' : 'left') : s.logoPos;
+  let html;
+  if (s.headerLayout === 'grid3') {
+    html = '<div class="lg-top grid3"><div class="lg-cell lg-left">' + (effLogoPos === 'right' ? '' : logoHtml) + '</div>' +
+      '<div class="lg-cell lg-mid">' + infoHtml + '</div>' +
+      '<div class="lg-cell lg-right">' + (effLogoPos === 'right' ? logoHtml : '') + codeHtml + rightHtml + '</div></div>';
+  } else if (s.headerLayout === 'center' || effLogoPos === 'center') {
+    html = '<div class="lg-top center">' + logoHtml + '<div>' + infoHtml + '</div>' + codeHtml + rightHtml + '</div>';
+  } else if (effLogoPos === 'right') {
+    html = '<div class="lg-top"><div>' + infoHtml + '</div>' +
+      '<div class="lg-right">' + logoHtml + codeHtml + rightHtml + '</div></div>';
+  } else {
+    html = '<div class="lg-top">' + logoHtml + '<div>' + infoHtml + '</div>' +
+      '<div class="lg-right">' + codeHtml + rightHtml + '</div></div>';
+  }
+  if (s.divider) html += '<hr class="sh-divider">';
+  return html;
+}
+
 function sheetFootHtml(s) {
   return (s.footnote && s.footnote.trim()) || s.printDate
     ? '<div class="sh-foot"><span>' + esc(s.footnote || '') + '</span>' +
@@ -3616,9 +3675,7 @@ function renderLedgerSheet(s, recs, opts) {
     }).join('');
     const footHtml = sheetFootHtml(s);
     return '<div class="sheet ledger f-' + s.font + ' b-' + s.borders + ' d-' + s.density + (s.headerColor === '#1e88e5' ? ' hc-dark' : '') + '" style="--sh-size:' + s.fontSize + 'px;--sh-head:' + s.headerColor + '">' +
-      '<div class="lg-top"><div><div class="lg-org">' + esc(s.org || '') + '</div>' +
-      '<div class="lg-dept' + (s.centerDept ? ' lg-c' : '') + '">' + esc(s.dept || '') + '</div></div>' +
-      '<div class="lg-code">' + esc(s.formCode || '') + '</div></div>' +
+      ledgerTopHtml(s) +
       '<h1 class="lg-title">' + esc(s.title || 'Sổ theo dõi kết quả xét nghiệm thủ công') + '</h1>' +
       (s.subtitle && o.rangeText ? '<div class="sh-subtitle">' + esc(o.rangeText) + '</div>' : '') +
       '<div class="lg-meta' + (s.metaCenter ? ' center' : '') + '"><span>BỘ PHẬN: ' + esc(s.section || '') + '</span><span>NGÀY: ' + esc(fmtDayInput(key)) + '</span></div>' +
@@ -3646,26 +3703,9 @@ function renderSheet(s, recs, opts) {
     (s.org && s.org.trim() ? '<div class="sh-org">' + esc(s.org) + '</div>' : '') +
     (s.dept && s.dept.trim() ? '<div class="sh-dept">' + esc(s.dept) + '</div>' : '') +
     (contact ? '<div class="sh-contact">' + contact + '</div>' : '');
-  /* Vùng góc phải (F21): khối thông tin tài liệu / ảnh thứ hai / trống */
-  let rightHtml = '';
-  if (s.rightZone === 'doc') {
-    const rows = (Array.isArray(s.docRows) ? s.docRows : [])
-      .filter((r) => r && r.on && (String(r.label || '').trim() || String(r.value || '').trim()));
-    let inner = rows.map((r) =>
-      '<div class="sh-doc-row">' +
-      (String(r.label || '').trim() ? '<span class="sh-doc-label">' + esc(r.label.trim()) + ':</span> ' : '') +
-      '<span class="sh-doc-value">' + esc(r.value || '') + '</span></div>').join('');
-    if (s.docBarcode) {
-      const payload = barcodePayloadOf(s);
-      if (payload) {
-        inner += '<canvas class="sh-barcode sz-' + s.docBarcodeSize + '" data-text="' + esc(payload) + '"></canvas>' +
-          '<div class="sh-barcode-cap">' + esc(payload) + '</div>';
-      }
-    }
-    if (inner) rightHtml = '<div class="sh-docbox' + (s.docBoxStyle === 'plain' ? ' plain' : '') + '">' + inner + '</div>';
-  } else if (s.rightZone === 'image' && s.logo2) {
-    rightHtml = '<img class="sh-logo sz-' + s.logo2Size + '" src="' + s.logo2 + '" alt="">';
-  }
+  /* Vùng góc phải (F21): khối tài liệu / ảnh thứ hai / trống — helper dùng
+     chung với phiếu Sổ từ v100 */
+  const rightHtml = sheetRightHtml(s);
   /* Vị trí logo hiệu dụng: 'auto' = theo kiểu đầu trang (center → ở giữa, còn lại → bên trái) */
   const effLogoPos = s.logoPos === 'auto' ? (s.headerLayout === 'center' ? 'center' : 'left') : s.logoPos;
   let headerHtml = '';

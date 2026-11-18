@@ -583,7 +583,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v99 và precache đúng URL ?v=99 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v100 và precache đúng URL ?v=100 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +603,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v99'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=99', 'print.css?v=99', 'config.js?v=99', 'store.js?v=99', 'sync-core.js?v=99', 'sync.js?v=99', 'mascot.js?v=99', 'app.js?v=99', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v100'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=100', 'print.css?v=100', 'config.js?v=100', 'store.js?v=100', 'sync-core.js?v=100', 'sync.js?v=100', 'mascot.js?v=100', 'app.js?v=100', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2100,7 +2100,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v99', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v100', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2561,6 +2561,17 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.ok(ledHtml.includes('lg-meta center'), 'bật metaCenter -> dòng Bộ phận/Ngày gom giữa');
     const ledHtml2 = w15.eval("(function(){ printSettings = normalizePrintSettings(Object.assign({}, printSettings, { centerDept: false, metaCenter: false })); return renderSheet(printSettings, store.getAll(), {}); })()");
     assert.ok(!ledHtml2.includes('lg-dept lg-c') && !ledHtml2.includes('lg-meta center'), 'tắt tùy chọn -> đầu sổ về dạng trái/phải như cũ');
+
+    /* v100: đầu sổ áp dụng nốt logo + dòng liên hệ + khối tài liệu + gạch phân cách + bố cục đầu trang */
+    const topHtml = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', logo: 'data:image/png;base64,iVBORw0KGgo=', logoSize: 'm', address: '123 Đường Mẫu', phone: '0900 000 000', divider: true, rightZone: 'doc', docRows: [{ on: true, label: 'Mã số', value: 'DOC-V100' }] })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.ok(topHtml.includes('class="sh-logo sz-m"'), 'tờ Sổ in logo khi đã gắn');
+    assert.ok(topHtml.includes('123 Đường Mẫu') && topHtml.includes('0900 000 000'), 'tờ Sổ in dòng địa chỉ/điện thoại');
+    assert.ok(topHtml.includes('sh-docbox') && topHtml.includes('DOC-V100'), 'tờ Sổ in khối tài liệu ở vùng góc phải');
+    assert.ok(topHtml.includes('sh-divider'), 'tờ Sổ có gạch phân cách đầu trang khi bật');
+    const topCenter = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', headerLayout: 'center' })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.ok(topCenter.includes('lg-top center'), 'bố cục đầu trang Giữa áp dụng cho tờ Sổ');
+    const topGrid = w15.eval("(function(){ const st = normalizePrintSettings(Object.assign({}, printSettings, { style: 'ledger', headerLayout: 'grid3' })); return renderSheet(st, store.getAll(), {}); })()");
+    assert.ok(topGrid.includes('lg-top grid3'), 'bố cục đầu trang 3 vùng áp dụng cho tờ Sổ');
 
     /* Nhập file mẫu: MỌI tùy chọn bên dưới (cột + khối chữ ký + tiêu đề) đồng bộ theo file */
     const fileObj = { app: 'LabEntry', kind: 'labentry-print-layout', version: 1, settings: {
