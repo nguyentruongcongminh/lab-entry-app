@@ -244,6 +244,8 @@ svg { width: 24px; height: 24px; display: block; }
 .scanner-type-row select:disabled { background: #eceff1; color: var(--muted); }
 .scanner-manual { display: flex; gap: 8px; margin-top: 4px; }
 .scanner-photo-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.scan-confirm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.scan-confirm-row strong { font-size: 20px; letter-spacing: 1px; }
 .scanner-photo-row .secondary-btn { flex: 0 0 auto; white-space: nowrap; }
 #scanner-modal .secondary-btn:disabled { opacity: .55; }
 /* v106: nút Dừng quét dính đáy màn hình — nội dung dài tới đâu cuộn tới đó,

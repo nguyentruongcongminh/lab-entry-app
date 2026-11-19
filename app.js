@@ -2211,9 +2211,38 @@ async function scanPhotoFileInner(file) {
   }
 }
 
+/* v111: mã 4 số do OCR ĐỌC ĐOÁN phải có người xác nhận mới nhận mẫu. Mã hồ
+   sơ (chữ + gạch) và mã 10 số đủ đặc trưng nên nhận thẳng; mã vạch thật đọc
+   ra 4 số cũng nhận thẳng — chỉ chữ đoán 4 số mới cần xác nhận, vì chữ in
+   bất kỳ cũng có thể bị đoán thành 4 số đứng độc lập (mẫu ma 6970/5554 mà
+   Minh chụp thử hai vật liên tiếp đều dính, v110 mới chặn được nửa mảnh số). */
+let pendingOcrConfirm = '';
+function showOcrConfirm(code) {
+  pendingOcrConfirm = code;
+  const codeEl = $('scan-confirm-code');
+  if (codeEl) codeEl.textContent = code;
+  const row = $('scan-confirm-row');
+  if (row) row.classList.remove('hidden');
+  setScanMsg('Đọc được mã 4 số "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
+}
+function clearOcrConfirm() {
+  pendingOcrConfirm = '';
+  const row = $('scan-confirm-row');
+  if (row) row.classList.add('hidden');
+}
+function confirmOcrCode(yes) {
+  const code = pendingOcrConfirm;
+  clearOcrConfirm();
+  hideScanFreeze();
+  if (!code) return;
+  if (yes) acceptScanCode(code, { recognized: true });
+  else setScanMsg('Đã bỏ qua mã "' + code + '" — chụp lại hoặc gõ tay mã đúng.', 'err');
+}
+
 /* Xử lý một khung hình (bitmap) thành mã: mã vạch trước, không ra thì OCR
    đọc chữ in trên nhãn. Dùng chung cho ảnh chụp qua app camera của máy
-   (F35) và khung hình chụp ngay trong app (v105). */
+   (F35) và khung hình chụp ngay trong app (v105).
+   Trả về: 'accepted' | 'confirm' (đang chờ xác nhận mã 4 số) | 'failed'. */
 async function processScanBitmap(bmp) {
     /* 1) Mã vạch trước — nhanh và chính xác tuyệt đối (nếu trình duyệt hỗ trợ) */
     if ('BarcodeDetector' in window) {
@@ -2237,16 +2266,20 @@ async function processScanBitmap(bmp) {
         }
       }
       const bcode = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
-      if (bcode) { acceptScanCode(bcode, { recognized: true }); return; }
+      if (bcode) { acceptScanCode(bcode, { recognized: true }); return 'accepted'; }
     }
     /* 2) Không có mã vạch → OCR đọc chữ in trên nhãn (v102): mã số in thường
        (không kèm mã vạch) hoặc mã vạch hỏng. Chạy Tesseract ngay trên máy,
        ảnh vẫn chỉ ở trong bộ nhớ như F35. */
     const ocode = await ocrReadCodeFromBitmap(bmp);
-    if (ocode) { acceptScanCode(ocode, { recognized: true }); return; }
+    if (ocode) {
+      if (/^\d{4}$/.test(ocode)) { showOcrConfirm(ocode); return 'confirm'; }
+      acceptScanCode(ocode, { recognized: true }); return 'accepted';
+    }
     setScanMsg('Chưa đọc được mã trong ảnh — để máy cách nhãn 15–20 cm cho nét, đủ sáng, mã nằm giữa khung rồi chụp lại.', 'err');
     beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
+    return 'failed';
 }
 
 /* v105 (Minh yêu cầu 2026-11-19): chụp NGAY trong app bằng chính luồng camera
@@ -2280,6 +2313,9 @@ async function captureScanFrame() {
     setScanMsg('Đang đọc khung hình trước — chờ đọc xong rồi bấm chụp tiếp…');
     return;
   }
+  /* Chụp lượt mới thì hủy xác nhận mã 4 số còn treo của lượt trước */
+  clearOcrConfirm();
+  hideScanFreeze();
   const video = $('scanner-video');
   const stream = video ? video.srcObject : null;
   const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
@@ -2318,10 +2354,12 @@ async function captureScanFrame() {
       return;
     }
     showScanFreeze(bmp);
+    let keepFreeze = false;
     try {
-      await processScanBitmap(bmp);
+      /* Đang chờ xác nhận mã 4 số thì GIỮ hình đứng để KTV đối chiếu mã */
+      keepFreeze = (await processScanBitmap(bmp)) === 'confirm';
     } finally {
-      hideScanFreeze();
+      if (!keepFreeze) hideScanFreeze();
       if (bmp.close) bmp.close();
     }
   } catch (e) {
@@ -2688,6 +2726,8 @@ function initWedgeListener() {
 
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
+  clearOcrConfirm();
+  hideScanFreeze();
   $('scanner-modal').classList.add('hidden');
   stopScanCamera();
   scannerState = null;
@@ -5771,6 +5811,8 @@ function init() {
   /* v105/v106: chụp trong app đọc mã (nút chụp kiểu cũ mở camera máy đã bỏ
      hẳn ở v106 theo yêu cầu của Minh — chỉ còn đường chụp trong app) */
   $('btn-scan-capture').addEventListener('click', () => { captureScanFrame(); });
+  $('btn-scan-confirm-yes').addEventListener('click', () => { confirmOcrCode(true); });
+  $('btn-scan-confirm-no').addEventListener('click', () => { confirmOcrCode(false); });
 
   /* v87: đồng bộ LAN */
   $('btn-sync').addEventListener('click', openSyncDialog);

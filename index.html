@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=110">
-<link rel="stylesheet" href="print.css?v=110">
+<link rel="stylesheet" href="styles.css?v=111">
+<link rel="stylesheet" href="print.css?v=111">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v110</span>
+  <span class="app-version">LabEntry v111</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -737,6 +737,11 @@
       <span class="scan-line"></span>
     </div>
     <div id="scanner-msg" class="scanner-msg">Đang mở camera...</div>
+    <div id="scan-confirm-row" class="scan-confirm-row hidden">
+      <span>Mã 4 số đọc được: <strong id="scan-confirm-code"></strong></span>
+      <button id="btn-scan-confirm-yes" class="primary-btn small" type="button">✔ Đúng, nhận mẫu</button>
+      <button id="btn-scan-confirm-no" class="secondary-btn small" type="button">✖ Bỏ qua</button>
+    </div>
     <div id="scanner-manual" class="scanner-manual">
       <input id="scanner-input" type="text" placeholder="Hoặc nhập ID mẫu tại đây" autocomplete="off">
       <button id="btn-scanner-add" class="primary-btn small">Nhận mẫu</button>
@@ -943,11 +948,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=110"></script>
-<script src="store.js?v=110"></script>
-<script src="sync-core.js?v=110"></script>
-<script src="sync.js?v=110"></script>
-<script src="mascot.js?v=110"></script>
-<script src="app.js?v=110"></script>
+<script src="config.js?v=111"></script>
+<script src="store.js?v=111"></script>
+<script src="sync-core.js?v=111"></script>
+<script src="sync.js?v=111"></script>
+<script src="mascot.js?v=111"></script>
+<script src="app.js?v=111"></script>
 </body>
 </html>
