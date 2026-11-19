@@ -209,6 +209,22 @@ svg { width: 24px; height: 24px; display: block; }
 .primary-btn.outline { background: var(--card); color: var(--blue); border: 1.5px solid var(--blue); }
 .export-count { padding: 14px 16px 4px; color: var(--muted); font-size: 15px; }
 
+/* ---------- Màn hình khóa xem kết quả (v103) ---------- */
+.lock-overlay {
+  position: fixed; inset: 0; z-index: 45; background: rgba(0,0,0,.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.lock-card {
+  background: var(--card); color: var(--text); border-radius: var(--radius);
+  box-shadow: var(--shadow-2); padding: 22px 18px; width: 100%; max-width: 380px; text-align: center;
+}
+.lock-icon { font-size: 40px; line-height: 1; }
+.lock-title { margin: 10px 0 6px; font-size: 20px; }
+.lock-text { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.lock-label { display: block; text-align: left; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+.lock-card select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 12px; }
+.lock-card .primary-btn { width: 100%; }
+
 /* ---------- Quét mã + toast ---------- */
 .modal {
   position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.55);

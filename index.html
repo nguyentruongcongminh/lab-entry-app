@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=102">
-<link rel="stylesheet" href="print.css?v=102">
+<link rel="stylesheet" href="styles.css?v=103">
+<link rel="stylesheet" href="print.css?v=103">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v102</span>
+  <span class="app-version">LabEntry v103</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -888,6 +888,16 @@
     </div>
   </div>
 </div>
+<div id="lock-overlay" class="lock-overlay hidden">
+  <div class="lock-card">
+    <div class="lock-icon" aria-hidden="true">🔒</div>
+    <h3 class="lock-title">Chưa đăng nhập</h3>
+    <p id="lock-text" class="lock-text">Chọn KTV trực và nhập PIN để xem kết quả xét nghiệm.</p>
+    <label class="lock-label" for="lock-operator-select">KTV trực</label>
+    <select id="lock-operator-select"></select>
+    <button type="button" id="lock-staff-btn" class="primary-btn hidden">Quản lý KTV — tạo KTV đầu tiên</button>
+  </div>
+</div>
 <div id="pin-modal" class="modal hidden">
   <div class="modal-box">
     <h3 id="pin-title" class="staff-title">Nhập mã PIN</h3>
@@ -933,11 +943,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=102"></script>
-<script src="store.js?v=102"></script>
-<script src="sync-core.js?v=102"></script>
-<script src="sync.js?v=102"></script>
-<script src="mascot.js?v=102"></script>
-<script src="app.js?v=102"></script>
+<script src="config.js?v=103"></script>
+<script src="store.js?v=103"></script>
+<script src="sync-core.js?v=103"></script>
+<script src="sync.js?v=103"></script>
+<script src="mascot.js?v=103"></script>
+<script src="app.js?v=103"></script>
 </body>
 </html>

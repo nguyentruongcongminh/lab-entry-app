@@ -2229,7 +2229,7 @@ async function scanPhotoFileInner(file) {
        ảnh vẫn chỉ ở trong bộ nhớ như F35. */
     const ocode = await ocrReadCodeFromBitmap(bmp);
     if (ocode) { acceptScanCode(ocode, { recognized: true }); return; }
-    setScanMsg('Chưa đọc được mã trong ảnh — chụp gần hơn, rõ nét, đủ sáng rồi thử lại. App chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số.', 'err');
+    setScanMsg('Chưa đọc được mã trong ảnh — đưa máy cách nhãn khoảng 15–20 cm cho nét (sát quá sẽ nhòe), đủ sáng, mã nằm giữa khung rồi chụp lại. App chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số.', 'err');
     beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
   } catch (e) {
@@ -2280,14 +2280,17 @@ async function getOcrWorker() {
   return ocrWorkerPromise;
 }
 
-/* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng giữa 80%,
-   thu về tối đa 1800px chiều ngang, chuyển xám, tuỳ chọn nhị phân hoá bằng
-   ngưỡng Otsu để chữ nổi rõ khỏi nền nhãn */
-function ocrCanvasFromBitmap(bmp, binarize) {
-  const cw = Math.floor(bmp.width * 0.8);
-  const ch = Math.floor(bmp.height * 0.8);
+/* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng giữa ảnh
+   (mặc định 80%; lượt cắt chặt lấy 55% để mã ở xa được phóng to), co/giãn về
+   chiều ngang đích (tối đa 2600px, cho phép phóng tới 2,5 lần), chuyển xám,
+   tuỳ chọn nhị phân hoá bằng ngưỡng Otsu để chữ nổi rõ khỏi nền nhãn */
+function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW) {
+  const frac = cropFrac || 0.8;
+  const cw = Math.floor(bmp.width * frac);
+  const ch = Math.floor(bmp.height * frac);
   if (cw < 40 || ch < 40) return null;
-  const scale = Math.min(1, 1800 / cw);
+  let scale = (targetW || 2600) / cw;
+  if (scale > 2.5) scale = 2.5;
   const W = Math.max(1, Math.round(cw * scale));
   const H = Math.max(1, Math.round(ch * scale));
   const cv = document.createElement('canvas');
@@ -2295,6 +2298,8 @@ function ocrCanvasFromBitmap(bmp, binarize) {
   cv.height = H;
   const ctx = cv.getContext('2d');
   if (!ctx) return null;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, W, H);
   const img = ctx.getImageData(0, 0, W, H);
   const d = img.data;
@@ -2358,25 +2363,29 @@ async function ocrReadCodeFromBitmap(bmp) {
   try {
     setScanMsg('Không thấy mã vạch — đang đọc chữ in trên nhãn...');
     const worker = await getOcrWorker();
-    const cvBin = ocrCanvasFromBitmap(bmp, true);
-    if (cvBin) {
-      const r1 = await worker.recognize(cvBin);
-      const code1 = extractCodeFromOcrText(r1 && r1.data && r1.data.text);
-      if (code1) return code1;
-    }
-    /* Lượt 2: ảnh xám không nhị phân hoá + chế độ chữ rải (PSM 11) —
-       có nhãn in mờ/xám mà bản nhị phân làm mất nét */
-    const cvGray = ocrCanvasFromBitmap(bmp, false);
-    if (cvGray) {
-      await worker.setParameters({ tessedit_pageseg_mode: '11' });
-      try {
-        const r2 = await worker.recognize(cvGray);
-        const code2 = extractCodeFromOcrText(r2 && r2.data && r2.data.text);
-        if (code2) return code2;
-      } finally {
+    /* 3 lượt đọc với cách xử lý khác nhau (v103 thêm lượt cắt chặt + phóng to
+       cho trường hợp chụp từ xa — mã nhỏ giữa khung; để máy gần quá thì nhòe
+       nét nên KTV thường phải để xa):
+       1) nhị phân, vùng giữa 80%, ngang 2600px, PSM 6 — nhãn chụp chuẩn
+       2) nhị phân, vùng giữa 55% phóng lên 2400px, PSM 6 — mã nhỏ ở xa
+       3) ảnh xám, vùng giữa 80%, ngang 2600px, PSM 11 — nhãn in mờ/xám */
+    const passes = [
+      { binarize: true, crop: 0.8, targetW: 2600, psm: '6' },
+      { binarize: true, crop: 0.55, targetW: 2400, psm: '6' },
+      { binarize: false, crop: 0.8, targetW: 2600, psm: '11' }
+    ];
+    for (const p of passes) {
+      const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW);
+      if (!cv) continue;
+      await worker.setParameters({ tessedit_pageseg_mode: p.psm });
+      const r = await worker.recognize(cv);
+      const code = extractCodeFromOcrText(r && r.data && r.data.text);
+      if (code) {
         await worker.setParameters({ tessedit_pageseg_mode: '6' }).catch(() => {});
+        return code;
       }
     }
+    await worker.setParameters({ tessedit_pageseg_mode: '6' }).catch(() => {});
     return '';
   } catch (e) {
     return '';
@@ -2580,13 +2589,38 @@ function staffOptionsHTML(extraValues) {
 }
 
 function renderOperatorControls() {
-  ['operator-select', 'scanner-operator-select'].forEach((id) => {
+  ['operator-select', 'scanner-operator-select', 'lock-operator-select'].forEach((id) => {
     const el = $(id);
     if (!el) return;
     el.innerHTML = staffOptionsHTML([currentOperator]);
     el.value = currentOperator;
   });
   updateOpAvatar();
+  updateLockOverlay();
+}
+
+/* v103: chưa đăng nhập KTV trực thì KHÓA XEM — phủ một màn hình khóa lên
+   toàn bộ app (danh sách kết quả, banner tới hạn, bản xem trước... đều nằm
+   dưới lớp phủ), chỉ chừa modal nhập PIN và thông báo nổi ở trên. Mở khóa
+   bằng chính ô chọn KTV + PIN trên màn hình khóa. Chưa có KTV nào trong
+   danh sách thì hiện nút mở quản lý KTV để tạo người đầu tiên. */
+function updateLockOverlay() {
+  const ov = $('lock-overlay');
+  if (!ov) return;
+  const locked = !currentOperator;
+  ov.classList.toggle('hidden', !locked);
+  if (!locked) return;
+  const empty = staffList.length === 0;
+  const sel = $('lock-operator-select');
+  if (sel) sel.classList.toggle('hidden', empty);
+  const btn = $('lock-staff-btn');
+  if (btn) btn.classList.toggle('hidden', !empty);
+  const txt = $('lock-text');
+  if (txt) {
+    txt.textContent = empty
+      ? 'Chưa có KTV nào trong danh sách — hãy tạo KTV đầu tiên để bắt đầu.'
+      : 'Chọn KTV trực và nhập PIN để xem kết quả xét nghiệm.';
+  }
 }
 
 function setOperator(name) {
@@ -2930,6 +2964,13 @@ async function addStaffFromDialog() {
 }
 
 function deleteStaff(name) {
+  /* v103: không được xóa user của người khác — mỗi người chỉ xóa được user
+     của chính mình (chính là KTV đang đăng nhập trực). Chưa đăng nhập thì
+     không xóa được ai. */
+  if (name !== currentOperator) {
+    toast('Không được xóa user của người khác — chỉ xóa được user của chính mình');
+    return;
+  }
   const wasOperator = currentOperator === name;
   staffList = staffList.filter((n) => n.name !== name);
   persistStaff();
@@ -5450,6 +5491,10 @@ function init() {
   $('audit-filter').addEventListener('change', renderAuditLog);
   $('audit-search').addEventListener('input', renderAuditLog);
   $('operator-select').addEventListener('change', () => requestOperatorChange($('operator-select').value));
+  const lockSel = $('lock-operator-select');
+  if (lockSel) lockSel.addEventListener('change', () => requestOperatorChange(lockSel.value));
+  const lockStaffBtn = $('lock-staff-btn');
+  if (lockStaffBtn) lockStaffBtn.addEventListener('click', () => openStaffDialog());
   $('scanner-operator-select').addEventListener('change', () => requestOperatorChange($('scanner-operator-select').value));
   $('btn-staff-manage').addEventListener('click', openStaffDialog);
   $('btn-staff-close').addEventListener('click', closeStaffDialog);

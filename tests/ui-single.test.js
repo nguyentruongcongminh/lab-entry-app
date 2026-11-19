@@ -493,6 +493,37 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     $('btn-scanner-close').click();
   });
 
+  test('v103: chưa đăng nhập thì khóa xem kết quả; không được xóa user của người khác — chỉ xóa được chính mình', async () => {
+    const dom103 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Một', salt: 's1', pinHash: 'h1' }, { name: 'KTV Hai', salt: 's2', pinHash: 'h2' }]) }); } });
+    const w103 = dom103.window;
+    const d103 = w103.document;
+    await new Promise((res) => { if (d103.readyState === 'complete') res(); else w103.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const ov103 = d103.getElementById('lock-overlay');
+    assert.ok(ov103, 'có màn hình khóa');
+    assert.ok(!ov103.classList.contains('hidden'), 'chưa đăng nhập KTV nào → màn hình khóa phải hiện, che kết quả');
+    assert.ok([...d103.getElementById('lock-operator-select').options].some((o) => o.value === 'KTV Hai'), 'ô chọn KTV trên màn hình khóa có đủ danh sách');
+    /* Đăng nhập (gán trực tiếp như các test F35) → khóa mở */
+    w103.eval("currentOperator = 'KTV Một'");
+    w103.eval('renderOperatorControls()');
+    assert.ok(ov103.classList.contains('hidden'), 'đã đăng nhập → màn hình khóa ẩn, xem được kết quả');
+    /* Xóa user của người khác → bị chặn */
+    w103.eval('openStaffDialog()');
+    const delOther = d103.querySelector('[data-staff-del="KTV Hai"]');
+    assert.ok(delOther, 'có nút xóa KTV Hai');
+    delOther.click();
+    assert.strictEqual(w103.eval('staffList.length'), 2, 'xóa user người khác phải bị chặn — danh sách nguyên vẹn');
+    assert.ok(w103.eval("staffList.some((s) => s.name === 'KTV Hai')"), 'KTV Hai vẫn còn');
+    /* Xóa chính mình → được, đồng thời đăng xuất và khóa lại */
+    const delSelf = d103.querySelector('[data-staff-del="KTV Một"]');
+    delSelf.click();
+    assert.strictEqual(w103.eval('staffList.length'), 1, 'xóa chính mình thì được');
+    assert.strictEqual(w103.eval('currentOperator'), '', 'xóa chính mình xong thì không còn KTV trực');
+    assert.ok(!ov103.classList.contains('hidden'), 'đã đăng xuất → màn hình khóa hiện lại');
+    w103.close();
+  });
+
   test('máy quét cầm tay: chuỗi gõ nhanh + Enter trong màn hình quét được nhận như camera; gõ chậm thì không nhận', () => {
     document.querySelector('[data-view="today"]').click();
     $('btn-scan-today').click();
@@ -619,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v102 và precache đúng URL ?v=102 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v103 và precache đúng URL ?v=103 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -639,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v102'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=102', 'print.css?v=102', 'config.js?v=102', 'store.js?v=102', 'sync-core.js?v=102', 'sync.js?v=102', 'mascot.js?v=102', 'app.js?v=102', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v103'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=103', 'print.css?v=103', 'config.js?v=103', 'store.js?v=103', 'sync-core.js?v=103', 'sync.js?v=103', 'mascot.js?v=103', 'app.js?v=103', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -1203,8 +1234,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(parsedFile.operator, 'Nguyễn Văn A', 'file phải kèm KTV trực đang chọn');
     assert.ok(Array.isArray(parsedFile.printPresets) && parsedFile.printPresets.some((p) => p.name === 'Mẫu T28'), 'file phải kèm thư viện mẫu bố cục');
     /* Làm lệch trạng thái máy: xóa 1 KTV, bỏ KTV trực, xóa 1 mẫu bố cục */
-    const mutate = () => {
+    const mutate = async () => {
       document.querySelector('[data-view="today"]').click();
+      /* v103: chỉ xóa được user của chính mình — muốn làm lệch bằng cách xóa
+         Bình thì phải đăng nhập bằng Bình (PIN 222222) rồi tự xóa */
+      setSelect($('operator-select'), 'Lê Thị Bình');
+      await nhapPinVao('222222');
       $('btn-staff-manage').click();
       const del = $('staff-list').querySelector('[data-staff-del="Lê Thị Bình"]');
       if (del) del.click();
@@ -1217,7 +1252,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       }
       $('btn-pcfg-back').click();
     };
-    mutate();
+    await mutate();
     document.querySelector('[data-view="today"]').click();
     $('btn-staff-manage').click();
     assert.strictEqual($('staff-list').children.length, 2, 'sau khi xóa Bình chỉ còn A và KTV Kiểm Tra (v41)');
@@ -1233,7 +1268,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok([...$('pcfg-preset').options].some((o) => o.value === 'Mẫu T28'), 'phục hồi phải khôi phục mẫu bố cục');
     $('btn-pcfg-back').click();
     /* GỘP: thêm lại phần thiếu nhưng KHÔNG đổi KTV trực của máy */
-    mutate();
+    await mutate();
     document.querySelector('[data-view="today"]').click();
     setSelect($('operator-select'), '');
     assert.strictEqual(window.importBackupText(captured, 'merge'), true);
@@ -2157,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v102', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v103', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
