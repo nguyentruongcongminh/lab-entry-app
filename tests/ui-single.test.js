@@ -650,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v109 và precache đúng URL ?v=109 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v110 và precache đúng URL ?v=110 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v109'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=109', 'print.css?v=109', 'config.js?v=109', 'store.js?v=109', 'sync-core.js?v=109', 'sync.js?v=109', 'mascot.js?v=109', 'app.js?v=109', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v110'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=110', 'print.css?v=110', 'config.js?v=110', 'store.js?v=110', 'sync-core.js?v=110', 'sync.js?v=110', 'mascot.js?v=110', 'app.js?v=110', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2192,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v109', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v110', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2299,6 +2299,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(ex('B24-00084S8'), 'B24-0008458', 'S trong dãy số được sửa thành 5');
     assert.strictEqual(ex('2611I92995'), '2611192995', 'I trong mã 10 số được sửa thành 1');
     assert.strictEqual(ex('XYZ ABC'), '', 'chữ linh tinh không bị sửa bừa thành mã');
+    assert.strictEqual(ex('6970 4398'), '', 'v110: mã 4 số là mảnh của dãy số dài hơn (69704398) thì không nhận — chống mẫu ma');
+    assert.strictEqual(ex('MAU 6970'), '6970', 'v110: mã 4 số đứng độc lập vẫn nhận');
+    assert.strictEqual(ex('978 6041234567'), '', 'v110: mã 10 số là mảnh của dãy số dài hơn (EAN) thì không nhận');
     w105.close();
   });
 

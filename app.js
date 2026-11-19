@@ -2498,16 +2498,23 @@ function extractCodeFromOcrText(text) {
     all.push(tokens[i] + tokens[i + 1]);
     all.push(tokens[i] + '-' + tokens[i + 1]);
   }
-  for (const c of all) if (/^[A-Z]\d{2}-\d{7}$/.test(c) || /^\d{10}$/.test(c)) return c;
+  for (const c of all) if (/^[A-Z]\d{2}-\d{7}$/.test(c)) return c;
+  /* v110: mã toàn số là MẢNH của một dãy số dài hơn trong cùng ảnh thì không
+     nhận — OCR tách "69704398" thành "6970 4398" là app nhận mẫu "6970" từ
+     số lô trên tuýp kem Minh chụp thử. Mã đứng độc lập vẫn nhận bình thường. */
+  const digitStrings = all.filter((t) => /^\d+$/.test(t));
+  const isFragment = (c) => digitStrings.some((d) => d.length > c.length && d.includes(c));
+  for (const c of all) if (/^\d{10}$/.test(c) && !isFragment(c)) return c;
   const repaired = [];
   for (const t of all) for (const r of repairOcrToken(t)) if (!repaired.includes(r)) repaired.push(r);
-  for (const c of repaired) if (/^[A-Z]\d{2}-\d{7}$/.test(c) || /^\d{10}$/.test(c)) return c;
-  for (const c of all) if (/^\d{4}$/.test(c)) return c;
+  for (const c of repaired) if (/^[A-Z]\d{2}-\d{7}$/.test(c)) return c;
+  for (const c of repaired) if (/^\d{10}$/.test(c) && !isFragment(c)) return c;
+  for (const c of all) if (/^\d{4}$/.test(c) && !isFragment(c)) return c;
   /* Mã 4 số: chỉ sửa trên token đơn, KHÔNG sửa trên token ghép — ghép chữ
      thường (vd "SO LA" -> "SOLA" -> "5014") sẽ đẻ mã ma */
   const repairedShort = [];
   for (const t of tokens) for (const r of repairOcrToken(t)) if (r.length === 4 && !repairedShort.includes(r)) repairedShort.push(r);
-  for (const c of repairedShort) if (/^\d{4}$/.test(c)) return c;
+  for (const c of repairedShort) if (/^\d{4}$/.test(c) && !isFragment(c)) return c;
   return '';
 }
 
