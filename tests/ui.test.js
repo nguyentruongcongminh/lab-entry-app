@@ -650,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v105 và precache đúng URL ?v=105 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v106 và precache đúng URL ?v=106 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v105'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=105', 'print.css?v=105', 'config.js?v=105', 'store.js?v=105', 'sync-core.js?v=105', 'sync.js?v=105', 'mascot.js?v=105', 'app.js?v=105', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v106'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=106', 'print.css?v=106', 'config.js?v=106', 'store.js?v=106', 'sync-core.js?v=106', 'sync.js?v=106', 'mascot.js?v=106', 'app.js?v=106', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2192,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v105', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v106', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2270,6 +2270,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.strictEqual(photoCalls, 1, 'đã gọi ImageCapture.takePhoto trên track của luồng quét');
     assert.strictEqual(w105.eval('scannerState.count'), 1, 'mã đọc từ khung hình chụp trong app được nhận như mã quét');
     assert.ok(w105.eval('store.getAll()').length >= 1, 'bản ghi đã tạo từ khung hình chụp');
+
+    /* v106: đang đọc dở mà bấm nữa thì có phản hồi rõ, không im re như trước */
+    w105.eval('scanCaptureBusy = true');
+    d105.getElementById('btn-scan-capture').click();
+    assert.ok(d105.getElementById('scanner-msg').textContent.includes('Đang đọc khung hình trước'), 'bấm lúc đang đọc thì báo rõ đang bận');
+    w105.eval('scanCaptureBusy = false');
     w105.close();
   });
 
@@ -2281,9 +2287,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await new Promise((res) => { if (d12.readyState === 'complete') res(); else w12.addEventListener('load', res); });
   await new Promise((r) => setTimeout(r, 300));
 
-  assert.ok(d12.getElementById('btn-scan-photo'), 'màn hình quét có nút chụp ảnh đọc mã');
-  const inp = d12.getElementById('scan-photo-input');
-  assert.ok(inp && (inp.getAttribute('accept') || '').includes('image') && inp.getAttribute('capture') === 'environment', 'ô chọn ảnh mở camera sau và chỉ nhận ảnh');
+  assert.ok(!d12.getElementById('btn-scan-photo') && !d12.getElementById('scan-photo-input'), 'v106: đã bỏ nút chụp ảnh kiểu cũ (mở camera máy) + ô chọn file theo yêu cầu của Minh');
+  assert.ok(d12.getElementById('btn-scan-capture'), 'chỉ còn nút chụp trong app đọc mã');
 
   /* Gia lap bo doc ma + giai ma anh (trinh duyet that dung BarcodeDetector cua may) */
   w12.BarcodeDetector = class { async detect() { return [{ rawValue: '2611043010' }]; } };
@@ -2293,7 +2298,6 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); })()");
   assert.ok(w12.eval("store.getAll().some((r) => r.testId === '2611043010')"), 'đọc được mã trong ảnh thì tiếp nhận mẫu như quét trực tiếp');
   assert.strictEqual(w12.eval('scannerState.count'), 1, 'phiên quét đếm mẫu nhận từ ảnh');
-  assert.strictEqual(inp.value, '', 'ô chọn file trống — ảnh không được giữ lại');
 
   w12.BarcodeDetector = class { async detect() { return []; } };
   await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'b.jpg', { type: 'image/jpeg' })); })()");

@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=105">
-<link rel="stylesheet" href="print.css?v=105">
+<link rel="stylesheet" href="styles.css?v=106">
+<link rel="stylesheet" href="print.css?v=106">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v105</span>
+  <span class="app-version">LabEntry v106</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -742,9 +742,7 @@
     </div>
     <div class="scanner-photo-row">
       <button id="btn-scan-capture" class="secondary-btn small" type="button">🎯 Chụp trong app đọc mã</button>
-      <button id="btn-scan-photo" class="secondary-btn small" type="button">📷 Chụp ảnh đọc mã</button>
-      <input id="scan-photo-input" type="file" accept="image/*" capture="environment" class="hidden">
-      <span class="scanner-photo-note">Mã xấu quét không ra thì chụp đọc mã: "Chụp trong app" dùng camera đang quét (lấy nét liên tục, để gần vẫn nét); "Chụp ảnh" mở camera của máy. Ảnh chỉ đọc trong bộ nhớ, không lưu lại.</span>
+      <span class="scanner-photo-note">Mã xấu quét không ra thì bấm nút này: app chụp khung hình camera đang quét (lấy nét liên tục, để gần vẫn nét) để đọc mã vạch / chữ in trên nhãn. Ảnh chỉ đọc trong bộ nhớ, không lưu lại.</span>
     </div>
     <div id="scanner-session" class="scanner-session">
       <div id="scanner-count" class="scanner-count">Đã nhận trong phiên: 0</div>
@@ -944,11 +942,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=105"></script>
-<script src="store.js?v=105"></script>
-<script src="sync-core.js?v=105"></script>
-<script src="sync.js?v=105"></script>
-<script src="mascot.js?v=105"></script>
-<script src="app.js?v=105"></script>
+<script src="config.js?v=106"></script>
+<script src="store.js?v=106"></script>
+<script src="sync-core.js?v=106"></script>
+<script src="sync.js?v=106"></script>
+<script src="mascot.js?v=106"></script>
+<script src="app.js?v=106"></script>
 </body>
 </html>

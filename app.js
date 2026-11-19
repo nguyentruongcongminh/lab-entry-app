@@ -2257,7 +2257,13 @@ async function processScanBitmap(bmp) {
    camera như đường chụp ngoài (v97). */
 let scanCaptureBusy = false;
 async function captureScanFrame() {
-  if (!scannerState || scanCaptureBusy) return;
+  if (!scannerState) return;
+  /* v106: đang đọc dở mà bấm nữa thì phải có phản hồi rõ — trước đây bấm im
+     re khiến Minh tưởng nút không có tác dụng */
+  if (scanCaptureBusy) {
+    setScanMsg('Đang đọc khung hình trước — chờ đọc xong rồi bấm chụp tiếp…');
+    return;
+  }
   const video = $('scanner-video');
   const stream = video ? video.srcObject : null;
   const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
@@ -2266,8 +2272,10 @@ async function captureScanFrame() {
     return;
   }
   scanCaptureBusy = true;
+  const capBtn = $('btn-scan-capture');
+  if (capBtn) capBtn.disabled = true;
   try {
-    setScanMsg('Đang đọc mã trong khung hình...');
+    setScanMsg('Đang chụp khung hình…');
     let bmp = null;
     if ('ImageCapture' in window) {
       try {
@@ -2302,6 +2310,7 @@ async function captureScanFrame() {
     setScanMsg('Không xử lý được khung hình này — thử chụp lại.', 'err');
   } finally {
     scanCaptureBusy = false;
+    if (capBtn) capBtn.disabled = false;
   }
 }
 
@@ -5673,23 +5682,9 @@ function init() {
   $('scanner-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); $('btn-scanner-add').click(); }
   });
-  /* F35: chụp ảnh đọc mã — chọn/chụp xong là xử lý ngay; xóa trắng ô chọn file
-     liền tay, ảnh không được lưu ở bất cứ đâu trong app */
+  /* v105/v106: chụp trong app đọc mã (nút chụp kiểu cũ mở camera máy đã bỏ
+     hẳn ở v106 theo yêu cầu của Minh — chỉ còn đường chụp trong app) */
   $('btn-scan-capture').addEventListener('click', () => { captureScanFrame(); });
-  $('btn-scan-photo').addEventListener('click', () => {
-    const inp = $('scan-photo-input');
-    inp.value = '';
-    inp.click();
-  });
-  $('scan-photo-input').addEventListener('change', () => {
-    const inp = $('scan-photo-input');
-    const f = inp.files && inp.files[0];
-    inp.value = '';
-    if (f) scanPhotoFile(f);
-  });
-  /* v97: thoát app camera mà không chụp (bấm quay lại) — luồng quét trực tiếp
-     cũng có thể đã bị hệ điều hành cắt, mở lại cho chắc */
-  $('scan-photo-input').addEventListener('cancel', () => { restartScanCamera(); });
 
   /* v87: đồng bộ LAN */
   $('btn-sync').addEventListener('click', openSyncDialog);
