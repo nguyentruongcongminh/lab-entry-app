@@ -2255,6 +2255,22 @@ async function processScanBitmap(bmp) {
    nhòe khi để sát. Khung hình lấy được đi chung đường xử lý với ảnh chụp
    (mã vạch trước, OCR sau); luồng quét không hề bị cắt nên không cần mở lại
    camera như đường chụp ngoài (v97). */
+/* v107: đứng hình khung đã chụp trong lúc đọc — KTV thấy rõ ảnh vừa chụp
+   (như bấm máy ảnh thật), đọc xong thì trả về hình trực tiếp */
+function showScanFreeze(bmp) {
+  const cv = $('scan-freeze');
+  if (!cv) return;
+  cv.width = bmp.width || 0;
+  cv.height = bmp.height || 0;
+  const ctx = cv.getContext ? cv.getContext('2d') : null;
+  if (ctx && cv.width > 0) { try { ctx.drawImage(bmp, 0, 0); } catch (e) { /* bỏ qua */ } }
+  cv.classList.remove('hidden');
+}
+function hideScanFreeze() {
+  const cv = $('scan-freeze');
+  if (cv) cv.classList.add('hidden');
+}
+
 let scanCaptureBusy = false;
 async function captureScanFrame() {
   if (!scannerState) return;
@@ -2279,11 +2295,11 @@ async function captureScanFrame() {
     let bmp = null;
     if ('ImageCapture' in window) {
       try {
-        const blob = await new ImageCapture(track).takePhoto();
+        const blob = await withTimeout(new ImageCapture(track).takePhoto(), 10000);
         bmp = await createImageBitmap(blob).catch(() => null);
       } catch (e) { bmp = null; }
       if (!bmp) {
-        try { bmp = await new ImageCapture(track).grabFrame(); } catch (e) { bmp = null; }
+        try { bmp = await withTimeout(new ImageCapture(track).grabFrame(), 10000); } catch (e) { bmp = null; }
       }
     }
     if (!bmp && video.videoWidth > 0) {
@@ -2301,9 +2317,11 @@ async function captureScanFrame() {
       beepErr();
       return;
     }
+    showScanFreeze(bmp);
     try {
       await processScanBitmap(bmp);
     } finally {
+      hideScanFreeze();
       if (bmp.close) bmp.close();
     }
   } catch (e) {
@@ -2347,12 +2365,33 @@ async function getOcrWorker() {
         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',
         tessedit_pageseg_mode: '6'
       });
+      ocrWorkerInstance = worker;
       return worker;
     })();
     ocrWorkerPromise = p;
     p.catch(() => { if (ocrWorkerPromise === p) ocrWorkerPromise = null; });
   }
   return ocrWorkerPromise;
+}
+
+/* v107 (Minh báo 2026-11-19): trên trình duyệt của máy anh, bước OCR TREO
+   luôn không bao giờ trả kết quả — nút chụp kẹt disabled, thoát app mới nhả.
+   Mọi bước chờ OCR từ nay có giới hạn thời gian; quá hạn thì hủy worker để
+   lần bấm sau tạo mới từ đầu, và nút chụp luôn được nhả. */
+let ocrStepTimeoutMs = 30000;
+let ocrWorkerInstance = null;
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('ocr-timeout')), ms))
+  ]);
+}
+function resetOcrWorker() {
+  ocrWorkerPromise = null;
+  if (ocrWorkerInstance) {
+    try { ocrWorkerInstance.terminate(); } catch (e) { /* bỏ qua */ }
+    ocrWorkerInstance = null;
+  }
 }
 
 /* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng giữa ảnh
@@ -2437,7 +2476,7 @@ function extractCodeFromOcrText(text) {
 async function ocrReadCodeFromBitmap(bmp) {
   try {
     setScanMsg('Không thấy mã vạch — đang đọc chữ in trên nhãn...');
-    const worker = await getOcrWorker();
+    const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
     /* 3 lượt đọc với cách xử lý khác nhau (v103 thêm lượt cắt chặt + phóng to
        cho trường hợp chụp từ xa — mã nhỏ giữa khung; để máy gần quá thì nhòe
        nét nên KTV thường phải để xa):
@@ -2452,17 +2491,18 @@ async function ocrReadCodeFromBitmap(bmp) {
     for (const p of passes) {
       const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW);
       if (!cv) continue;
-      await worker.setParameters({ tessedit_pageseg_mode: p.psm });
-      const r = await worker.recognize(cv);
+      await withTimeout(worker.setParameters({ tessedit_pageseg_mode: p.psm }), ocrStepTimeoutMs);
+      const r = await withTimeout(worker.recognize(cv), ocrStepTimeoutMs);
       const code = extractCodeFromOcrText(r && r.data && r.data.text);
       if (code) {
-        await worker.setParameters({ tessedit_pageseg_mode: '6' }).catch(() => {});
+        withTimeout(worker.setParameters({ tessedit_pageseg_mode: '6' }), 3000).catch(() => {});
         return code;
       }
     }
-    await worker.setParameters({ tessedit_pageseg_mode: '6' }).catch(() => {});
+    withTimeout(worker.setParameters({ tessedit_pageseg_mode: '6' }), 3000).catch(() => {});
     return '';
   } catch (e) {
+    if (e && e.message === 'ocr-timeout') resetOcrWorker();
     return '';
   }
 }

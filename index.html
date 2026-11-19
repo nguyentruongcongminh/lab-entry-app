@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=106">
-<link rel="stylesheet" href="print.css?v=106">
+<link rel="stylesheet" href="styles.css?v=107">
+<link rel="stylesheet" href="print.css?v=107">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v106</span>
+  <span class="app-version">LabEntry v107</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -732,6 +732,7 @@
     <div class="wedge-note">⌨ Có máy quét mã vạch cầm tay (USB/Bluetooth)? Cứ bắn thẳng — app tự nhận như camera.</div>
     <div id="scan-frame" class="scan-frame">
       <video id="scanner-video" playsinline muted></video>
+      <canvas id="scan-freeze" class="hidden"></canvas>
       <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
       <span class="scan-line"></span>
     </div>
@@ -942,11 +943,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=106"></script>
-<script src="store.js?v=106"></script>
-<script src="sync-core.js?v=106"></script>
-<script src="sync.js?v=106"></script>
-<script src="mascot.js?v=106"></script>
-<script src="app.js?v=106"></script>
+<script src="config.js?v=107"></script>
+<script src="store.js?v=107"></script>
+<script src="sync-core.js?v=107"></script>
+<script src="sync.js?v=107"></script>
+<script src="mascot.js?v=107"></script>
+<script src="app.js?v=107"></script>
 </body>
 </html>

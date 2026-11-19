@@ -650,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v106 và precache đúng URL ?v=106 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v107 và precache đúng URL ?v=107 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v106'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=106', 'print.css?v=106', 'config.js?v=106', 'store.js?v=106', 'sync-core.js?v=106', 'sync.js?v=106', 'mascot.js?v=106', 'app.js?v=106', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v107'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=107', 'print.css?v=107', 'config.js?v=107', 'store.js?v=107', 'sync-core.js?v=107', 'sync.js?v=107', 'mascot.js?v=107', 'app.js?v=107', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2192,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v106', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v107', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2276,6 +2276,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     d105.getElementById('btn-scan-capture').click();
     assert.ok(d105.getElementById('scanner-msg').textContent.includes('Đang đọc khung hình trước'), 'bấm lúc đang đọc thì báo rõ đang bận');
     w105.eval('scanCaptureBusy = false');
+
+    /* v107: OCR treo vĩnh viễn (bản thật trên máy Minh) — quá hạn thì nút chụp
+       tự nhả, báo đọc trượt, đứng hình hiện trong lúc đọc và tắt khi xong */
+    w105.BarcodeDetector = class { async detect() { return []; } };
+    w105.eval('ocrStepTimeoutMs = 300');
+    w105.eval('getOcrWorker = async () => new Promise(() => {})');
+    d105.getElementById('btn-scan-capture').click();
+    await new Promise((r) => setTimeout(r, 150));
+    assert.ok(!d105.getElementById('scan-freeze').classList.contains('hidden'), 'đang đọc thì hiện khung hình đã chụp (đứng hình)');
+    assert.strictEqual(d105.getElementById('btn-scan-capture').disabled, true, 'đang đọc thì nút chụp khóa tạm');
+    await new Promise((r) => setTimeout(r, 1600));
+    assert.strictEqual(d105.getElementById('btn-scan-capture').disabled, false, 'OCR treo quá hạn thì nút chụp tự nhả, không kẹt tới khi thoát app');
+    assert.ok(d105.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã'), 'quá hạn thì báo đọc trượt như thường');
+    assert.ok(d105.getElementById('scan-freeze').classList.contains('hidden'), 'đọc xong thì bỏ đứng hình, về camera trực tiếp');
     w105.close();
   });
 

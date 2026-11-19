@@ -321,6 +321,7 @@ svg { width: 24px; height: 24px; display: block; }
 #scanner-modal .scanner-type-row select:disabled { background: #1e293b; color: #cbd5e1; opacity: .85; }
 .scan-frame { position: relative; border-radius: 14px; overflow: hidden; background: #000; }
 .scan-frame video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+#scan-freeze { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
 .scan-frame .corner { position: absolute; width: 26px; height: 26px; border: 3px solid #38bdf8; z-index: 2; }
 .scan-frame .corner.tl { top: 10px; left: 10px; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
 .scan-frame .corner.tr { top: 10px; right: 10px; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
