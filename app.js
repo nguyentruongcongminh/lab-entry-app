@@ -2359,7 +2359,13 @@ async function getOcrWorker() {
         corePath: base,
         langPath: base,
         gzip: true,
-        cacheMethod: 'none'
+        cacheMethod: 'none',
+        /* v108: KHÔNG bọc worker trong blob URL (mặc định của thư viện) —
+           trên trình duyệt máy Minh, blob worker tải dữ liệu ngôn ngữ không
+           qua được service worker, nhận trang 404 thay vì dữ liệu thật nên
+           bộ đọc treo ở bước khởi tạo (v107 treo đủ 30s mới nhả). Worker
+           trực tiếp cùng origin thì SW chặn đúng như ở trang chính. */
+        workerBlobURL: false
       });
       await worker.setParameters({
         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',
@@ -2475,7 +2481,7 @@ function extractCodeFromOcrText(text) {
 
 async function ocrReadCodeFromBitmap(bmp) {
   try {
-    setScanMsg('Không thấy mã vạch — đang đọc chữ in trên nhãn...');
+    setScanMsg('Không thấy mã vạch — đang nạp bộ đọc chữ in trên nhãn...');
     const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
     /* 3 lượt đọc với cách xử lý khác nhau (v103 thêm lượt cắt chặt + phóng to
        cho trường hợp chụp từ xa — mã nhỏ giữa khung; để máy gần quá thì nhòe
@@ -2488,7 +2494,11 @@ async function ocrReadCodeFromBitmap(bmp) {
       { binarize: true, crop: 0.55, targetW: 2400, psm: '6' },
       { binarize: false, crop: 0.8, targetW: 2600, psm: '11' }
     ];
-    for (const p of passes) {
+    for (let pi = 0; pi < passes.length; pi++) {
+      const p = passes[pi];
+      /* v108: báo rõ đang đọc lượt mấy — nếu còn treo, nhìn thông báo là
+         biết treo ở khâu nào */
+      setScanMsg('Đang đọc chữ in trên nhãn (lượt ' + (pi + 1) + '/' + passes.length + ')...');
       const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW);
       if (!cv) continue;
       await withTimeout(worker.setParameters({ tessedit_pageseg_mode: p.psm }), ocrStepTimeoutMs);
