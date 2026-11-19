@@ -1179,7 +1179,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v104</span>
+  <span class="app-version">LabEntry v105</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -1879,9 +1879,10 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <button id="btn-scanner-add" class="primary-btn small">Nhận mẫu</button>
     </div>
     <div class="scanner-photo-row">
+      <button id="btn-scan-capture" class="secondary-btn small" type="button">🎯 Chụp trong app đọc mã</button>
       <button id="btn-scan-photo" class="secondary-btn small" type="button">📷 Chụp ảnh đọc mã</button>
       <input id="scan-photo-input" type="file" accept="image/*" capture="environment" class="hidden">
-      <span class="scanner-photo-note">Mã xấu quét không ra thì chụp ảnh: app đọc mã trong ảnh, đọc xong xóa ngay — ảnh không lưu lại.</span>
+      <span class="scanner-photo-note">Mã xấu quét không ra thì chụp đọc mã: "Chụp trong app" dùng camera đang quét (lấy nét liên tục, để gần vẫn nét); "Chụp ảnh" mở camera của máy. Ảnh chỉ đọc trong bộ nhớ, không lưu lại.</span>
     </div>
     <div id="scanner-session" class="scanner-session">
       <div id="scanner-count" class="scanner-count">Đã nhận trong phiên: 0</div>
@@ -5977,6 +5978,18 @@ async function scanPhotoFileInner(file) {
       beepErr();
       return;
     }
+    await processScanBitmap(bmp);
+  } catch (e) {
+    setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
+  } finally {
+    if (bmp && bmp.close) bmp.close();
+  }
+}
+
+/* Xử lý một khung hình (bitmap) thành mã: mã vạch trước, không ra thì OCR
+   đọc chữ in trên nhãn. Dùng chung cho ảnh chụp qua app camera của máy
+   (F35) và khung hình chụp ngay trong app (v105). */
+async function processScanBitmap(bmp) {
     /* 1) Mã vạch trước — nhanh và chính xác tuyệt đối (nếu trình duyệt hỗ trợ) */
     if ('BarcodeDetector' in window) {
       const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
@@ -6009,10 +6022,61 @@ async function scanPhotoFileInner(file) {
     setScanMsg('Chưa đọc được mã trong ảnh — để máy cách nhãn 15–20 cm cho nét, đủ sáng, mã nằm giữa khung rồi chụp lại.', 'err');
     beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
+}
+
+/* v105 (Minh yêu cầu 2026-11-19): chụp NGAY trong app bằng chính luồng camera
+   đang quét — luồng này lấy nét liên tục nên để gần vẫn nét, trong khi ảnh
+   chụp qua app camera của máy (một phát ăn ngay ở độ phân giải tối đa) hay
+   nhòe khi để sát. Khung hình lấy được đi chung đường xử lý với ảnh chụp
+   (mã vạch trước, OCR sau); luồng quét không hề bị cắt nên không cần mở lại
+   camera như đường chụp ngoài (v97). */
+let scanCaptureBusy = false;
+async function captureScanFrame() {
+  if (!scannerState || scanCaptureBusy) return;
+  const video = $('scanner-video');
+  const stream = video ? video.srcObject : null;
+  const track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+  if (!track || track.readyState === 'ended') {
+    setScanMsg('Camera chưa sẵn sàng — chờ khung hình hiện rồi bấm chụp lại.', 'err');
+    return;
+  }
+  scanCaptureBusy = true;
+  try {
+    setScanMsg('Đang đọc mã trong khung hình...');
+    let bmp = null;
+    if ('ImageCapture' in window) {
+      try {
+        const blob = await new ImageCapture(track).takePhoto();
+        bmp = await createImageBitmap(blob).catch(() => null);
+      } catch (e) { bmp = null; }
+      if (!bmp) {
+        try { bmp = await new ImageCapture(track).grabFrame(); } catch (e) { bmp = null; }
+      }
+    }
+    if (!bmp && video.videoWidth > 0) {
+      const cv = document.createElement('canvas');
+      cv.width = video.videoWidth;
+      cv.height = video.videoHeight;
+      const ctx = cv.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        bmp = await createImageBitmap(cv).catch(() => null);
+      }
+    }
+    if (!bmp) {
+      setScanMsg('Không chụp được khung hình — thử lại.', 'err');
+      beepErr();
+      return;
+    }
+    try {
+      await processScanBitmap(bmp);
+    } finally {
+      if (bmp.close) bmp.close();
+    }
   } catch (e) {
-    setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
+    setScanMsg('Không xử lý được khung hình này — thử chụp lại.', 'err');
   } finally {
-    if (bmp && bmp.close) bmp.close();
+    scanCaptureBusy = false;
   }
 }
 
@@ -9386,6 +9450,7 @@ function init() {
   });
   /* F35: chụp ảnh đọc mã — chọn/chụp xong là xử lý ngay; xóa trắng ô chọn file
      liền tay, ảnh không được lưu ở bất cứ đâu trong app */
+  $('btn-scan-capture').addEventListener('click', () => { captureScanFrame(); });
   $('btn-scan-photo').addEventListener('click', () => {
     const inp = $('scan-photo-input');
     inp.value = '';

@@ -650,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v104 và precache đúng URL ?v=104 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v105 và precache đúng URL ?v=105 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v104'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=104', 'print.css?v=104', 'config.js?v=104', 'store.js?v=104', 'sync-core.js?v=104', 'sync.js?v=104', 'mascot.js?v=104', 'app.js?v=104', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v105'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=105', 'print.css?v=105', 'config.js?v=105', 'store.js?v=105', 'sync-core.js?v=105', 'sync.js?v=105', 'mascot.js?v=105', 'app.js?v=105', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2192,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v104', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v105', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2240,6 +2240,37 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     animSel.dispatchEvent(new w96.Event('change'));
     assert.ok(!d96.body.classList.contains('no-anim'), 'bật lại hiệu ứng thì gỡ no-anim');
     w96.close();
+  });
+
+  test('v105: chụp trong app bằng luồng camera đang quét — ImageCapture lấy khung hình, đi chung đường mã vạch/OCR, không cắt luồng', async () => {
+    const dom105 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV Chụp', salt: 's105', pinHash: 'h105' }]), 'labentry.operator.v1': 'KTV Chụp' }); } });
+    const w105 = dom105.window;
+    const d105 = w105.document;
+    await new Promise((res) => { if (d105.readyState === 'complete') res(); else w105.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    assert.ok(d105.getElementById('btn-scan-capture'), 'màn hình quét có nút chụp trong app');
+    w105.eval("currentOperator = 'KTV Chụp'");
+    w105.eval("openScanner('today')");
+
+    /* Chưa có luồng camera: bấm chụp phải báo rõ, không văng lỗi */
+    await w105.eval('(async () => { await captureScanFrame(); })()');
+    assert.ok(d105.getElementById('scanner-msg').textContent.includes('Camera chưa sẵn sàng'), 'chưa có luồng thì báo camera chưa sẵn sàng');
+
+    /* Giả lập luồng + ImageCapture: takePhoto trả blob, mã vạch đọc trúng ngay trên khung hình chụp */
+    const fakeTrack = { readyState: 'live' };
+    d105.getElementById('scanner-video').srcObject = { getVideoTracks: () => [fakeTrack] };
+    let photoCalls = 0;
+    w105.ImageCapture = class { constructor(t) { this.t = t; } async takePhoto() { photoCalls++; return new w105.Blob(['x'], { type: 'image/jpeg' }); } };
+    w105.createImageBitmap = async () => ({ width: 1920, height: 1080, close() {} });
+    w105.BarcodeDetector = class { async detect() { return [{ rawValue: '2611043012' }]; } };
+    d105.getElementById('btn-scan-capture').click();
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(photoCalls, 1, 'đã gọi ImageCapture.takePhoto trên track của luồng quét');
+    assert.strictEqual(w105.eval('scannerState.count'), 1, 'mã đọc từ khung hình chụp trong app được nhận như mã quét');
+    assert.ok(w105.eval('store.getAll()').length >= 1, 'bản ghi đã tạo từ khung hình chụp');
+    w105.close();
   });
 
   test('F35 (v71): chụp ảnh đọc mã trong màn hình quét + khối chữ ký in không tách trang', async () => {
