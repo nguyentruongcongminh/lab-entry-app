@@ -246,12 +246,13 @@ svg { width: 24px; height: 24px; display: block; }
 .scanner-photo-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .scan-confirm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .scan-confirm-row strong { font-size: 20px; letter-spacing: 1px; }
+.scan-progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 10px; }
+.scan-progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--blue), var(--blue-dark)); transition: width .35s ease; }
 .scanner-photo-row .secondary-btn { flex: 0 0 auto; white-space: nowrap; }
 #scanner-modal .secondary-btn:disabled { opacity: .55; }
 /* v106: nút Dừng quét dính đáy màn hình — nội dung dài tới đâu cuộn tới đó,
    nút đỏ không bao giờ bị đẩy khỏi tầm tay nữa */
 #scanner-modal .stop-btn { position: sticky; bottom: 0; z-index: 3; }
-.scanner-photo-note { font-size: 12px; color: var(--muted); flex: 1 1 180px; }
 .scanner-manual input {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px;
 }

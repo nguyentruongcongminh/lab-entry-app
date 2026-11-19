@@ -650,7 +650,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v111 và precache đúng URL ?v=111 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v112 và precache đúng URL ?v=112 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +670,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v111'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=111', 'print.css?v=111', 'config.js?v=111', 'store.js?v=111', 'sync-core.js?v=111', 'sync.js?v=111', 'mascot.js?v=111', 'app.js?v=111', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v112'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=112', 'print.css?v=112', 'config.js?v=112', 'store.js?v=112', 'sync-core.js?v=112', 'sync.js?v=112', 'mascot.js?v=112', 'app.js?v=112', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2192,7 +2192,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v111', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v112', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2325,6 +2325,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const stA = await w105.eval('processScanBitmap({ width: 100, height: 100, close() {} })');
     assert.strictEqual(stA, 'accepted', 'OCR ra mã 10 số thì nhận thẳng, không hỏi');
     assert.ok(has111('2611192995'), 'mẫu 10 số OCR đã được nhận');
+    /* v112: cách 2 — mã vạch dò đúng 1 lần, OCR đúng 1 lượt; thanh tiến
+       trình gọn thay chữ báo bước; bỏ chú thích cạnh nút chụp */
+    assert.ok(!d105.querySelector('.scanner-photo-note'), 'đã bỏ đoạn chú thích cạnh nút chụp');
+    w105.eval('setScanProgress(42)');
+    assert.ok(!d105.getElementById('scan-progress').classList.contains('hidden'), 'thanh tiến trình hiện khi có %');
+    assert.strictEqual(d105.getElementById('scan-progress-fill').style.width, '42%', 'thanh tiến trình chạy đúng %');
+    w105.eval('setScanProgress(null)');
+    assert.ok(d105.getElementById('scan-progress').classList.contains('hidden'), 'ẩn thanh tiến trình khi hủy');
+    let detectCalls = 0;
+    w105.BarcodeDetector = class { async detect() { detectCalls++; return []; } };
+    w105.eval('window.__recogCalls = 0');
+    w105.eval("getOcrWorker = async () => ({ setParameters: async () => {}, recognize: async () => { window.__recogCalls++; return { data: { text: '' } }; } })");
+    const stF = await w105.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stF, 'failed', 'không mã vạch, không chữ đọc được thì failed');
+    assert.strictEqual(detectCalls, 1, 'mã vạch chỉ dò đúng 1 lần — bỏ lần thử vùng giữa');
+    assert.strictEqual(w105.eval('window.__recogCalls'), 1, 'OCR chỉ chạy đúng 1 lượt');
     w105.close();
   });
 

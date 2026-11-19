@@ -2206,9 +2206,27 @@ async function scanPhotoFileInner(file) {
     await processScanBitmap(bmp);
   } catch (e) {
     setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
+    setScanProgress(null);
   } finally {
     if (bmp && bmp.close) bmp.close();
   }
+}
+
+/* v112: thanh tiến trình gọn cho lúc chụp/đọc ảnh — thay các dòng chữ báo
+   "bước 1, bước 2" (Minh yêu cầu trông chuyên nghiệp hơn). Thanh dừng lâu
+   bất thường ở mức % nào thì đó là khâu đang kẹt: 35% dò mã vạch,
+   55% nạp bộ đọc chữ, 80% đang đọc chữ in. */
+function setScanProgress(pct) {
+  const bar = $('scan-progress');
+  const fill = $('scan-progress-fill');
+  if (!bar || !fill) return;
+  if (pct == null) { bar.classList.add('hidden'); fill.style.width = '0%'; return; }
+  bar.classList.remove('hidden');
+  fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+}
+function finishScanProgress() {
+  setScanProgress(100);
+  setTimeout(() => { setScanProgress(null); }, 300);
 }
 
 /* v111: mã 4 số do OCR ĐỌC ĐOÁN phải có người xác nhận mới nhận mẫu. Mã hồ
@@ -2242,43 +2260,33 @@ function confirmOcrCode(yes) {
 /* Xử lý một khung hình (bitmap) thành mã: mã vạch trước, không ra thì OCR
    đọc chữ in trên nhãn. Dùng chung cho ảnh chụp qua app camera của máy
    (F35) và khung hình chụp ngay trong app (v105).
+   v112 (cách 2, Minh chốt 2026-11-19): rút còn 2 khâu — mã vạch dò ĐÚNG
+   1 lần (bỏ lần thử lại trên vùng giữa ảnh), OCR đúng 1 lượt; tiến trình
+   hiện bằng thanh gọn (setScanProgress) thay chữ báo bước.
    Trả về: 'accepted' | 'confirm' (đang chờ xác nhận mã 4 số) | 'failed'. */
 async function processScanBitmap(bmp) {
+    setScanProgress(35);
     /* 1) Mã vạch trước — nhanh và chính xác tuyệt đối (nếu trình duyệt hỗ trợ) */
     if ('BarcodeDetector' in window) {
       const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
-      let codes = await detector.detect(bmp).catch(() => []);
-      if ((!codes || !codes.length) && bmp.width > 800 && bmp.height > 800) {
-        /* Chưa ra: thử lại trên vùng giữa ảnh (mã thường nằm ở đó, ít nhiễu hơn) */
-        const cw = Math.floor(bmp.width * 0.62);
-        const ch = Math.floor(bmp.height * 0.62);
-        const cv = document.createElement('canvas');
-        cv.width = cw;
-        cv.height = ch;
-        const ctx = cv.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, cw, ch);
-          const crop = await createImageBitmap(cv).catch(() => null);
-          if (crop) {
-            codes = await detector.detect(crop).catch(() => []);
-            if (crop.close) crop.close();
-          }
-        }
-      }
+      const codes = await detector.detect(bmp).catch(() => []);
       const bcode = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
-      if (bcode) { acceptScanCode(bcode, { recognized: true }); return 'accepted'; }
+      if (bcode) { acceptScanCode(bcode, { recognized: true }); finishScanProgress(); return 'accepted'; }
     }
     /* 2) Không có mã vạch → OCR đọc chữ in trên nhãn (v102): mã số in thường
        (không kèm mã vạch) hoặc mã vạch hỏng. Chạy Tesseract ngay trên máy,
        ảnh vẫn chỉ ở trong bộ nhớ như F35. */
+    setScanProgress(55);
     const ocode = await ocrReadCodeFromBitmap(bmp);
     if (ocode) {
+      finishScanProgress();
       if (/^\d{4}$/.test(ocode)) { showOcrConfirm(ocode); return 'confirm'; }
       acceptScanCode(ocode, { recognized: true }); return 'accepted';
     }
     setScanMsg('Chưa đọc được mã trong ảnh — để máy cách nhãn 15–20 cm cho nét, đủ sáng, mã nằm giữa khung rồi chụp lại.', 'err');
     beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
+    finishScanProgress();
     return 'failed';
 }
 
@@ -2328,6 +2336,7 @@ async function captureScanFrame() {
   if (capBtn) capBtn.disabled = true;
   try {
     setScanMsg('Đang chụp khung hình…');
+    setScanProgress(12);
     let bmp = null;
     if ('ImageCapture' in window) {
       try {
@@ -2350,6 +2359,7 @@ async function captureScanFrame() {
     }
     if (!bmp) {
       setScanMsg('Không chụp được khung hình — thử lại.', 'err');
+      setScanProgress(null);
       beepErr();
       return;
     }
@@ -2364,6 +2374,7 @@ async function captureScanFrame() {
     }
   } catch (e) {
     setScanMsg('Không xử lý được khung hình này — thử chụp lại.', 'err');
+    setScanProgress(null);
   } finally {
     scanCaptureBusy = false;
     if (capBtn) capBtn.disabled = false;
@@ -2558,24 +2569,19 @@ function extractCodeFromOcrText(text) {
 
 async function ocrReadCodeFromBitmap(bmp) {
   try {
-    setScanMsg('Không thấy mã vạch — đang nạp bộ đọc chữ in trên nhãn...');
     const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
-    /* v109: còn 2 lượt (bỏ lượt ảnh xám PSM 11 — Minh chê 3 lượt quá lâu cho
-       1 mã; lượt nào trúng mã là dừng ngay):
-       1) nhị phân, vùng giữa 80%, ngang 2200px, PSM 6 — nhãn chụp chuẩn
-       2) nhị phân, vùng giữa 55% phóng lên 2000px, PSM 6 — mã nhỏ ở xa */
+    /* v112: đúng 1 lượt đọc (cách 2) — nhị phân, vùng giữa 80%, ngang
+       2200px, PSM 6. Bỏ lượt cắt chặt phóng to: để máy đúng khoảng cách
+       theo hướng dẫn thì lượt này đủ, đổi lại thời gian đọc giảm một nửa. */
     const passes = [
-      { binarize: true, crop: 0.8, targetW: 2200, psm: '6' },
-      { binarize: true, crop: 0.55, targetW: 2000, psm: '6' }
+      { binarize: true, crop: 0.8, targetW: 2200, psm: '6' }
     ];
     for (let pi = 0; pi < passes.length; pi++) {
       const p = passes[pi];
-      /* v108: báo rõ đang đọc lượt mấy — nếu còn treo, nhìn thông báo là
-         biết treo ở khâu nào */
-      setScanMsg('Đang đọc chữ in trên nhãn (lượt ' + (pi + 1) + '/' + passes.length + ')...');
       const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW);
       if (!cv) continue;
       await withTimeout(worker.setParameters({ tessedit_pageseg_mode: p.psm }), ocrStepTimeoutMs);
+      setScanProgress(80);
       const r = await withTimeout(worker.recognize(cv), ocrStepTimeoutMs);
       const code = extractCodeFromOcrText(r && r.data && r.data.text);
       if (code) {
@@ -2728,6 +2734,7 @@ function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
   clearOcrConfirm();
   hideScanFreeze();
+  setScanProgress(null);
   $('scanner-modal').classList.add('hidden');
   stopScanCamera();
   scannerState = null;
