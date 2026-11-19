@@ -1186,7 +1186,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v108</span>
+  <span class="app-version">LabEntry v109</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -6246,6 +6246,30 @@ function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW) {
    (OCR hay tách "B24" "0008458" hoặc "26111" "92995"). Ưu tiên dạng đặc
    trưng (mã hồ sơ, 10 số) trước; mã 4 số dễ trùng số khác trên nhãn
    (năm, số lượng...) nên chỉ chốt khi không tìm thấy dạng kia. */
+/* Sửa lỗi OCR nhầm chữ↔số theo VỊ TRÍ trong các dạng mã hợp lệ (v109, Minh
+   báo: mã có chữ bị đọc thành số linh tinh — B hay thành 8, S thành 5...).
+   Chỉ áp dụng khi token đã gần đúng khuôn; mã sửa xong vẫn phải qua cổng
+   định dạng nghiêm ngặt ở dưới nên không lọt mã bừa. */
+const OCR_DIGIT_FIX = { O: '0', Q: '0', I: '1', L: '1', Z: '2', A: '4', S: '5', G: '6', B: '8' };
+const OCR_LETTER_FIX = { '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '0': 'O', '1': 'I' };
+function repairOcrToken(tok) {
+  const out = [];
+  const m = /^([0-9A-Z])([0-9A-Z]{2})-([0-9A-Z]{7})$/.exec(tok);
+  if (m) {
+    const first = /[A-Z]/.test(m[1]) ? m[1] : OCR_LETTER_FIX[m[1]];
+    if (first) {
+      const mid = m[2].replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
+      const tail = m[3].replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
+      if (mid.length === 2 && tail.length === 7) out.push(first + mid + '-' + tail);
+    }
+  }
+  if (/^[0-9A-Z]{10}$/.test(tok) || /^[0-9A-Z]{4}$/.test(tok)) {
+    const fixed = tok.replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
+    if (fixed.length === tok.length && /^\d+$/.test(fixed)) out.push(fixed);
+  }
+  return out;
+}
+
 function extractCodeFromOcrText(text) {
   let clean = String(text || '').toUpperCase().replace(/[\u2010-\u2015]/g, '-');
   clean = clean.replace(/([0-9A-Z])\s+-\s+([0-9A-Z])/g, '$1-$2');
@@ -6256,7 +6280,15 @@ function extractCodeFromOcrText(text) {
     all.push(tokens[i] + '-' + tokens[i + 1]);
   }
   for (const c of all) if (/^[A-Z]\d{2}-\d{7}$/.test(c) || /^\d{10}$/.test(c)) return c;
+  const repaired = [];
+  for (const t of all) for (const r of repairOcrToken(t)) if (!repaired.includes(r)) repaired.push(r);
+  for (const c of repaired) if (/^[A-Z]\d{2}-\d{7}$/.test(c) || /^\d{10}$/.test(c)) return c;
   for (const c of all) if (/^\d{4}$/.test(c)) return c;
+  /* Mã 4 số: chỉ sửa trên token đơn, KHÔNG sửa trên token ghép — ghép chữ
+     thường (vd "SO LA" -> "SOLA" -> "5014") sẽ đẻ mã ma */
+  const repairedShort = [];
+  for (const t of tokens) for (const r of repairOcrToken(t)) if (r.length === 4 && !repairedShort.includes(r)) repairedShort.push(r);
+  for (const c of repairedShort) if (/^\d{4}$/.test(c)) return c;
   return '';
 }
 
@@ -6264,16 +6296,13 @@ async function ocrReadCodeFromBitmap(bmp) {
   try {
     setScanMsg('Không thấy mã vạch — đang nạp bộ đọc chữ in trên nhãn...');
     const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
-    /* 3 lượt đọc với cách xử lý khác nhau (v103 thêm lượt cắt chặt + phóng to
-       cho trường hợp chụp từ xa — mã nhỏ giữa khung; để máy gần quá thì nhòe
-       nét nên KTV thường phải để xa):
-       1) nhị phân, vùng giữa 80%, ngang 2600px, PSM 6 — nhãn chụp chuẩn
-       2) nhị phân, vùng giữa 55% phóng lên 2400px, PSM 6 — mã nhỏ ở xa
-       3) ảnh xám, vùng giữa 80%, ngang 2600px, PSM 11 — nhãn in mờ/xám */
+    /* v109: còn 2 lượt (bỏ lượt ảnh xám PSM 11 — Minh chê 3 lượt quá lâu cho
+       1 mã; lượt nào trúng mã là dừng ngay):
+       1) nhị phân, vùng giữa 80%, ngang 2200px, PSM 6 — nhãn chụp chuẩn
+       2) nhị phân, vùng giữa 55% phóng lên 2000px, PSM 6 — mã nhỏ ở xa */
     const passes = [
-      { binarize: true, crop: 0.8, targetW: 2600, psm: '6' },
-      { binarize: true, crop: 0.55, targetW: 2400, psm: '6' },
-      { binarize: false, crop: 0.8, targetW: 2600, psm: '11' }
+      { binarize: true, crop: 0.8, targetW: 2200, psm: '6' },
+      { binarize: true, crop: 0.55, targetW: 2000, psm: '6' }
     ];
     for (let pi = 0; pi < passes.length; pi++) {
       const p = passes[pi];
