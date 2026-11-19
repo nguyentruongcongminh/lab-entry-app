@@ -2120,7 +2120,10 @@ function acceptScanCode(rawCode, opts) {
   if (opts && opts.recognized) {
     code = normalizeScanCode(code);
     if (!isAllowedScanCode(code)) {
-      setScanMsg('Bỏ qua mã "' + String(rawCode || '').trim() + '" — app chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số', 'err');
+      /* v104: thông báo phải NGẮN — bản dài làm nút Dừng quét bị đẩy xuống
+         khỏi màn hình, KTV không dừng quét được (Minh báo 2026-11-19) */
+      const shown = code.length > 16 ? code.slice(0, 16) + '…' : code;
+      setScanMsg('Bỏ qua mã "' + shown + '" — chỉ nhận mã 10 số, mã hồ sơ hoặc 4 số', 'err');
       return false;
     }
   }
@@ -2229,7 +2232,7 @@ async function scanPhotoFileInner(file) {
        ảnh vẫn chỉ ở trong bộ nhớ như F35. */
     const ocode = await ocrReadCodeFromBitmap(bmp);
     if (ocode) { acceptScanCode(ocode, { recognized: true }); return; }
-    setScanMsg('Chưa đọc được mã trong ảnh — đưa máy cách nhãn khoảng 15–20 cm cho nét (sát quá sẽ nhòe), đủ sáng, mã nằm giữa khung rồi chụp lại. App chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số.', 'err');
+    setScanMsg('Chưa đọc được mã trong ảnh — để máy cách nhãn 15–20 cm cho nét, đủ sáng, mã nằm giữa khung rồi chụp lại.', 'err');
     beepErr();
     if (navigator.vibrate) navigator.vibrate(120);
   } catch (e) {
