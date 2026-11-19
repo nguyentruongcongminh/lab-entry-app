@@ -1163,7 +1163,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v101</span>
+  <span class="app-version">LabEntry v102</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -5847,9 +5847,31 @@ function findAndOpenRecord(code) {
 /* Nhận 1 mã (từ camera hoặc nhập tay). Trả về true nếu mã được xử lý nhận.
    Loại XN KHÔNG bị khóa trong phiên: mỗi mẫu nhận theo loại đang chọn tại thời điểm bắn mã đó,
    người dùng đổi loại lúc nào cũng được (theo yêu cầu của Minh, v17). */
-function acceptScanCode(rawCode) {
-  const code = String(rawCode || '').trim();
+/* v102: cổng định dạng cho mã NHẬN DẠNG TỰ ĐỘNG (camera bắn + chụp ảnh).
+   Chỉ 3 dạng mã mẫu được phép nhập tự động — nhận dạng ra mã khác thì bỏ qua,
+   không nhập (yêu cầu của Minh 2026-11-19, theo đúng các dạng mã đang dùng):
+   1) mã hồ sơ có chữ: B24-0008458   2) 10 chữ số: 2611192995   3) 4 chữ số: 4561
+   Nhập tay trong màn hình quét và máy quét cầm tay (gõ phím) KHÔNG qua cổng
+   này — thao tác chủ động của người dùng, giữ nguyên hành vi cũ. */
+const SCAN_CODE_FORMATS = [/^[A-Z]\d{2}-\d{7}$/, /^\d{10}$/, /^\d{4}$/];
+function normalizeScanCode(raw) {
+  return String(raw || '').toUpperCase().replace(/[\u2010-\u2015]/g, '-').replace(/\s+/g, '');
+}
+function isAllowedScanCode(code) {
+  return SCAN_CODE_FORMATS.some((re) => re.test(code));
+}
+
+function acceptScanCode(rawCode, opts) {
+  let code = String(rawCode || '').trim();
   if (!code || !scannerState) return false;
+
+  if (opts && opts.recognized) {
+    code = normalizeScanCode(code);
+    if (!isAllowedScanCode(code)) {
+      setScanMsg('Bỏ qua mã "' + String(rawCode || '').trim() + '" — app chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số', 'err');
+      return false;
+    }
+  }
 
   if (scannerState.find) return findAndOpenRecord(code);
 
@@ -5917,44 +5939,195 @@ async function scanPhotoFile(file) {
 }
 
 async function scanPhotoFileInner(file) {
-  if (!('BarcodeDetector' in window) || typeof createImageBitmap !== 'function') {
-    setScanMsg('Trình duyệt này không đọc được mã từ ảnh — hãy mở app bằng Chrome trên điện thoại hoặc bản APK để chụp ảnh đọc mã.', 'err');
-    beepErr();
-    return;
-  }
   setScanMsg('Đang đọc mã trong ảnh...');
+  let bmp = null;
   try {
-    const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
-    const bmp = await createImageBitmap(file);
-    let codes = await detector.detect(bmp).catch(() => []);
-    if ((!codes || !codes.length) && bmp.width > 800 && bmp.height > 800) {
-      /* Chưa ra: thử lại trên vùng giữa ảnh (mã thường nằm ở đó, ít nhiễu hơn) */
-      const cw = Math.floor(bmp.width * 0.62);
-      const ch = Math.floor(bmp.height * 0.62);
-      const cv = document.createElement('canvas');
-      cv.width = cw;
-      cv.height = ch;
-      const ctx = cv.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, cw, ch);
-        const crop = await createImageBitmap(cv).catch(() => null);
-        if (crop) {
-          codes = await detector.detect(crop).catch(() => []);
-          if (crop.close) crop.close();
-        }
-      }
-    }
-    if (bmp.close) bmp.close();
-    const code = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
-    if (!code) {
-      setScanMsg('Chưa đọc được mã trong ảnh — chụp gần hơn, rõ nét, đủ sáng rồi thử lại.', 'err');
+    bmp = await createImageBitmap(file).catch(() => null);
+    if (!bmp) {
+      setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
       beepErr();
-      if (navigator.vibrate) navigator.vibrate(120);
       return;
     }
-    acceptScanCode(code);
+    /* 1) Mã vạch trước — nhanh và chính xác tuyệt đối (nếu trình duyệt hỗ trợ) */
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
+      let codes = await detector.detect(bmp).catch(() => []);
+      if ((!codes || !codes.length) && bmp.width > 800 && bmp.height > 800) {
+        /* Chưa ra: thử lại trên vùng giữa ảnh (mã thường nằm ở đó, ít nhiễu hơn) */
+        const cw = Math.floor(bmp.width * 0.62);
+        const ch = Math.floor(bmp.height * 0.62);
+        const cv = document.createElement('canvas');
+        cv.width = cw;
+        cv.height = ch;
+        const ctx = cv.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, cw, ch);
+          const crop = await createImageBitmap(cv).catch(() => null);
+          if (crop) {
+            codes = await detector.detect(crop).catch(() => []);
+            if (crop.close) crop.close();
+          }
+        }
+      }
+      const bcode = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
+      if (bcode) { acceptScanCode(bcode, { recognized: true }); return; }
+    }
+    /* 2) Không có mã vạch → OCR đọc chữ in trên nhãn (v102): mã số in thường
+       (không kèm mã vạch) hoặc mã vạch hỏng. Chạy Tesseract ngay trên máy,
+       ảnh vẫn chỉ ở trong bộ nhớ như F35. */
+    const ocode = await ocrReadCodeFromBitmap(bmp);
+    if (ocode) { acceptScanCode(ocode, { recognized: true }); return; }
+    setScanMsg('Chưa đọc được mã trong ảnh — chụp gần hơn, rõ nét, đủ sáng rồi thử lại. App chỉ nhận mã 10 số, mã hồ sơ (dạng B24-0008458) hoặc mã 4 số.', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
   } catch (e) {
     setScanMsg('Không xử lý được ảnh này — thử chụp lại.', 'err');
+  } finally {
+    if (bmp && bmp.close) bmp.close();
+  }
+}
+
+/* ---- v102: OCR đọc chữ in trên nhãn (Tesseract.js, chạy ngay trên máy) ----
+   Thư viện + dữ liệu ngôn ngữ nằm trong thư mục ocr/ cạnh app, chỉ tải khi
+   dùng lần đầu (worker giữ sống cho cả phiên mở app). Dữ liệu eng được SW
+   phục vụ từ bản base64 đóng gói kèm (xem sw.js). */
+let ocrWorkerPromise = null;
+
+function loadOcrLib() {
+  return new Promise((resolve, reject) => {
+    if (window.Tesseract) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'ocr/tesseract.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('ocr-lib'));
+    document.head.appendChild(s);
+  });
+}
+
+async function getOcrWorker() {
+  if (!ocrWorkerPromise) {
+    const p = (async () => {
+      await loadOcrLib();
+      const base = new URL('ocr/', window.location.href).href;
+      const worker = await window.Tesseract.createWorker('eng', window.Tesseract.OEM.LSTM_ONLY, {
+        workerPath: base + 'worker.min.js',
+        corePath: base,
+        langPath: base,
+        gzip: true,
+        cacheMethod: 'none'
+      });
+      await worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-',
+        tessedit_pageseg_mode: '6'
+      });
+      return worker;
+    })();
+    ocrWorkerPromise = p;
+    p.catch(() => { if (ocrWorkerPromise === p) ocrWorkerPromise = null; });
+  }
+  return ocrWorkerPromise;
+}
+
+/* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng giữa 80%,
+   thu về tối đa 1800px chiều ngang, chuyển xám, tuỳ chọn nhị phân hoá bằng
+   ngưỡng Otsu để chữ nổi rõ khỏi nền nhãn */
+function ocrCanvasFromBitmap(bmp, binarize) {
+  const cw = Math.floor(bmp.width * 0.8);
+  const ch = Math.floor(bmp.height * 0.8);
+  if (cw < 40 || ch < 40) return null;
+  const scale = Math.min(1, 1800 / cw);
+  const W = Math.max(1, Math.round(cw * scale));
+  const H = Math.max(1, Math.round(ch * scale));
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, W, H);
+  const img = ctx.getImageData(0, 0, W, H);
+  const d = img.data;
+  const n = W * H;
+  const gray = new Uint8Array(n);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    gray[j] = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
+  }
+  if (binarize) {
+    const hist = new Float64Array(256);
+    for (let j = 0; j < n; j++) hist[gray[j]]++;
+    let sum = 0;
+    for (let t = 0; t < 256; t++) sum += t * hist[t];
+    let sumB = 0;
+    let wB = 0;
+    let best = -1;
+    let thr = 127;
+    for (let t = 0; t < 256; t++) {
+      wB += hist[t];
+      if (wB === 0) continue;
+      const wF = n - wB;
+      if (wF === 0) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB;
+      const mF = (sum - sumB) / wF;
+      const between = wB * wF * (mB - mF) * (mB - mF);
+      if (between > best) { best = between; thr = t; }
+    }
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      const v = gray[j] > thr ? 255 : 0;
+      d[i] = v; d[i + 1] = v; d[i + 2] = v;
+    }
+  } else {
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      d[i] = gray[j]; d[i + 1] = gray[j]; d[i + 2] = gray[j];
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+
+/* Rút mã hợp lệ từ văn bản OCR: thử từng token, rồi ghép 2 token kề nhau
+   (OCR hay tách "B24" "0008458" hoặc "26111" "92995"). Ưu tiên dạng đặc
+   trưng (mã hồ sơ, 10 số) trước; mã 4 số dễ trùng số khác trên nhãn
+   (năm, số lượng...) nên chỉ chốt khi không tìm thấy dạng kia. */
+function extractCodeFromOcrText(text) {
+  let clean = String(text || '').toUpperCase().replace(/[\u2010-\u2015]/g, '-');
+  clean = clean.replace(/([0-9A-Z])\s+-\s+([0-9A-Z])/g, '$1-$2');
+  const tokens = clean.split(/[^0-9A-Z-]+/).filter((t) => t && t !== '-');
+  const all = tokens.slice();
+  for (let i = 0; i + 1 < tokens.length; i++) {
+    all.push(tokens[i] + tokens[i + 1]);
+    all.push(tokens[i] + '-' + tokens[i + 1]);
+  }
+  for (const c of all) if (/^[A-Z]\d{2}-\d{7}$/.test(c) || /^\d{10}$/.test(c)) return c;
+  for (const c of all) if (/^\d{4}$/.test(c)) return c;
+  return '';
+}
+
+async function ocrReadCodeFromBitmap(bmp) {
+  try {
+    setScanMsg('Không thấy mã vạch — đang đọc chữ in trên nhãn...');
+    const worker = await getOcrWorker();
+    const cvBin = ocrCanvasFromBitmap(bmp, true);
+    if (cvBin) {
+      const r1 = await worker.recognize(cvBin);
+      const code1 = extractCodeFromOcrText(r1 && r1.data && r1.data.text);
+      if (code1) return code1;
+    }
+    /* Lượt 2: ảnh xám không nhị phân hoá + chế độ chữ rải (PSM 11) —
+       có nhãn in mờ/xám mà bản nhị phân làm mất nét */
+    const cvGray = ocrCanvasFromBitmap(bmp, false);
+    if (cvGray) {
+      await worker.setParameters({ tessedit_pageseg_mode: '11' });
+      try {
+        const r2 = await worker.recognize(cvGray);
+        const code2 = extractCodeFromOcrText(r2 && r2.data && r2.data.text);
+        if (code2) return code2;
+      } finally {
+        await worker.setParameters({ tessedit_pageseg_mode: '6' }).catch(() => {});
+      }
+    }
+    return '';
+  } catch (e) {
+    return '';
   }
 }
 
@@ -5994,6 +6167,16 @@ async function restartScanCamera() {
   }
 }
 
+/* v102: xin luồng camera độ phân giải cao (tới 1920×1080) để bắn mã nét hơn,
+   tăng tỉ lệ đọc trúng; máy/webcam không đáp ứng thì lùi về mặc định như trước */
+async function openScanStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
+  } catch (e) {
+    return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  }
+}
+
 async function startCamera() {
   if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     $('scan-frame').classList.add('hidden');
@@ -6007,7 +6190,7 @@ async function startCamera() {
     return;
   }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const stream = await openScanStream();
     if (!scannerState) { stream.getTracks().forEach((t) => t.stop()); return; }
     scanStream = stream;
     const video = $('scanner-video');
@@ -6032,7 +6215,7 @@ async function startCamera() {
           if (code === scannerState.lastCode && now - scannerState.lastAt < 3000) return;
           scannerState.lastCode = code;
           scannerState.lastAt = now;
-          acceptScanCode(code);
+          acceptScanCode(code, { recognized: true });
         }
       } catch (e) { /* bỏ qua khung hình lỗi */ }
     }, 400);

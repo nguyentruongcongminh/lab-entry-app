@@ -11,20 +11,20 @@
  *   nên người dùng mở app là gặp bản mới nhất, dữ liệu localStorage không
  *   bị đụng tới (cache này chỉ chứa file chương trình).
  */
-const VERSION = 'v101';
+const VERSION = 'v102';
 const CACHE = 'labentry-' + VERSION;
 
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=101',
-  './print.css?v=101',
-  './config.js?v=101',
-  './store.js?v=101',
-  './sync-core.js?v=101',
-  './sync.js?v=101',
-  './mascot.js?v=101',
-  './app.js?v=101',
+  './styles.css?v=102',
+  './print.css?v=102',
+  './config.js?v=102',
+  './store.js?v=102',
+  './sync-core.js?v=102',
+  './sync.js?v=102',
+  './mascot.js?v=102',
+  './app.js?v=102',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -57,6 +57,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
+  /* v102: dữ liệu OCR (eng.traineddata.gz) được đóng gói dạng base64 trong
+     ocr/eng.traineddata.b64 để đẩy lên GitHub dưới dạng text — SW giải mã
+     và phục vụ tại đúng URL .gz mà thư viện OCR yêu cầu */
+  if (url.pathname.endsWith('/ocr/eng.traineddata.gz')) {
+    event.respondWith(serveOcrLangData());
+    return;
+  }
+
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
@@ -83,3 +91,31 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+/* v102: giải mã dữ liệu OCR từ bản base64 đóng gói kèm app (chỉ làm 1 lần,
+   giữ bytes trong bộ nhớ SW; file .b64 được lưu vào cache của bản hiện tại) */
+let ocrLangBytesPromise = null;
+function serveOcrLangData() {
+  if (!ocrLangBytesPromise) {
+    const p = (async () => {
+      const cache = await caches.open(CACHE);
+      const key = './ocr/eng.traineddata.b64';
+      let res = await cache.match(key);
+      if (!res) {
+        res = await fetch(key);
+        if (!res || !res.ok) throw new Error('ocr-data');
+        await cache.put(key, res.clone());
+      }
+      const b64 = (await res.text()).trim();
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    })();
+    ocrLangBytesPromise = p;
+    p.catch(() => { if (ocrLangBytesPromise === p) ocrLangBytesPromise = null; });
+  }
+  return ocrLangBytesPromise.then((bytes) => new Response(bytes, {
+    headers: { 'Content-Type': 'application/octet-stream' }
+  }));
+}

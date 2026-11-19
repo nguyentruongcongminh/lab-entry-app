@@ -457,6 +457,42 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(rows[i1].textContent.includes('SP'), 'mẫu bắn trước vẫn giữ loại SP');
   });
 
+  test('cổng định dạng mã nhận dạng (v102): chỉ nhận mã hồ sơ / 10 số / 4 số khi có cờ recognized; mã lạ bị bỏ qua, không nhập', () => {
+    assert.strictEqual(typeof window.isAllowedScanCode, 'function');
+    assert.strictEqual(window.isAllowedScanCode('2611192995'), true, '10 chữ số');
+    assert.strictEqual(window.isAllowedScanCode('B24-0008458'), true, 'mã hồ sơ');
+    assert.strictEqual(window.isAllowedScanCode('4561'), true, '4 chữ số');
+    assert.strictEqual(window.isAllowedScanCode('12345'), false, '5 chữ số bị chặn');
+    assert.strictEqual(window.isAllowedScanCode('261119299'), false, '9 chữ số bị chặn');
+    assert.strictEqual(window.isAllowedScanCode('B24-000845'), false, 'mã hồ sơ thiếu số bị chặn');
+    assert.strictEqual(window.isAllowedScanCode('WEDGE001'), false);
+    assert.strictEqual(window.normalizeScanCode(' b24 – 0008458 '), 'B24-0008458', 'chuẩn hoá: hoa/thường + dấu gạch dài + khoảng trắng');
+    assert.strictEqual(window.normalizeScanCode('26111 92995'), '2611192995');
+    /* Rút mã từ văn bản OCR */
+    assert.strictEqual(typeof window.extractCodeFromOcrText, 'function');
+    assert.strictEqual(window.extractCodeFromOcrText('SOI TUOI HUYET TRANG\n2611192995\n'), '2611192995');
+    assert.strictEqual(window.extractCodeFromOcrText('Ma ho so: B24 - 0008458'), 'B24-0008458', 'OCR tách dấu gạch kèm khoảng trắng');
+    assert.strictEqual(window.extractCodeFromOcrText('B24 0008458'), 'B24-0008458', 'OCR tách 2 token, ghép bằng dấu gạch');
+    assert.strictEqual(window.extractCodeFromOcrText('26111 92995'), '2611192995', 'OCR tách giữa mã 10 số');
+    assert.strictEqual(window.extractCodeFromOcrText('Nam 2026 - mau 2611192995'), '2611192995', 'ưu tiên mã 10 số hơn số 4 chữ số đứng trước trong văn bản');
+    assert.strictEqual(window.extractCodeFromOcrText('chi co so la 12345 o day'), '', 'không có mã hợp lệ thì trả rỗng');
+    /* Qua acceptScanCode với cờ recognized (đúng đường camera/OCR gọi) */
+    document.querySelector('[data-view="today"]').click();
+    $('btn-scan-today').click();
+    assert.ok(visible($('scanner-modal')));
+    setSelect($('scanner-type-select'), 'sp');
+    assert.strictEqual(window.acceptScanCode('12345', { recognized: true }), false, 'mã lạ bị cổng chặn');
+    assert.ok($('scanner-msg').textContent.includes('Bỏ qua mã'));
+    assert.strictEqual($('scanner-list').children.length, 0, 'mã lạ không được nhập');
+    assert.strictEqual(window.acceptScanCode('b24-0008458', { recognized: true }), true, 'mã hồ sơ chữ thường (OCR) vẫn nhận sau chuẩn hoá');
+    assert.strictEqual($('scanner-list').children.length, 1);
+    assert.ok($('scanner-list').textContent.includes('B24-0008458'));
+    /* Không có cờ recognized (nhập tay / máy quét phím): giữ nguyên hành vi cũ, không qua cổng */
+    assert.strictEqual(window.acceptScanCode('NHAP-TAY-001'), true);
+    assert.strictEqual($('scanner-list').children.length, 2);
+    $('btn-scanner-close').click();
+  });
+
   test('máy quét cầm tay: chuỗi gõ nhanh + Enter trong màn hình quét được nhận như camera; gõ chậm thì không nhận', () => {
     document.querySelector('[data-view="today"]').click();
     $('btn-scan-today').click();
@@ -583,7 +619,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v101 và precache đúng URL ?v=101 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v102 và precache đúng URL ?v=102 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -603,8 +639,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v101'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=101', 'print.css?v=101', 'config.js?v=101', 'store.js?v=101', 'sync-core.js?v=101', 'sync.js?v=101', 'mascot.js?v=101', 'app.js?v=101', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v102'"), 'sw.js phải gắn VERSION v87');
+    for (const a of ['styles.css?v=102', 'print.css?v=102', 'config.js?v=102', 'store.js?v=102', 'sync-core.js?v=102', 'sync.js?v=102', 'mascot.js?v=102', 'app.js?v=102', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2121,7 +2157,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v101', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v102', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2184,12 +2220,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   assert.ok(inp && (inp.getAttribute('accept') || '').includes('image') && inp.getAttribute('capture') === 'environment', 'ô chọn ảnh mở camera sau và chỉ nhận ảnh');
 
   /* Gia lap bo doc ma + giai ma anh (trinh duyet that dung BarcodeDetector cua may) */
-  w12.BarcodeDetector = class { async detect() { return [{ rawValue: 'XN-ANH-01' }]; } };
+  w12.BarcodeDetector = class { async detect() { return [{ rawValue: '2611043010' }]; } };
   w12.createImageBitmap = async () => ({ width: 400, height: 300, close() {} });
   w12.eval("currentOperator = 'KTV Ảnh'");
   w12.eval("openScanner('today')");
   await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); })()");
-  assert.ok(w12.eval("store.getAll().some((r) => r.testId === 'XN-ANH-01')"), 'đọc được mã trong ảnh thì tiếp nhận mẫu như quét trực tiếp');
+  assert.ok(w12.eval("store.getAll().some((r) => r.testId === '2611043010')"), 'đọc được mã trong ảnh thì tiếp nhận mẫu như quét trực tiếp');
   assert.strictEqual(w12.eval('scannerState.count'), 1, 'phiên quét đếm mẫu nhận từ ảnh');
   assert.strictEqual(inp.value, '', 'ô chọn file trống — ảnh không được giữ lại');
 
@@ -2200,7 +2236,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   delete w12.BarcodeDetector;
   await w12.eval("(async () => { await scanPhotoFile(new File(['x'], 'c.jpg', { type: 'image/jpeg' })); })()");
-  assert.ok(d12.getElementById('scanner-msg').textContent.includes('không đọc được mã từ ảnh'), 'thiếu BarcodeDetector thì báo trình duyệt không hỗ trợ');
+  assert.ok(d12.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã trong ảnh'), 'thiếu BarcodeDetector: v102 tự lùi sang OCR đọc chữ in trên nhãn, không đọc được thì báo như thường — không còn từ chối kiểu cũ');
+  assert.strictEqual(w12.eval('store.getAll().length'), 1, 'vẫn không thêm mẫu khi không đọc được mã');
 
   /* v71: khối chữ ký không được tách đôi qua trang khi in */
   const printCss = fs.readFileSync(path.join(__dirname, '..', 'print.css'), 'utf8');
@@ -2244,10 +2281,10 @@ test('v97: camera quét tự mở lại sau khi chụp ảnh đọc mã + tự h
   assert.strictEqual(w97.eval('scanStream'), streams97[0], 'luồng đầu tiên đang chạy');
 
   /* Chụp ảnh đọc mã thành công -> camera trực tiếp PHẢI được mở lại bằng luồng mới */
-  detectResult = [{ rawValue: 'V97-ANH-01' }];
+  detectResult = [{ rawValue: '2611043011' }];
   await w97.eval("(async () => { await scanPhotoFile(new File(['x'], 'a.jpg', { type: 'image/jpeg' })); })()");
   detectResult = [];
-  assert.ok(w97.eval("store.getAll().some((r) => r.testId === 'V97-ANH-01')"), 'ảnh đọc được mã thì nhận mẫu');
+  assert.ok(w97.eval("store.getAll().some((r) => r.testId === '2611043011')"), 'ảnh đọc được mã thì nhận mẫu');
   assert.strictEqual(gumCalls, 2, 'xử lý ảnh xong là mở lại camera (luồng mới)');
   assert.ok(tracks97[0].stopped, 'luồng cũ bị dừng hẳn, không còn khung hình chết');
   assert.strictEqual(w97.eval('scanStream'), streams97[1], 'luồng hiện tại là luồng mới sau khi chụp ảnh');
