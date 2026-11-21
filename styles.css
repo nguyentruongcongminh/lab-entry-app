@@ -92,7 +92,18 @@ svg { width: 24px; height: 24px; display: block; }
 .view-btn:active { background: var(--blue-dark); }
 
 /* ---------- Màn hình tóm tắt kết quả (để nhìn chép vào máy lab) ---------- */
-.summary-box { text-align: left; max-width: 520px; }
+.summary-box {
+  text-align: left; max-width: 520px;
+  /* v115 (Minh báo 2026-11-21, ảnh chụp thật): tấm chi tiết trước đây
+     không có giới hạn chiều cao — nội dung dài (loại 9 trường kết quả +
+     dòng thời gian + dấu KTV) làm tấm cao hơn màn hình, hàng nút hành
+     động ở đáy bị cắt khỏi viewport và không cuộn tới được. Theo đúng
+     pattern .scanner-box: cap chiều cao theo viewport THẬT (dvh có
+     fallback vh cho trình duyệt cũ; trừ 40px đệm của .modal) và cho
+     nội dung cuộn dọc ngay trong tấm. */
+  max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
 .summary-head { border-bottom: 2px solid var(--blue); padding-bottom: 10px; margin-bottom: 6px; }
 .summary-id { font-size: 31px; font-weight: 800; letter-spacing: .3px; line-height: 1.15; }
 .summary-sub { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
@@ -407,8 +418,18 @@ svg { width: 24px; height: 24px; display: block; }
   .scanner-box { max-width: 460px; height: auto; max-height: 94vh; border-radius: 20px; }
 }
 
-/* Hàng nút trong trang xem tóm tắt: Phát hành + Đóng */
-.summary-actions { display: flex; gap: 10px; }
+/* Hàng nút trong trang xem tóm tắt: Phát hành + Đóng.
+   v115: hàng nút DÍNH ĐÁY tấm (như nút Dừng quét v106) — tấm cuộn tới
+   đâu hàng nút cũng hiện trọn ở đáy, không còn bị cắt khỏi màn hình.
+   Âm lề -16px để dải nút ôm sát mép tấm (bù đúng đệm 16px của
+   .modal-box), nền đặc che nội dung cuộn qua phía dưới, đệm đáy tính
+   cả safe-area của máy có thanh cử chỉ. */
+.summary-actions {
+  display: flex; gap: 10px;
+  position: sticky; bottom: -16px; z-index: 2;
+  margin: 0 -16px -16px; padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--card); border-top: 1px solid var(--line);
+}
 .summary-actions .primary-btn { flex: 1.5; width: auto; }
 .summary-actions .release-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .summary-actions .release-action svg { width: 19px; height: 19px; }

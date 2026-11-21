@@ -2237,27 +2237,47 @@ function finishScanProgress() {
    sơ (chữ + gạch) và mã 10 số đủ đặc trưng nên nhận thẳng; mã vạch thật đọc
    ra 4 số cũng nhận thẳng — chỉ chữ đoán 4 số mới cần xác nhận, vì chữ in
    bất kỳ cũng có thể bị đoán thành 4 số đứng độc lập (mẫu ma 6970/5554 mà
-   Minh chụp thử hai vật liên tiếp đều dính, v110 mới chặn được nửa mảnh số). */
+   Minh chụp thử hai vật liên tiếp đều dính, v110 mới chặn được nửa mảnh số).
+   v115: hàng xác nhận này cũng là nơi đem hỏi MÃ LẠ ngoài cổng định dạng
+   (kind 'strange' — ứng viên OCR do extractCandidateFromOcrText rút ra,
+   hoặc chuỗi mã vạch lạ giải được trong lần chụp trong app). Khác biệt cốt
+   lõi khi KTV chạm "Đúng": mã 4 số vẫn qua acceptScanCode recognized như
+   cũ (nó vốn đúng cổng); mã lạ nhận theo đường KHÔNG cổng — người đã đối
+   chiếu bằng mắt với nhãn thật, tương đương gõ tay — nhưng vẫn qua kiểm
+   tra trùng mã và mọi logic nhận mẫu khác trong acceptScanCode. */
 let pendingOcrConfirm = '';
-function showOcrConfirm(code) {
+let pendingOcrConfirmKind = '';
+function showOcrConfirm(code, kind) {
   pendingOcrConfirm = code;
+  pendingOcrConfirmKind = kind || 'ocr4';
   const codeEl = $('scan-confirm-code');
   if (codeEl) codeEl.textContent = code;
+  const labelEl = $('scan-confirm-label');
+  if (labelEl) labelEl.textContent = pendingOcrConfirmKind === 'strange' ? 'Mã lạ đọc được:' : 'Mã 4 số đọc được:';
   const row = $('scan-confirm-row');
   if (row) row.classList.remove('hidden');
-  setScanMsg('Đọc được mã 4 số "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
+  if (pendingOcrConfirmKind === 'strange') {
+    setScanMsg('Đọc được mã lạ "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
+  } else {
+    setScanMsg('Đọc được mã 4 số "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
+  }
 }
 function clearOcrConfirm() {
   pendingOcrConfirm = '';
+  pendingOcrConfirmKind = '';
   const row = $('scan-confirm-row');
   if (row) row.classList.add('hidden');
 }
 function confirmOcrCode(yes) {
   const code = pendingOcrConfirm;
+  const kind = pendingOcrConfirmKind;
   clearOcrConfirm();
   hideScanFreeze();
   if (!code) return;
-  if (yes) acceptScanCode(code, { recognized: true });
+  if (yes) {
+    if (kind === 'strange') acceptScanCode(code);
+    else acceptScanCode(code, { recognized: true });
+  }
   else setScanMsg('Đã bỏ qua mã "' + code + '" — chụp lại hoặc gõ tay mã đúng.', 'err');
   /* v113: lúc chờ xác nhận, restoreScanPreview hoãn mở lại luồng để giữ
      khung đứng đối chiếu — KTV trả lời xong thì khôi phục hình trực tiếp */
@@ -2272,25 +2292,53 @@ function confirmOcrCode(yes) {
    hiện bằng thanh gọn (setScanProgress) thay chữ báo bước.
    v114: mã vạch VẪN dò đúng 1 lần; OCR đổi sang tối đa 4 lượt dự phòng
    trên cùng ảnh, dừng ở lượt đầu tiên ra mã (xem ocrReadCodeFromBitmap).
-   Trả về: 'accepted' | 'confirm' (đang chờ xác nhận mã 4 số) | 'failed'. */
+   v115: trượt cả về mã đúng cổng mà có ỨNG VIÊN MÃ LẠ (chuỗi mã vạch lạ
+   giải được trong chính lần chụp này, hoặc ứng viên OCR rút từ các lượt
+   đọc) thì đem hỏi KTV qua hàng xác nhận — trả về 'confirm' như mã 4 số.
+   Mã đúng cổng luôn thắng tuyệt đối: ứng viên chỉ được hỏi khi không
+   lượt nào ra mã cổng. Vòng quét liên tục 400ms KHÔNG đi qua hàm này
+   (nó gọi thẳng acceptScanCode) nên không bao giờ hiện hỏi ở đó.
+   Trả về: 'accepted' | 'confirm' (đang chờ xác nhận) | 'failed'. */
 async function processScanBitmap(bmp) {
     setScanProgress(35);
     /* 1) Mã vạch trước — nhanh và chính xác tuyệt đối (nếu trình duyệt hỗ trợ) */
+    let strangeBarcode = '';
     if ('BarcodeDetector' in window) {
       const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8'] });
       const codes = await detector.detect(bmp).catch(() => []);
       const bcode = codes && codes.length && codes[0].rawValue ? String(codes[0].rawValue).trim() : '';
-      if (bcode) { acceptScanCode(bcode, { recognized: true }); finishScanProgress(); return 'accepted'; }
+      if (bcode) {
+        if (isAllowedScanCode(normalizeScanCode(bcode))) {
+          acceptScanCode(bcode, { recognized: true }); finishScanProgress(); return 'accepted';
+        }
+        /* v115: mã vạch giải ra chuỗi KHÔNG qua cổng. Chuỗi GIỐNG MÃ (chỉ
+           chữ/số/gạch ngang, 3–24 ký tự — vd mã in sẵn BN20027-03) thì giữ
+           lại làm ứng viên hỏi xác nhận, không bỏ qua ngay như trước; OCR
+           vẫn chạy tiếp vì mã đúng cổng in trên nhãn thắng tuyệt đối.
+           Chuỗi không giống mã (QR chứa URL...) giữ hành vi cũ: báo bỏ
+           qua ngay, không chạy OCR. */
+        if (/^[0-9A-Za-z-]{3,24}$/.test(bcode)) strangeBarcode = bcode;
+        else { acceptScanCode(bcode, { recognized: true }); finishScanProgress(); return 'accepted'; }
+      }
     }
     /* 2) Không có mã vạch → OCR đọc chữ in trên nhãn (v102): mã số in thường
        (không kèm mã vạch) hoặc mã vạch hỏng. Chạy Tesseract ngay trên máy,
        ảnh vẫn chỉ ở trong bộ nhớ như F35. */
     setScanProgress(55);
-    const ocode = await ocrReadCodeFromBitmap(bmp);
-    if (ocode) {
+    const ocr = await ocrReadCodeFromBitmap(bmp);
+    if (ocr.code) {
       finishScanProgress();
-      if (/^\d{4}$/.test(ocode)) { showOcrConfirm(ocode); return 'confirm'; }
-      acceptScanCode(ocode, { recognized: true }); return 'accepted';
+      if (/^\d{4}$/.test(ocr.code)) { showOcrConfirm(ocr.code); return 'confirm'; }
+      acceptScanCode(ocr.code, { recognized: true }); return 'accepted';
+    }
+    /* v115: không lượt nào ra mã đúng cổng — có ứng viên mã lạ thì đem
+       hỏi (chuỗi mã vạch lạ ưu tiên hơn ứng viên OCR: giải mã chính xác,
+       không nhiễu ký tự); không có ứng viên nào mới báo đọc trượt như cũ */
+    const candidate = strangeBarcode || ocr.candidate;
+    if (candidate) {
+      finishScanProgress();
+      showOcrConfirm(candidate, 'strange');
+      return 'confirm';
     }
     setScanMsg('Chưa đọc được mã trong ảnh — để máy cách nhãn 15–20 cm cho nét, đủ sáng, mã nằm giữa khung rồi chụp lại.', 'err');
     beepErr();
@@ -2712,7 +2760,103 @@ function extractCodeFromOcrText(text) {
   return '';
 }
 
+/* v115 (Minh chọn 2026-11-21 sau khi thử ống nhỏ mã BN20027-03): trích
+   ỨNG VIÊN MÃ LẠ từ văn bản OCR — chuỗi GIỐNG mã mẫu nhưng không khớp
+   cổng định dạng nên KHÔNG BAO GIỜ được tự nhận; chỉ để đem hỏi KTV qua
+   hàng xác nhận (mắt người đối chiếu với nhãn thật rồi mới nhận). Chạy
+   trên cùng bể token như extractCodeFromOcrText (token đơn + token ghép
+   nối 2 token kề). Điều kiện chung: dài 5–16 ký tự, chỉ [0-9A-Z-] (do
+   cách tách token), ít nhất 5 chữ số, không gạch ngang ở hai đầu, tối đa
+   1 gạch ngang, không phải mã đúng cổng. Phân hạng:
+   T1) có gạch ngang + có chữ cái + vế phải có chữ số + chữ số chiếm
+       ≥45% độ dài — điều kiện có chữ cái loại dãy ngày tháng/hạn dùng
+       toàn số (2027-11), tỉ lệ số loại các ghép chữ rác loãng số
+       (BUFFER-BN20027);
+   T2) dãy toàn số dài 5–9 hoặc 11–16 (4 và 10 số đã có đường riêng).
+   Ứng viên mà dãy chữ số của nó là MẢNH của một dãy số dài hơn trong
+   cùng văn bản thì loại (tinh thần lưới mảnh v110; dạng có gạch kiểm
+   trên dãy chữ số đã bỏ mọi ký tự khác). Phép ghép nối token cũng không
+   được "rửa" một token ngày tháng toàn số thành ứng viên bằng cách
+   dính thêm chữ của token kề (EXP + 2027-11 không thành ứng viên). Xếp hạng chọn MỘT ứng viên tốt
+   nhất: T1 trước T2; cùng hạng thì token đơn trước token ghép (token
+   ghép dễ dính chữ rác của token kề), nhiều chữ số hơn trước, ngắn hơn
+   trước. Mã lạ đem hỏi NGUYÊN VĂN như đã đọc (vd "8N20027-03" giữ
+   nguyên số 8) — KHÔNG sửa chữ↔số như đường mã đúng cổng, vì người đối
+   chiếu bằng mắt sẽ tự thấy chỗ đọc nhầm. */
+function extractCandidateFromOcrText(text) {
+  let clean = String(text || '').toUpperCase().replace(/[\u2010-\u2015]/g, '-');
+  clean = clean.replace(/([0-9A-Z])\s+-\s+([0-9A-Z])/g, '$1-$2');
+  const tokens = clean.split(/[^0-9A-Z-]+/).filter((t) => t && t !== '-');
+  const singles = tokens.slice();
+  const joined = [];
+  for (let i = 0; i + 1 < tokens.length; i++) {
+    const a = tokens[i];
+    const b = tokens[i + 1];
+    /* srcH: token nguồn mang dấu gạch trong phép ghép nối tiếp — nếu nó
+       toàn số (kiểu ngày tháng 2027-11) thì phép ghép không được "rửa"
+       nó thành ứng viên bằng cách dính thêm chữ của token kề (EXP +
+       2027-11 → EXP2027-11); phép ghép chèn gạch thì gạch là của phép
+       ghép, không phải của token nguồn. hyph: phép ghép chèn gạch chỉ
+       đáng xét khi token trái CÓ chữ số (ghép lại mã bị OCR tách ở dấu
+       gạch, vd BN20027 + 03) — token trái là chữ thuần thì phép ghép
+       chỉ dán một từ trên nhãn vào một dãy số (MAU + 1234567), ứng viên
+       đúng phải là chính dãy số đó ở hạng T2. */
+    joined.push({ t: a + b, srcH: a.includes('-') ? a : (b.includes('-') ? b : ''), hyph: false });
+    joined.push({ t: a + '-' + b, srcH: '', hyph: !/\d/.test(a) });
+  }
+  const all = singles.concat(joined.map((j) => j.t));
+  const digitStrings = all.filter((t) => /^\d+$/.test(t));
+  const digitsOf = (s) => s.replace(/\D/g, '');
+  const isFragment = (c) => {
+    const dc = digitsOf(c);
+    return digitStrings.some((d) => d.length > dc.length && d.includes(dc));
+  };
+  const shapeOk = (c) => {
+    if (c.length < 5 || c.length > 16) return false;
+    if (c[0] === '-' || c[c.length - 1] === '-') return false;
+    if ((c.match(/-/g) || []).length > 1) return false;
+    if (digitsOf(c).length < 5) return false;
+    if (isAllowedScanCode(c)) return false;
+    return true;
+  };
+  const tierOf = (c) => {
+    if (c.includes('-')) {
+      if (!/[A-Z]/.test(c)) return 0;
+      if (!/\d/.test(c.split('-')[1])) return 0;
+      if (digitsOf(c).length / c.length < 0.45) return 0;
+      return 1;
+    }
+    return /^\d+$/.test(c) ? 2 : 0;
+  };
+  let best = null;
+  const consider = (c, fromJoin) => {
+    if (!shapeOk(c)) return;
+    const tier = tierOf(c);
+    if (!tier) return;
+    if (isFragment(c)) return;
+    const cand = { c: c, tier: tier, join: fromJoin ? 1 : 0, digits: digitsOf(c).length };
+    if (!best
+      || cand.tier < best.tier
+      || (cand.tier === best.tier && cand.join < best.join)
+      || (cand.tier === best.tier && cand.join === best.join && cand.digits > best.digits)
+      || (cand.tier === best.tier && cand.join === best.join && cand.digits === best.digits && cand.c.length < best.c.length)) {
+      best = cand;
+    }
+  };
+  for (const c of singles) consider(c, false);
+  for (const j of joined) {
+    if (j.srcH && !/[A-Z]/.test(j.srcH)) continue; /* không rửa ngày tháng toàn số qua phép ghép */
+    if (j.hyph) continue; /* ghép chèn gạch mà token trái không có số: dán từ vào số, không phải mã bị tách */
+    consider(j.t, true);
+  }
+  return best ? best.c : '';
+}
+
 async function ocrReadCodeFromBitmap(bmp) {
+  /* v115: trả { code, candidate } — code là mã đúng cổng ('' nếu không
+     lượt nào ra); candidate là ứng viên mã lạ đầu tiên các lượt gặp
+     (chỉ dùng khi code rỗng, xem processScanBitmap) */
+  let candidate = '';
   try {
     const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
     /* v114 (Minh chọn gói đầy đủ 2026-11-21): tối đa 4 lượt đọc trên CÙNG
@@ -2729,7 +2873,11 @@ async function ocrReadCodeFromBitmap(bmp) {
           (sparse — chữ rải rác, không thành khối đều).
        Thanh tiến trình nhích theo lượt (80 → 86 → 92 → 97) để KTV biết
        app vẫn đang đọc. Một lượt bị quá hạn (ocr-timeout) thì worker đã
-       bị hủy: dừng hẳn như cũ, không chạy lượt còn lại trên worker chết. */
+       bị hủy: dừng hẳn như cũ, không chạy lượt còn lại trên worker chết.
+       v115: mỗi lượt trượt mã cổng còn rút ỨNG VIÊN MÃ LẠ đầu tiên gặp
+       (extractCandidateFromOcrText) để processScanBitmap đem hỏi KTV
+       khi trượt cả 4 lượt — ứng viên không bao giờ làm dừng sớm các
+       lượt, mã đúng cổng ở bất kỳ lượt nào cũng thắng tuyệt đối. */
     const passes = [
       { binarize: true, crop: 0.8, targetW: 2200, psm: '6', progress: 80 },
       { binarize: true, band: true, targetW: 2600, maxScale: 4, psm: '6', progress: 86 },
@@ -2743,17 +2891,25 @@ async function ocrReadCodeFromBitmap(bmp) {
       await withTimeout(worker.setParameters({ tessedit_pageseg_mode: p.psm }), ocrStepTimeoutMs);
       setScanProgress(p.progress);
       const r = await withTimeout(worker.recognize(cv), ocrStepTimeoutMs);
-      const code = extractCodeFromOcrText(r && r.data && r.data.text);
+      const text = r && r.data && r.data.text;
+      const code = extractCodeFromOcrText(text);
       if (code) {
         withTimeout(worker.setParameters({ tessedit_pageseg_mode: '6' }), 3000).catch(() => {});
-        return code;
+        return { code: code, candidate: '' };
       }
+      /* v115: lượt này trượt mã cổng — nhớ ứng viên mã lạ ĐẦU TIÊN gặp
+         (các lượt sau vẫn chạy tiếp tìm mã đúng cổng, mã cổng thắng
+         tuyệt đối; ứng viên chỉ được dùng khi trượt cả 4 lượt) */
+      if (!candidate) candidate = extractCandidateFromOcrText(text);
     }
     withTimeout(worker.setParameters({ tessedit_pageseg_mode: '6' }), 3000).catch(() => {});
-    return '';
+    return { code: '', candidate: candidate };
   } catch (e) {
     if (e && e.message === 'ocr-timeout') resetOcrWorker();
-    return '';
+    /* Quá hạn giữa chừng: dừng hẳn như cũ (không chạy lượt còn lại trên
+       worker đã hủy); ứng viên đã rút được ở các lượt trước vẫn đem hỏi
+       được — KTV đối chiếu bằng mắt nên không nguy hiểm */
+    return { code: '', candidate: candidate };
   }
 }
 
