@@ -336,6 +336,22 @@ svg { width: 24px; height: 24px; display: block; }
   animation: scanMove 2.2s ease-in-out infinite;
 }
 @keyframes scanMove { 0%, 100% { top: 12%; } 50% { top: 86%; } }
+/* v114: dải ngắm dòng mã số — KTV căn dòng số in vào dải này khi chụp trong
+   app; lượt đọc "dải" của OCR cắt đúng vùng tương ứng trên ảnh chụp
+   (x 4–96%, y 38–62% — xem ocrPassGeometry trong app.js). Vùng ngoài dải
+   tối nhẹ bằng box-shadow khổng lồ bị .scan-frame (overflow:hidden) cắt. */
+.scan-band {
+  position: absolute; left: 3%; right: 3%; top: 38%; height: 24%;
+  border: 2px solid rgba(56, 189, 248, .95); border-radius: 10px;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, .30);
+  z-index: 2; pointer-events: none;
+}
+.scan-band-label {
+  position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+  font-size: 11.5px; line-height: 1.3; white-space: nowrap;
+  color: #e0f2fe; background: rgba(2, 6, 23, .55);
+  padding: 1px 8px; border-radius: 999px;
+}
 #scanner-modal .scanner-msg {
   margin-top: 12px; padding: 10px 12px; border-radius: 10px;
   background: #1e293b; color: #cbd5e1; font-size: 14.5px; line-height: 1.4;

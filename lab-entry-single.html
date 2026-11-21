@@ -350,6 +350,22 @@ svg { width: 24px; height: 24px; display: block; }
   animation: scanMove 2.2s ease-in-out infinite;
 }
 @keyframes scanMove { 0%, 100% { top: 12%; } 50% { top: 86%; } }
+/* v114: dải ngắm dòng mã số — KTV căn dòng số in vào dải này khi chụp trong
+   app; lượt đọc "dải" của OCR cắt đúng vùng tương ứng trên ảnh chụp
+   (x 4–96%, y 38–62% — xem ocrPassGeometry trong app.js). Vùng ngoài dải
+   tối nhẹ bằng box-shadow khổng lồ bị .scan-frame (overflow:hidden) cắt. */
+.scan-band {
+  position: absolute; left: 3%; right: 3%; top: 38%; height: 24%;
+  border: 2px solid rgba(56, 189, 248, .95); border-radius: 10px;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, .30);
+  z-index: 2; pointer-events: none;
+}
+.scan-band-label {
+  position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+  font-size: 11.5px; line-height: 1.3; white-space: nowrap;
+  color: #e0f2fe; background: rgba(2, 6, 23, .55);
+  padding: 1px 8px; border-radius: 999px;
+}
 #scanner-modal .scanner-msg {
   margin-top: 12px; padding: 10px 12px; border-radius: 10px;
   background: #1e293b; color: #cbd5e1; font-size: 14.5px; line-height: 1.4;
@@ -1189,7 +1205,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v113</span>
+  <span class="app-version">LabEntry v114</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -1883,6 +1899,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
       <canvas id="scan-freeze" class="hidden"></canvas>
       <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
       <span class="scan-line"></span>
+      <div id="scan-band" class="scan-band"><span class="scan-band-label">Đặt dòng mã số vào dải này</span></div>
     </div>
     <div id="scan-progress" class="scan-progress hidden"><div id="scan-progress-fill" class="scan-progress-fill"></div></div>
     <div id="scanner-msg" class="scanner-msg">Đang mở camera...</div>
@@ -6007,7 +6024,8 @@ async function scanPhotoFileInner(file) {
 /* v112: thanh tiến trình gọn cho lúc chụp/đọc ảnh — thay các dòng chữ báo
    "bước 1, bước 2" (Minh yêu cầu trông chuyên nghiệp hơn). Thanh dừng lâu
    bất thường ở mức % nào thì đó là khâu đang kẹt: 35% dò mã vạch,
-   55% nạp bộ đọc chữ, 80% đang đọc chữ in. */
+   55% nạp bộ đọc chữ, 80% đang đọc chữ in (v114: các lượt đọc dự phòng
+   nhích tiếp 86/92/97%). */
 function setScanProgress(pct) {
   const bar = $('scan-progress');
   const fill = $('scan-progress-fill');
@@ -6058,6 +6076,8 @@ function confirmOcrCode(yes) {
    v112 (cách 2, Minh chốt 2026-11-19): rút còn 2 khâu — mã vạch dò ĐÚNG
    1 lần (bỏ lần thử lại trên vùng giữa ảnh), OCR đúng 1 lượt; tiến trình
    hiện bằng thanh gọn (setScanProgress) thay chữ báo bước.
+   v114: mã vạch VẪN dò đúng 1 lần; OCR đổi sang tối đa 4 lượt dự phòng
+   trên cùng ảnh, dừng ở lượt đầu tiên ra mã (xem ocrReadCodeFromBitmap).
    Trả về: 'accepted' | 'confirm' (đang chờ xác nhận mã 4 số) | 'failed'. */
 async function processScanBitmap(bmp) {
     setScanProgress(35);
@@ -6279,19 +6299,119 @@ function resetOcrWorker() {
   }
 }
 
-/* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng giữa ảnh
-   (mặc định 80%; lượt cắt chặt lấy 55% để mã ở xa được phóng to), co/giãn về
-   chiều ngang đích (tối đa 2600px, cho phép phóng tới 2,5 lần), chuyển xám,
-   tuỳ chọn nhị phân hoá bằng ngưỡng Otsu để chữ nổi rõ khỏi nền nhãn */
-function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW) {
-  const frac = cropFrac || 0.8;
-  const cw = Math.floor(bmp.width * frac);
-  const ch = Math.floor(bmp.height * frac);
+/* v114: hình học vùng cắt của một lượt OCR (hàm thuần trên kích thước ảnh,
+   tách riêng để kiểm thử được). Hai kiểu vùng:
+   - mặc định: cắt giữa theo tỉ lệ crop ở cả hai chiều (v102–v113);
+   - band: dải ngang giữa khớp dải ngắm trên màn hình chụp — x 4%–96%,
+     y 38%–62% của ảnh chụp (xem .scan-band trong styles.css).
+   Kích thước canvas ra: phóng theo targetW nhưng không quá maxScale
+   (mặc định 2,5× như cũ; lượt dải cho phóng tới 4×). */
+function ocrPassGeometry(bmpW, bmpH, o) {
+  o = o || {};
+  let sx, sy, cw, ch;
+  if (o.band) {
+    sx = Math.floor(bmpW * 0.04);
+    cw = Math.floor(bmpW * 0.92);
+    sy = Math.floor(bmpH * 0.38);
+    ch = Math.floor(bmpH * 0.24);
+  } else {
+    const frac = o.crop || 0.8;
+    cw = Math.floor(bmpW * frac);
+    ch = Math.floor(bmpH * frac);
+    sx = Math.floor((bmpW - cw) / 2);
+    sy = Math.floor((bmpH - ch) / 2);
+  }
   if (cw < 40 || ch < 40) return null;
-  let scale = (targetW || 2600) / cw;
-  if (scale > 2.5) scale = 2.5;
-  const W = Math.max(1, Math.round(cw * scale));
-  const H = Math.max(1, Math.round(ch * scale));
+  let scale = (o.targetW || 2600) / cw;
+  const maxScale = o.maxScale || 2.5;
+  if (scale > maxScale) scale = maxScale;
+  return {
+    sx: sx, sy: sy, cw: cw, ch: ch,
+    W: Math.max(1, Math.round(cw * scale)),
+    H: Math.max(1, Math.round(ch * scale))
+  };
+}
+
+/* Ngưỡng Otsu toàn cục trên mảng xám (hàm thuần; trước đây nằm trong
+   ocrCanvasFromBitmap, tách ra để kiểm thử và dùng lại) */
+function ocrOtsuThreshold(gray) {
+  const hist = new Float64Array(256);
+  for (let j = 0; j < gray.length; j++) hist[gray[j]]++;
+  let sum = 0;
+  for (let t = 0; t < 256; t++) sum += t * hist[t];
+  let sumB = 0;
+  let wB = 0;
+  let best = -1;
+  let thr = 127;
+  const n = gray.length;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (wB === 0) continue;
+    const wF = n - wB;
+    if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > best) { best = between; thr = t; }
+  }
+  return thr;
+}
+
+/* v114: nhị phân hoá bằng ngưỡng thích ứng cục bộ — mỗi điểm ảnh bị coi là
+   nét chữ khi tối hơn trung bình độ xám của cửa sổ quanh nó một hằng số.
+   Nền nhãn sáng tối không đều (lóa đèn, bóng đổ trên nhựa cong) thì Otsu
+   toàn cục chọn một ngưỡng chung cho cả ảnh, vùng tối bị nhuộm đen hoặc
+   nét chữ ở vùng sáng bị xóa; ngưỡng cục bộ bám theo nền tại chỗ nên tách
+   được chữ ở cả hai vùng. Tổng cửa sổ tính nhanh bằng ảnh tích phân
+   (summed-area table). Hàm thuần trên mảng xám, trả mảng 0/255. */
+function ocrAdaptiveBinarize(gray, W, H) {
+  const out = new Uint8Array(W * H);
+  const iw = W + 1;
+  const integral = new Float64Array(iw * (H + 1));
+  for (let y = 0; y < H; y++) {
+    let rowSum = 0;
+    const sRow = y * W;
+    const iRow = (y + 1) * iw;
+    const iRowUp = y * iw;
+    for (let x = 0; x < W; x++) {
+      rowSum += gray[sRow + x];
+      integral[iRow + x + 1] = integral[iRowUp + x + 1] + rowSum;
+    }
+  }
+  const rad = Math.max(8, Math.floor(Math.min(W, H) / 12));
+  const C = 12;
+  for (let y = 0; y < H; y++) {
+    const y0 = Math.max(0, y - rad);
+    const y1 = Math.min(H - 1, y + rad);
+    const topRow = y0 * iw;
+    const botRow = (y1 + 1) * iw;
+    const rows = y1 - y0 + 1;
+    for (let x = 0; x < W; x++) {
+      const x0 = Math.max(0, x - rad);
+      const x1 = Math.min(W - 1, x + rad);
+      const sum = integral[botRow + x1 + 1] - integral[topRow + x1 + 1]
+        - integral[botRow + x0] + integral[topRow + x0];
+      const mean = sum / (rows * (x1 - x0 + 1));
+      const j = y * W + x;
+      out[j] = gray[j] < mean - C ? 0 : 255;
+    }
+  }
+  return out;
+}
+
+/* Tiền xử lý ảnh cho OCR (tăng chất lượng nhận dạng): cắt vùng theo
+   ocrPassGeometry, chuyển xám, rồi tuỳ chế độ: nhị phân Otsu toàn cục
+   (mặc định), nhị phân ngưỡng thích ứng (opts.adaptive, v114) hoặc giữ
+   nguyên ảnh xám (binarize=false) */
+function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW, opts) {
+  opts = opts || {};
+  const g = ocrPassGeometry(bmp.width, bmp.height, {
+    band: !!opts.band, crop: cropFrac, targetW: targetW, maxScale: opts.maxScale
+  });
+  if (!g) return null;
+  const W = g.W;
+  const H = g.H;
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
@@ -6299,7 +6419,7 @@ function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW) {
   if (!ctx) return null;
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bmp, Math.floor((bmp.width - cw) / 2), Math.floor((bmp.height - ch) / 2), cw, ch, 0, 0, W, H);
+  ctx.drawImage(bmp, g.sx, g.sy, g.cw, g.ch, 0, 0, W, H);
   const img = ctx.getImageData(0, 0, W, H);
   const d = img.data;
   const n = W * H;
@@ -6307,26 +6427,13 @@ function ocrCanvasFromBitmap(bmp, binarize, cropFrac, targetW) {
   for (let i = 0, j = 0; i < d.length; i += 4, j++) {
     gray[j] = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000;
   }
-  if (binarize) {
-    const hist = new Float64Array(256);
-    for (let j = 0; j < n; j++) hist[gray[j]]++;
-    let sum = 0;
-    for (let t = 0; t < 256; t++) sum += t * hist[t];
-    let sumB = 0;
-    let wB = 0;
-    let best = -1;
-    let thr = 127;
-    for (let t = 0; t < 256; t++) {
-      wB += hist[t];
-      if (wB === 0) continue;
-      const wF = n - wB;
-      if (wF === 0) break;
-      sumB += t * hist[t];
-      const mB = sumB / wB;
-      const mF = (sum - sumB) / wF;
-      const between = wB * wF * (mB - mF) * (mB - mF);
-      if (between > best) { best = between; thr = t; }
+  if (binarize && opts.adaptive) {
+    const bin = ocrAdaptiveBinarize(gray, W, H);
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      d[i] = bin[j]; d[i + 1] = bin[j]; d[i + 2] = bin[j];
     }
+  } else if (binarize) {
+    const thr = ocrOtsuThreshold(gray);
     for (let i = 0, j = 0; i < d.length; i += 4, j++) {
       const v = gray[j] > thr ? 255 : 0;
       d[i] = v; d[i + 1] = v; d[i + 2] = v;
@@ -6414,18 +6521,33 @@ function extractCodeFromOcrText(text) {
 async function ocrReadCodeFromBitmap(bmp) {
   try {
     const worker = await withTimeout(getOcrWorker(), ocrStepTimeoutMs);
-    /* v112: đúng 1 lượt đọc (cách 2) — nhị phân, vùng giữa 80%, ngang
-       2200px, PSM 6. Bỏ lượt cắt chặt phóng to: để máy đúng khoảng cách
-       theo hướng dẫn thì lượt này đủ, đổi lại thời gian đọc giảm một nửa. */
+    /* v114 (Minh chọn gói đầy đủ 2026-11-21): tối đa 4 lượt đọc trên CÙNG
+       một ảnh chụp, dừng ngay khi một lượt rút được mã — chỉ trượt cả 4
+       mới báo "chưa đọc được". Lượt 1 giữ nguyên v112/v113 (đường thành
+       công nhanh, tốc độ không đổi); các lượt sau chỉ tốn thời gian khi
+       lượt trước đã trượt:
+       1) Otsu toàn cục, cắt giữa 80%, ngang 2200px, PSM 6 (như cũ);
+       2) DẢI NGẮM: cắt đúng dải ngang KTV căn dòng mã số vào (x 4–96%,
+          y 38–62%), Otsu, phóng tới 4× (ngang 2600px), PSM 6;
+       3) cắt chặt giữa 55% + ngưỡng thích ứng cục bộ (chống lóa/bóng
+          không đều trên nhãn nhựa cong), PSM 6;
+       4) ảnh xám không nhị phân (phòng nhị phân phá nét), cắt 80%, PSM 11
+          (sparse — chữ rải rác, không thành khối đều).
+       Thanh tiến trình nhích theo lượt (80 → 86 → 92 → 97) để KTV biết
+       app vẫn đang đọc. Một lượt bị quá hạn (ocr-timeout) thì worker đã
+       bị hủy: dừng hẳn như cũ, không chạy lượt còn lại trên worker chết. */
     const passes = [
-      { binarize: true, crop: 0.8, targetW: 2200, psm: '6' }
+      { binarize: true, crop: 0.8, targetW: 2200, psm: '6', progress: 80 },
+      { binarize: true, band: true, targetW: 2600, maxScale: 4, psm: '6', progress: 86 },
+      { binarize: true, adaptive: true, crop: 0.55, targetW: 2600, psm: '6', progress: 92 },
+      { binarize: false, crop: 0.8, targetW: 2200, psm: '11', progress: 97 }
     ];
     for (let pi = 0; pi < passes.length; pi++) {
       const p = passes[pi];
-      const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW);
+      const cv = ocrCanvasFromBitmap(bmp, p.binarize, p.crop, p.targetW, p);
       if (!cv) continue;
       await withTimeout(worker.setParameters({ tessedit_pageseg_mode: p.psm }), ocrStepTimeoutMs);
-      setScanProgress(80);
+      setScanProgress(p.progress);
       const r = await withTimeout(worker.recognize(cv), ocrStepTimeoutMs);
       const code = extractCodeFromOcrText(r && r.data && r.data.text);
       if (code) {
