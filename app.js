@@ -2100,12 +2100,15 @@ function findAndOpenRecord(code) {
    Loại XN KHÔNG bị khóa trong phiên: mỗi mẫu nhận theo loại đang chọn tại thời điểm bắn mã đó,
    người dùng đổi loại lúc nào cũng được (theo yêu cầu của Minh, v17). */
 /* v102: cổng định dạng cho mã NHẬN DẠNG TỰ ĐỘNG (camera bắn + chụp ảnh).
-   Chỉ 3 dạng mã mẫu được phép nhập tự động — nhận dạng ra mã khác thì bỏ qua,
-   không nhập (yêu cầu của Minh 2026-11-19, theo đúng các dạng mã đang dùng):
+   Chỉ các dạng mã mẫu được phép nhập tự động — nhận dạng ra mã khác thì bỏ
+   qua, không nhập (yêu cầu của Minh 2026-11-19, theo đúng các dạng mã đang
+   dùng):
    1) mã hồ sơ có chữ: B24-0008458   2) 10 chữ số: 2611192995   3) 4 chữ số: 4561
+   4) v113: mã 6-4: 261121-0581 — nhãn lọ mẫu Minh chụp 2026-11-21; trước đây
+   OCR đọc đúng nguyên văn cũng bị cổng này loại vì thiếu dạng.
    Nhập tay trong màn hình quét và máy quét cầm tay (gõ phím) KHÔNG qua cổng
    này — thao tác chủ động của người dùng, giữ nguyên hành vi cũ. */
-const SCAN_CODE_FORMATS = [/^[A-Z]\d{2}-\d{7}$/, /^\d{10}$/, /^\d{4}$/];
+const SCAN_CODE_FORMATS = [/^[A-Z]\d{2}-\d{7}$/, /^\d{6}-\d{4}$/, /^\d{10}$/, /^\d{4}$/];
 function normalizeScanCode(raw) {
   return String(raw || '').toUpperCase().replace(/[\u2010-\u2015]/g, '-').replace(/\s+/g, '');
 }
@@ -2123,7 +2126,7 @@ function acceptScanCode(rawCode, opts) {
       /* v104: thông báo phải NGẮN — bản dài làm nút Dừng quét bị đẩy xuống
          khỏi màn hình, KTV không dừng quét được (Minh báo 2026-11-19) */
       const shown = code.length > 16 ? code.slice(0, 16) + '…' : code;
-      setScanMsg('Bỏ qua mã "' + shown + '" — chỉ nhận mã 10 số, mã hồ sơ hoặc 4 số', 'err');
+      setScanMsg('Bỏ qua mã "' + shown + '" — chỉ nhận mã hồ sơ, 6-4, 10 số hoặc 4 số', 'err');
       return false;
     }
   }
@@ -2255,6 +2258,9 @@ function confirmOcrCode(yes) {
   if (!code) return;
   if (yes) acceptScanCode(code, { recognized: true });
   else setScanMsg('Đã bỏ qua mã "' + code + '" — chụp lại hoặc gõ tay mã đúng.', 'err');
+  /* v113: lúc chờ xác nhận, restoreScanPreview hoãn mở lại luồng để giữ
+     khung đứng đối chiếu — KTV trả lời xong thì khôi phục hình trực tiếp */
+  restoreScanPreview();
 }
 
 /* Xử lý một khung hình (bitmap) thành mã: mã vạch trước, không ra thì OCR
@@ -2310,6 +2316,38 @@ function showScanFreeze(bmp) {
 function hideScanFreeze() {
   const cv = $('scan-freeze');
   if (cv) cv.classList.add('hidden');
+}
+
+/* v113 (Minh báo 2026-11-21): chụp trong app mà đọc trượt thì hình camera
+   đứng yên ở khung mờ cuối, phải thoát ra vào lại mới quét tiếp được.
+   Nguyên nhân: bước chụp tĩnh (ImageCapture.takePhoto/grabFrame) làm luồng
+   xem trước ngừng chạy — video bị dừng, khung hình không tiến nữa — trong
+   khi track vẫn 'live', nên cơ chế tự mở lại camera của v97 (chỉ kích hoạt
+   khi track 'ended') không bao giờ chạy; còn captureScanFrame đọc xong chỉ
+   ẩn khung đứng + nhả nút, không ai hồi sinh hình trực tiếp (đường chụp ảnh
+   ngoài scanPhotoFile thì có restartScanCamera ở finally — v97). Hàm này
+   chạy sau MỌI đường thoát của một lượt chụp: video bị dừng thì play lại;
+   track còn 'live' mà khung hình không tiến sau 600ms thì mở lại luồng như
+   v97. Đang chờ xác nhận mã 4 số thì chưa mở lại luồng (giữ khung đứng để
+   đối chiếu) — confirmOcrCode gọi lại hàm này sau khi KTV trả lời. */
+let scanPreviewRestoring = false;
+async function restoreScanPreview() {
+  if (!scannerState || scanPreviewRestoring || scanRestarting) return;
+  const video = $('scanner-video');
+  if (!video || !video.srcObject) return;
+  const track = video.srcObject.getVideoTracks ? video.srcObject.getVideoTracks()[0] : null;
+  if (!track || track.readyState === 'ended') return; /* track chết hẳn: vòng quét tự mở lại (v97) */
+  scanPreviewRestoring = true;
+  try {
+    if (video.paused) { try { await video.play(); } catch (e) { /* bỏ qua */ } }
+    if (!scannerState || pendingOcrConfirm) return;
+    const t0 = video.currentTime;
+    await new Promise((r) => setTimeout(r, 600));
+    if (!scannerState || scanCaptureBusy || scanRestarting || pendingOcrConfirm) return;
+    if ($('scanner-video') !== video) return;
+    if (video.currentTime <= t0 && track.readyState === 'live') await restartScanCamera();
+  } catch (e) { /* khôi phục xem trước là best-effort — không được làm hỏng luồng quét */
+  } finally { scanPreviewRestoring = false; }
 }
 
 let scanCaptureBusy = false;
@@ -2378,6 +2416,9 @@ async function captureScanFrame() {
   } finally {
     scanCaptureBusy = false;
     if (capBtn) capBtn.disabled = false;
+    /* v113: mọi đường thoát của lượt chụp (đọc được / đọc trượt / lỗi) đều
+       phải hồi sinh hình trực tiếp — xem restoreScanPreview */
+    restoreScanPreview();
   }
 }
 
@@ -2531,6 +2572,14 @@ function repairOcrToken(tok) {
       if (mid.length === 2 && tail.length === 7) out.push(first + mid + '-' + tail);
     }
   }
+  /* v113: dạng 6-4 (261121-0581) — sửa chữ nhầm thành số ở cả hai vế,
+     vd "261121-O581" -> "261121-0581" */
+  const m64 = /^([0-9A-Z]{6})-([0-9A-Z]{4})$/.exec(tok);
+  if (m64) {
+    const head = m64[1].replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
+    const tail = m64[2].replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
+    if (head.length === 6 && tail.length === 4) out.push(head + '-' + tail);
+  }
   if (/^[0-9A-Z]{10}$/.test(tok) || /^[0-9A-Z]{4}$/.test(tok)) {
     const fixed = tok.replace(/[A-Z]/g, (c) => OCR_DIGIT_FIX[c] || '');
     if (fixed.length === tok.length && /^\d+$/.test(fixed)) out.push(fixed);
@@ -2553,10 +2602,16 @@ function extractCodeFromOcrText(text) {
      số lô trên tuýp kem Minh chụp thử. Mã đứng độc lập vẫn nhận bình thường. */
   const digitStrings = all.filter((t) => /^\d+$/.test(t));
   const isFragment = (c) => digitStrings.some((d) => d.length > c.length && d.includes(c));
+  /* v113: mã 6-4 chứa đủ 10 chữ số thông tin như mã 10 số — nhận thẳng
+     (không qua xác nhận 1 chạm như mã 4 số trần) và giữ nguyên dấu gạch
+     như in trên nhãn. Vẫn qua lưới mảnh: dãy số của nó là mảnh của một
+     dãy số dài hơn trong cùng ảnh thì không nhận. */
+  for (const c of all) if (/^\d{6}-\d{4}$/.test(c) && !isFragment(c.replace('-', ''))) return c;
   for (const c of all) if (/^\d{10}$/.test(c) && !isFragment(c)) return c;
   const repaired = [];
   for (const t of all) for (const r of repairOcrToken(t)) if (!repaired.includes(r)) repaired.push(r);
   for (const c of repaired) if (/^[A-Z]\d{2}-\d{7}$/.test(c)) return c;
+  for (const c of repaired) if (/^\d{6}-\d{4}$/.test(c) && !isFragment(c.replace('-', ''))) return c;
   for (const c of repaired) if (/^\d{10}$/.test(c) && !isFragment(c)) return c;
   for (const c of all) if (/^\d{4}$/.test(c) && !isFragment(c)) return c;
   /* Mã 4 số: chỉ sửa trên token đơn, KHÔNG sửa trên token ghép — ghép chữ
