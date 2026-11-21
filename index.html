@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=115">
-<link rel="stylesheet" href="print.css?v=115">
+<link rel="stylesheet" href="styles.css?v=116">
+<link rel="stylesheet" href="print.css?v=116">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v115</span>
+  <span class="app-version">LabEntry v116</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -737,6 +737,10 @@
       <span class="scan-line"></span>
       <div id="scan-band" class="scan-band"><span class="scan-band-label">Đặt dòng mã số vào dải này</span></div>
     </div>
+    <!-- v116: vùng giữa panel là vùng cuộn duy nhất (.scanner-mid) —
+         đầu + khung camera cố định trên, nút Dừng quét cố định dưới,
+         giữa dài bao nhiêu cuộn bấy nhiêu, không phần tử nào chồng nhau -->
+    <div class="scanner-mid">
     <div id="scan-progress" class="scan-progress hidden"><div id="scan-progress-fill" class="scan-progress-fill"></div></div>
     <div id="scanner-msg" class="scanner-msg">Đang mở camera...</div>
     <div id="scan-confirm-row" class="scan-confirm-row hidden">
@@ -751,15 +755,34 @@
     <div class="scanner-photo-row">
       <button id="btn-scan-capture" class="secondary-btn small" type="button">🎯 Chụp trong app đọc mã</button>
     </div>
-    <div id="scanner-session" class="scanner-session">
-      <div id="scanner-count" class="scanner-count">Đã nhận trong phiên: 0</div>
-      <ul id="scanner-list" class="scanner-list"></ul>
-      <div id="scanner-empty" class="scanner-empty">Chưa có mẫu nào trong phiên này</div>
+    <!-- v116: panel quét chỉ còn DÒNG TÓM TẮT bấm được — danh sách đầy đủ
+         chuyển sang màn hình riêng #session-modal (Minh yêu cầu gọn) -->
+    <button id="scanner-session" class="scanner-session" type="button">
+      <span id="scanner-count" class="scanner-count">Đã nhận trong phiên: 0</span>
+      <span class="session-chevron" aria-hidden="true">›</span>
+    </button>
     </div>
     <button id="btn-scanner-close" class="stop-btn">
       <svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
       Dừng quét
     </button>
+  </div>
+</div>
+
+<!-- ============ MÃ ĐÃ NHẬN TRONG PHIÊN QUÉT (v116) ============
+     Màn hình riêng gọn mở từ dòng "Đã nhận trong phiên: N" ở panel quét.
+     Thứ tự: nhận trước ở TRÊN, nhận sau ở DƯỚI (đúng thứ tự nhập liệu). -->
+<div id="session-modal" class="modal hidden">
+  <div class="modal-box session-box">
+    <div class="session-head">
+      <div class="session-title">Đã nhận trong phiên</div>
+      <div id="session-count" class="session-count"></div>
+    </div>
+    <ul id="session-list" class="session-list"></ul>
+    <div id="session-empty" class="session-empty hidden">Chưa có mẫu nào trong phiên này</div>
+    <div class="session-actions">
+      <button id="btn-session-close" class="secondary-btn" type="button">Đóng</button>
+    </div>
   </div>
 </div>
 
@@ -949,11 +972,11 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=115"></script>
-<script src="store.js?v=115"></script>
-<script src="sync-core.js?v=115"></script>
-<script src="sync.js?v=115"></script>
-<script src="mascot.js?v=115"></script>
-<script src="app.js?v=115"></script>
+<script src="config.js?v=116"></script>
+<script src="store.js?v=116"></script>
+<script src="sync-core.js?v=116"></script>
+<script src="sync.js?v=116"></script>
+<script src="mascot.js?v=116"></script>
+<script src="app.js?v=116"></script>
 </body>
 </html>

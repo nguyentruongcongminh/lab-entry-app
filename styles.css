@@ -257,24 +257,29 @@ svg { width: 24px; height: 24px; display: block; }
 .scanner-photo-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .scan-confirm-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .scan-confirm-row strong { font-size: 20px; letter-spacing: 1px; }
+/* v116: đang chờ xác nhận mã (4 số hoặc mã lạ) thì ẩn hộp thông báo,
+   hàng nút Chụp và nút Dừng quét — panel chỉ còn nhãn ngắn + mã + hai
+   nút Đúng/Bỏ qua, không ghi chú giải thích, không chồng nút */
+#scanner-modal.confirming #scanner-msg,
+#scanner-modal.confirming .scanner-photo-row,
+#scanner-modal.confirming #btn-scanner-close { display: none; }
 .scan-progress { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 10px; }
 .scan-progress-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--blue), var(--blue-dark)); transition: width .35s ease; }
 .scanner-photo-row .secondary-btn { flex: 0 0 auto; white-space: nowrap; }
 #scanner-modal .secondary-btn:disabled { opacity: .55; }
-/* v106: nút Dừng quét dính đáy màn hình — nội dung dài tới đâu cuộn tới đó,
-   nút đỏ không bao giờ bị đẩy khỏi tầm tay nữa */
-#scanner-modal .stop-btn { position: sticky; bottom: 0; z-index: 3; }
+/* v106 từng cho nút Dừng quét position:sticky dính đáy panel. v116 BỎ
+   sticky: khi tổng nội dung cố định vượt chiều cao panel (hàng xác nhận
+   hiện + hộp thông báo dài 4 dòng), vị trí tự nhiên của nút nằm dưới
+   mép dưới nên sticky kéo nó lên và SƠN ĐÈ (z-index cao) lên hàng xác
+   nhận — đúng ảnh Minh chụp 2026-11-21 (nút đỏ đè nửa dưới nút
+   "Bỏ qua", nút Chụp bị đẩy khỏi màn hình). Từ v116 panel có vùng
+   giữa cuộn riêng (.scanner-mid) và nút Dừng quét là phần tử flex
+   cuối theo luồng thường: luôn hiện trọn ở đáy, không đè lên ai. */
 .scanner-manual input {
   flex: 1; min-width: 0; border: 1px solid #cfd8dc; border-radius: 6px; padding: 10px; font-size: 16px;
 }
 .primary-btn.small { flex: 0 0 auto; padding: 10px 14px; }
 .scanner-count { padding: 12px 4px 4px; font-weight: 600; text-align: left; }
-.scanner-list { list-style: none; max-height: 180px; overflow-y: auto; text-align: left; margin-bottom: 12px; }
-.scanner-list li {
-  display: flex; justify-content: space-between; gap: 10px;
-  padding: 7px 4px; border-bottom: 1px solid #f0f0f0; font-size: 15px;
-}
-.scanner-list .scan-time { color: var(--muted); white-space: nowrap; }
 .modal-box .primary-btn { width: 100%; }
 .toast {
   position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60;
@@ -372,13 +377,16 @@ svg { width: 24px; height: 24px; display: block; }
 #scanner-modal .scanner-manual { margin-top: 12px; }
 #scanner-modal .scanner-manual input { background: #1e293b; border-color: #334155; color: #f1f5f9; }
 #scanner-modal .scanner-manual input::placeholder { color: #64748b; }
-.scanner-session { margin-top: 14px; background: #111c30; border: 1px solid #1e293b; border-radius: 12px; padding: 10px 12px; }
-#scanner-modal .scanner-count { padding: 2px 0 6px; font-size: 15px; }
-#scanner-modal .scanner-list { margin-bottom: 0; max-height: 168px; }
-#scanner-modal .scanner-list li { border-bottom-color: #1e293b; color: #e2e8f0; justify-content: flex-start; }
-#scanner-modal .scanner-list li::before { content: '✓'; color: #4ade80; font-weight: 800; margin-right: 9px; }
-#scanner-modal .scanner-list .scan-time { color: #94a3b8; margin-left: auto; }
-.scanner-empty { color: #64748b; font-size: 14px; padding: 4px 0 2px; }
+/* v116: khối phiên trong panel quét chỉ còn DÒNG TÓM TẮT bấm được
+   (nút mở màn hình danh sách phiên riêng) — bỏ hẳn danh sách + dòng
+   ghi chú ở cuối panel như trước */
+.scanner-session {
+  margin-top: 14px; background: #111c30; border: 1px solid #1e293b; border-radius: 12px;
+  padding: 10px 12px; width: 100%; font: inherit; color: inherit; text-align: left;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer;
+}
+#scanner-modal .scanner-count { padding: 0; font-size: 15px; }
+.session-chevron { color: #94a3b8; font-size: 22px; line-height: 1; }
 .stop-btn {
   width: 100%; margin-top: 16px; background: #dc2626; color: #fff; border-radius: 10px;
   padding: 14px; font-size: 16.5px; font-weight: 700;
@@ -402,12 +410,30 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .scanner-box > * { flex: 0 0 auto; }
 .scan-frame video { max-height: 32vh; }
-#scanner-modal .scanner-session {
+/* v116: vùng giữa panel (tiến trình → thông báo → hàng xác nhận → nhập
+   tay → nút Chụp → dòng phiên) là VÙNG CUỘN DUY NHẤT của panel: đầu +
+   khung camera cố định phía trên, nút Dừng quét cố định phía dưới,
+   phần giữa dài bao nhiêu thì cuộn trong vùng này bấy nhiêu. Trước
+   v116 vai trò co giãn thuộc về khối phiên, nhưng khi hàng xác nhận +
+   hộp thông báo cùng hiện, phần cố định vẫn tràn chiều cao panel và
+   nút Dừng quét sticky sơn đè lên hàng xác nhận (xem ghi chú ở
+   .stop-btn). Nay mọi điều khiển xếp theo luồng dọc thường trong vùng
+   cuộn này — không còn phần tử nào chồng lên nhau ở bất kỳ trạng thái
+   nào của panel. */
+#scanner-modal .scanner-mid {
   flex: 1 1 auto; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column;
 }
-#scanner-modal .scanner-list { max-height: none; }
+#scanner-modal .scanner-mid > * { flex: 0 0 auto; }
 .stop-btn { margin-top: 14px; }
+/* v116: máy thấp (≤700px) — thu bớt khung camera và ẩn dòng ghi chú
+   máy quét cầm tay, để vùng giữa panel đủ chỗ cho thông báo + nút
+   Chụp + dòng phiên (đo bằng rig ở 360×640: thiếu ~50px làm dòng
+   phiên rơi hẳn xuống dưới vùng cuộn của .scanner-mid) */
+@media (max-height: 700px) {
+  .scan-frame video { max-height: 26vh; }
+  #scanner-modal .wedge-note { display: none; }
+}
 @media (max-height: 620px) {
   .scan-frame video { max-height: 24vh; }
   .scanner-subtitle { display: none; }
@@ -432,6 +458,38 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .summary-actions .primary-btn { flex: 1.5; width: auto; }
 .summary-actions .release-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* ---------- Danh sách mã đã nhận trong phiên quét (v116) ----------
+   Màn hình riêng gọn mở từ dòng "Đã nhận trong phiên: N" ở panel quét
+   (trước v116 danh sách nằm ngay ở cuối panel kèm dòng ghi chú — Minh
+   yêu cầu bỏ). Theo đúng pattern tấm chi tiết v115: cap chiều cao
+   theo viewport thật (dvh) + cuộn nội bộ + hàng nút dính đáy. Hàng
+   gọn: mã là chính, kèm loại xét nghiệm và giờ nhận; thứ tự nhận
+   trước ở trên, nhận sau ở dưới. */
+.session-box {
+  text-align: left; max-width: 520px;
+  max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.session-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-bottom: 2px solid var(--blue); padding-bottom: 10px; margin-bottom: 6px; }
+.session-title { font-size: 20px; font-weight: 800; }
+.session-count { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.session-list { list-style: none; margin: 0; padding: 0; }
+.session-list li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 9px 2px; border-bottom: 1px solid var(--line); font-size: 15.5px;
+}
+.session-list li strong { font-size: 17px; letter-spacing: .4px; }
+.session-list .session-type { color: var(--muted); }
+.session-list .session-time { color: var(--muted); margin-left: auto; white-space: nowrap; font-size: 14px; }
+.session-empty { color: var(--muted); padding: 14px 2px; }
+.session-actions {
+  display: flex; gap: 10px;
+  position: sticky; bottom: -16px; z-index: 2;
+  margin: 10px -16px -16px; padding: 12px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--card); border-top: 1px solid var(--line);
+}
+.session-actions .secondary-btn { flex: 1; }
 .summary-actions .release-action svg { width: 19px; height: 19px; }
 .summary-actions .release-action.hidden { display: none; }
 .secondary-btn {
@@ -491,8 +549,9 @@ svg { width: 24px; height: 24px; display: block; }
    Ở tab Quản lý, danh sách nằm cuối là Chờ phát hành (từ v21, nhóm Chưa kết quả ở trên). */
 #list-today, #list-noresult, #list-pending { padding-bottom: 148px; }
 
-/* Nhãn loại XN của từng mẫu trong danh sách phiên quét (loại đổi được giữa phiên) */
-#scanner-modal .scanner-list .scan-type { color: #94a3b8; font-size: 13px; margin-left: 8px; }
+/* Nhãn loại XN của từng mẫu trong danh sách phiên quét (v116: danh sách
+   chuyển sang màn hình riêng #session-modal, loại đổi được giữa phiên) */
+#session-modal .session-list .session-type { color: var(--muted); font-size: 13.5px; }
 
 /* ---------- Sao lưu & phục hồi (tab Lọc & Xuất) ---------- */
 .backup-card {

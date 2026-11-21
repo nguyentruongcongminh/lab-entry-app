@@ -2047,18 +2047,55 @@ function setScanMsg(text, kind) {
 function updateScanCount() {
   const n = scannerState ? scannerState.count : 0;
   $('scanner-count').textContent = 'Đã nhận trong phiên: ' + n;
-  $('scanner-empty').classList.toggle('hidden', n > 0);
+  renderSessionList();
+}
+
+/* v116: danh sách mã đã nhận trong phiên chuyển sang MÀN HÌNH RIÊNG
+   (#session-modal, mở bằng cách chạm dòng "Đã nhận trong phiên: N" ở
+   panel quét) — panel quét chỉ còn dòng tóm tắt cho gọn, bỏ hẳn khối
+   danh sách + dòng ghi chú ở cuối panel. Thứ tự hiển thị: mẫu nhận
+   TRƯỚC ở trên, nhận SAU ở dưới (đúng thứ tự nhập liệu toàn app;
+   khối cũ trong panel lại chèn mẫu mới lên đầu). Danh sách vẽ lại mỗi
+   lần nhận thêm mẫu (updateScanCount gọi renderSessionList) nên đang
+   mở màn hình này mà quét thêm vẫn cập nhật trực tiếp. Phạm vi phiên
+   giữ nguyên: các mẫu đã nhận từ lúc mở phiên quét hiện tại. */
+function fmtTimeOfDay(iso) {
+  const d = new Date(iso);
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+function renderSessionList() {
+  const list = $('session-list');
+  if (!list) return;
+  const box = document.querySelector('.session-box');
+  const keepScroll = box ? box.scrollTop : 0;
+  const items = scannerState && scannerState.items ? scannerState.items : [];
+  list.innerHTML = '';
+  for (const it of items) {
+    const li = document.createElement('li');
+    li.innerHTML = '<strong>' + esc(it.code) + '</strong><span class="session-type">' + esc(it.typeName) + '</span><span class="session-time">' + esc(fmtTimeOfDay(it.at)) + '</span>';
+    list.appendChild(li);
+  }
+  $('session-empty').classList.toggle('hidden', items.length > 0);
+  $('session-count').textContent = items.length ? items.length + ' mẫu' : '';
+  if (box) box.scrollTop = keepScroll;
+}
+function openSessionList() {
+  renderSessionList();
+  $('session-modal').classList.remove('hidden');
+}
+function closeSessionList() {
+  $('session-modal').classList.add('hidden');
 }
 
 function openScanner(source) {
   /* Chế độ 'find' (F24): quét 1 mã để TÌM mẫu đã có — mở từ tab Quản lý */
   const find = source === 'find';
   const single = find || (source === 'form' && !!formState.uid);
-  scannerState = { source, single, find, count: 0, lastCode: '', lastAt: 0 };
+  scannerState = { source, single, find, count: 0, items: [], lastCode: '', lastAt: 0 };
+  clearOcrConfirm();
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || getTestTypes()[0].id);
-  $('scanner-list').innerHTML = '';
   $('scanner-input').value = '';
   $('scan-frame').classList.remove('hidden');
   $('scanner-title').textContent = find ? 'Quét tìm mẫu' : (single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu');
@@ -2165,14 +2202,14 @@ function acceptScanCode(rawCode, opts) {
   audit('receive', 'Quét nhận mẫu', res.record);
   noteActivity(); /* quét bằng camera không sinh sự kiện người dùng — vẫn tính là đang thao tác (cho tự khóa F24) */
   scannerState.count += 1;
+  /* v116: ghi vào danh sách phiên (màn hình riêng #session-modal) theo
+     đúng thứ tự nhận — mẫu mới nối vào CUỐI danh sách */
+  if (!scannerState.items) scannerState.items = [];
+  scannerState.items.push({ code, typeName: type ? type.name : typeId, at: res.record.createdAt });
   /* Mẫu mới nhận là việc ở khung Chưa kết quả: nếu đang đứng ở tab Quản lý
      (dù đang xem khung Chờ phát hành) thì tự chuyển khung về Chưa kết quả (v25) */
   if (mainView === 'manage') managePanel = 'noresult';
   updateScanCount();
-  const li = document.createElement('li');
-  li.innerHTML = '<span>' + esc(code) + '</span><span class="scan-type">' + esc(type ? type.name : typeId) + '</span><span class="scan-time">' + esc(fmtFull(res.record.createdAt)) + '</span>';
-  const list = $('scanner-list');
-  list.insertBefore(li, list.firstChild);
   setScanMsg('Đã nhận mẫu: ' + code + ' — quét mã tiếp theo, hoặc bấm "Dừng quét"', 'ok');
   beepOk();
   if (navigator.vibrate) navigator.vibrate(60);
@@ -2244,7 +2281,9 @@ function finishScanProgress() {
    lõi khi KTV chạm "Đúng": mã 4 số vẫn qua acceptScanCode recognized như
    cũ (nó vốn đúng cổng); mã lạ nhận theo đường KHÔNG cổng — người đã đối
    chiếu bằng mắt với nhãn thật, tương đương gõ tay — nhưng vẫn qua kiểm
-   tra trùng mã và mọi logic nhận mẫu khác trong acceptScanCode. */
+   tra trùng mã và mọi logic nhận mẫu khác trong acceptScanCode.
+   v116: hàng xác nhận KHÔNG còn kèm hộp ghi chú giải thích dài ở phía
+   trên nữa (xem showOcrConfirm) — chỉ nhãn ngắn + mã + 2 nút. */
 let pendingOcrConfirm = '';
 let pendingOcrConfirmKind = '';
 function showOcrConfirm(code, kind) {
@@ -2256,17 +2295,19 @@ function showOcrConfirm(code, kind) {
   if (labelEl) labelEl.textContent = pendingOcrConfirmKind === 'strange' ? 'Mã lạ đọc được:' : 'Mã 4 số đọc được:';
   const row = $('scan-confirm-row');
   if (row) row.classList.remove('hidden');
-  if (pendingOcrConfirmKind === 'strange') {
-    setScanMsg('Đọc được mã lạ "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
-  } else {
-    setScanMsg('Đọc được mã 4 số "' + code + '" — đúng mã mẫu thì bấm "Đúng, nhận mẫu", không phải thì "Bỏ qua".');
-  }
+  /* v116 (Minh báo 2026-11-21): BỎ hộp ghi chú giải thích dài phía trên
+     hàng xác nhận — hàng này tự nó đã đủ (nhãn ngắn + mã + 2 nút). Lớp
+     'confirming' trên modal ẩn luôn hộp thông báo, hàng nút Chụp và nút
+     Dừng quét trong lúc chờ trả lời: panel chỉ còn đúng phần cần thao
+     tác, không chữ thừa, không nút nào chồng lên nhau. */
+  $('scanner-modal').classList.add('confirming');
 }
 function clearOcrConfirm() {
   pendingOcrConfirm = '';
   pendingOcrConfirmKind = '';
   const row = $('scan-confirm-row');
   if (row) row.classList.add('hidden');
+  $('scanner-modal').classList.remove('confirming');
 }
 function confirmOcrCode(yes) {
   const code = pendingOcrConfirm;
@@ -3049,6 +3090,7 @@ function initWedgeListener() {
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
   clearOcrConfirm();
+  closeSessionList();
   hideScanFreeze();
   setScanProgress(null);
   $('scanner-modal').classList.add('hidden');
@@ -6123,6 +6165,11 @@ function init() {
   $('btn-scan').addEventListener('click', () => openScanner('form'));
   $('btn-scan-today').addEventListener('click', () => openScanner('today'));
   $('btn-scanner-close').addEventListener('click', closeScanner);
+  /* v116: chạm dòng tóm tắt "Đã nhận trong phiên: N" ở panel quét thì mở
+     màn hình riêng xem danh sách mã đã nhận trong phiên */
+  $('scanner-session').addEventListener('click', openSessionList);
+  $('btn-session-close').addEventListener('click', closeSessionList);
+  $('session-modal').addEventListener('click', (e) => { if (e.target === $('session-modal')) closeSessionList(); });
   $('btn-scanner-add').addEventListener('click', () => {
     acceptScanCode($('scanner-input').value);
     $('scanner-input').value = '';
