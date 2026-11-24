@@ -910,6 +910,24 @@ svg { width: 24px; height: 24px; display: block; }
 }
 .record-item.deferred { background: #fdf8ec; box-shadow: inset 4px 0 0 #b58900; }
 .icon-btn.defer-btn { color: #b58900; }
+/* Mẫu từ chối (v117): nhãn xám-đỏ trầm + nền xám nhẹ — đã loại hẳn, lặng hơn KHẨN */
+.reject-tag {
+  display: inline-block; background: #616161; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; letter-spacing: .3px;
+}
+.record-item.rejected { background: #f2f2f2; box-shadow: inset 4px 0 0 #616161; }
+.icon-btn.reject-btn { color: #616161; }
+/* Nút tick "Đã có KQ" cho ống của loại gói (v117 — KSK): to, dễ bấm trên điện thoại */
+.tick-btn {
+  min-height: 48px; padding: 10px 18px; font-size: 16px; font-weight: 600; cursor: pointer;
+  border: 2px dashed #90a4ae; border-radius: 10px; background: #fff; color: #546e7a;
+}
+.tick-btn.on { border-style: solid; border-color: #2e7d32; background: #e8f5e9; color: #2e7d32; }
+.btick {
+  min-height: 40px; padding: 7px 12px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  border: 2px dashed #90a4ae; border-radius: 8px; background: #fff; color: #546e7a;
+}
+.btick.on { border-style: solid; border-color: #2e7d32; background: #e8f5e9; color: #2e7d32; }
 .defer-reasons { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
 .defer-opt { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; cursor: pointer; padding: 7px 4px; }
 .defer-opt input[type="radio"] { width: 20px; height: 20px; accent-color: #b58900; }
@@ -1123,6 +1141,9 @@ body.dark {
 body.dark .record-item.overdue { background: #2b1c1c; }
 body.dark .record-item.timer-due { background: #33191d; }
 body.dark .record-item.deferred { background: #26200f; }
+body.dark .record-item.rejected { background: #232323; }
+body.dark .tick-btn, body.dark .btick { background: #1e1e1e; color: #b0bec5; }
+body.dark .tick-btn.on, body.dark .btick.on { background: #1b2e1c; color: #a5d6a7; }
 body.dark .mascot-settings { background: #182430; border-color: #2b4257; }
 body.dark .mascot-settings-title, body.dark .appear-row { color: #d3e6f5; }
 body.dark .mascot-set-note { color: #93a7b8; }

@@ -62,6 +62,34 @@ function deferredRecords() {
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
 }
 
+/* ================= Mẫu từ chối (v117) + loại gói KSK =================
+ * Theo yêu cầu của Minh (2026-11-24): mẫu không đủ điều kiện xử lý (không đủ
+ * mẫu, mẫu không đạt yêu cầu...) bị TỪ CHỐI — loại hẳn khỏi quy trình, khác
+ * hẹn lại (còn quay lại xử lý). Mẫu từ chối rời mọi hàng chờ như mẫu hẹn lại
+ * nhưng nằm ở trang riêng "Mẫu từ chối" và được lưu giữ riêng để tra cứu;
+ * muốn xử lý lại phải "Bỏ từ chối" trước. */
+const REJECT_REASONS = { 'khong-du-mau': 'Không đủ mẫu', 'khong-dat': 'Mẫu không đạt yêu cầu', 'khac': 'Lý do khác' };
+function isRejected(rec) { return !!(rec && rec.rejectReason); }
+function rejectReasonLabel(rec) { return REJECT_REASONS[rec.rejectReason] || ''; }
+function rejectTagHTML(rec) {
+  if (!isRejected(rec)) return '';
+  return '<span class="reject-tag">✕ Từ chối · ' + esc(rejectReasonLabel(rec)) + '</span>';
+}
+function rejectedRecords() {
+  return store.getAll().filter(isRejected)
+    .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
+}
+/* Loại GÓI (composite — vd KSK nước tiểu 3 ống): đếm số phần đã có kết quả */
+function tubeProgress(rec) {
+  const type = getTestType(rec.typeId);
+  if (!type || !type.composite) return null;
+  const done = type.fields.filter((f) => {
+    const v = rec.results ? rec.results[f.key] : undefined;
+    return typeof v === 'string' && v.trim() !== '';
+  }).length;
+  return { done, total: type.fields.length };
+}
+
 let toastTimer = null;
 function toast(msg) {
   const el = $('toast');
@@ -74,8 +102,8 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch', 'deferred'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch' || name === 'deferred';
+  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch', 'deferred', 'rejected'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch' || name === 'deferred' || name === 'rejected';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
   $('fab-add').classList.toggle('hidden', subView || name === 'export' || name === 'display');
@@ -89,6 +117,7 @@ function switchView(name) {
   if (name === 'handover') renderHandover();
   if (name === 'batch') renderBatch();
   if (name === 'deferred') renderDeferred();
+  if (name === 'rejected') renderRejected();
   window.scrollTo(0, 0);
 }
 
@@ -155,9 +184,15 @@ function recordItemHTML(rec, opts) {
   /* Nút Hẹn lại ngay trên dòng mẫu (v74 — Minh không tìm thấy khi nó chỉ nằm
      trong trang Xem, mà mẫu chưa có kết quả thì không có nút Xem): hiện cho
      mọi mẫu chưa phát hành ở danh sách thao tác, mở thẳng hộp thoại lý do. */
-  const deferBtn = (!o.readonly && status !== 'released' && !isDeferred(rec))
+  const deferBtn = (!o.readonly && status !== 'released' && !isDeferred(rec) && !isRejected(rec))
     ? '<button class="icon-btn defer-btn" data-action="defer" data-uid="' + rec.uid + '" title="Hẹn lại mẫu này (hụt mẫu / không đạt / lý do khác)" aria-label="Hẹn lại mẫu này">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9 5v14M15 5v14"/></svg></button>'
+    : '';
+  /* Nút Từ chối (v117): cạnh nút Hẹn lại, cho mẫu chưa phát hành — loại hẳn
+     mẫu khỏi quy trình nhưng vẫn lưu ở trang "Mẫu từ chối" */
+  const rejectBtn = (!o.readonly && status !== 'released' && !isDeferred(rec) && !isRejected(rec))
+    ? '<button class="icon-btn reject-btn" data-action="reject" data-uid="' + rec.uid + '" title="Từ chối mẫu này (loại hẳn, lưu danh sách riêng)" aria-label="Từ chối mẫu này">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg></button>'
     : '';
   const editDeleteBtns = o.readonly ? '' :
       '<button class="icon-btn" data-action="delete" data-uid="' + rec.uid + '" title="Xóa" aria-label="Xóa">' +
@@ -165,11 +200,12 @@ function recordItemHTML(rec, opts) {
       '<button class="icon-btn" data-action="edit" data-uid="' + rec.uid + '" title="Sửa" aria-label="Sửa">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 6.5l3 3"/></svg></button>';
   const actions = (!viewBtn && !timerBtn && o.readonly) ? '' :
-    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + editDeleteBtns + '</div>';
+    '<div class="record-actions">' + viewBtn + timerBtn + releaseBtn + deferBtn + rejectBtn + editDeleteBtns + '</div>';
   const timerDue = status === 'no-result' && !!rec.timerEndsAt && new Date(rec.timerEndsAt).getTime() <= Date.now();
-  return '<li class="record-item st-' + status + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + '">' + checkbox +
-    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + '</div>' +
-    '<div class="record-type">' + esc(type ? type.name : rec.typeId) + '</div>' + waitLine + '</div>' +
+  const prog = tubeProgress(rec);
+  return '<li class="record-item st-' + status + (isOverdue ? ' overdue' : '') + (timerDue ? ' timer-due' : '') + (rec.urgent ? ' urgent' : '') + (isDeferred(rec) ? ' deferred' : '') + (isRejected(rec) ? ' rejected' : '') + '">' + checkbox +
+    '<div class="record-main"><div class="record-id">' + esc(rec.testId) + (rec.urgent ? '<span class="urgent-tag">KHẨN</span>' : '') + deferTagHTML(rec) + rejectTagHTML(rec) + '</div>' +
+    '<div class="record-type">' + esc(type ? type.name : rec.typeId) + (prog ? ' · <b>' + prog.done + '/' + prog.total + ' ống</b>' : '') + '</div>' + waitLine + '</div>' +
     '<div class="record-side"><span class="record-time">' + esc(fmtList(rec.createdAt)) + '</span>' +
     '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' + actions + '</div></li>';
 }
@@ -187,12 +223,13 @@ function handleListClick(e) {
     if (btn.dataset.action === 'timer') toggleTimer(uid);
     if (btn.dataset.action === 'calremind') downloadCalendarReminder(uid);
     if (btn.dataset.action === 'defer') openDeferModal(uid);
+    if (btn.dataset.action === 'reject') openRejectModal(uid);
     if (btn.dataset.action === 'release') {
       const rec = store.getByUid(uid);
       /* Phát hành ngay khi bấm — không hỏi xác nhận lại (theo yêu cầu của Minh) */
       if (rec && store.statusOf(rec) === 'pending-release') {
         if (!requireOperator('phát hành kết quả')) return;
-        const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null }); /* F37: phát hành = tự bỏ hẹn lại */
+        const res = store.update(uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null, rejectReason: '', rejectNote: '', rejectAt: null }); /* F37: phát hành = tự bỏ hẹn lại; v117: và bỏ từ chối */
         if (res.ok) { audit('release', '', res.record); toast('Đã phát hành kết quả ' + rec.testId); refreshCurrent(); }
         else toast(res.errors.join('. '));
       }
@@ -225,6 +262,7 @@ function handleListClick(e) {
 function fieldDisplayValue(rec, f) {
   const v = (rec.results && rec.results[f.key]) || '';
   if (f.type === 'chips') return v === '' ? 'Âm tính' : v;
+  if (f.type === 'tick') return v === '' ? 'Chưa có KQ' : 'Đã có KQ';
   return v === '' ? '—' : v;
 }
 
@@ -236,8 +274,9 @@ function openSummary(uid) {
   summaryUid = uid;
   const type = getTestType(rec.typeId);
   const status = store.statusOf(rec);
-  /* Trang xem có luôn nút Phát hành khi kết quả đang Chờ phát hành */
-  $('btn-summary-release').classList.toggle('hidden', status !== 'pending-release');
+  /* Trang xem có luôn nút Phát hành khi kết quả đang Chờ phát hành;
+     mẫu đã TỪ CHỐI (v117) thì không phát hành được — phải bỏ từ chối trước */
+  $('btn-summary-release').classList.toggle('hidden', status !== 'pending-release' || isRejected(rec));
   $('sum-id').textContent = rec.testId;
   $('sum-type').textContent = type ? type.name : rec.typeId;
   const tag = $('sum-status');
@@ -280,8 +319,22 @@ function openSummary(uid) {
     dEl.classList.add('hidden');
   }
   const dBtn = $('btn-summary-defer');
-  dBtn.classList.toggle('hidden', status === 'released');
+  dBtn.classList.toggle('hidden', status === 'released' || isRejected(rec));
   dBtn.textContent = isDeferred(rec) ? '⏸ Sửa / bỏ hẹn lại' : '⏸ Hẹn lại mẫu này';
+  /* v117: khối từ chối trong trang Xem — hiện lý do/ghi chú nếu đang bị từ
+     chối; nút Từ chối chỉ có khi mẫu chưa phát hành và không đang hẹn lại */
+  const rEl = $('sum-reject');
+  if (isRejected(rec)) {
+    rEl.innerHTML = '✕ <b>Từ chối</b> · Lý do: <b>' + esc(rejectReasonLabel(rec)) + '</b>' +
+      (rec.rejectNote ? ' · ' + esc(rec.rejectNote) : '') +
+      (rec.rejectAt ? '<br>Từ chối lúc: ' + esc(fmtFull(rec.rejectAt)) : '');
+    rEl.classList.remove('hidden');
+  } else {
+    rEl.classList.add('hidden');
+  }
+  const rBtn = $('btn-summary-reject');
+  rBtn.classList.toggle('hidden', status === 'released' || isDeferred(rec));
+  rBtn.textContent = isRejected(rec) ? '✕ Sửa / bỏ từ chối' : '✕ Từ chối mẫu này';
   $('summary-modal').classList.remove('hidden');
 }
 
@@ -297,7 +350,7 @@ function releaseFromSummary() {
   const rec = store.getByUid(summaryUid);
   if (!rec || store.statusOf(rec) !== 'pending-release') return;
   if (!requireOperator('phát hành kết quả')) return;
-  const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null }); /* F37: phát hành = tự bỏ hẹn lại */
+  const res = store.update(rec.uid, { releaseAt: new Date().toISOString(), releaser: currentOperator, deferReason: '', deferNote: '', deferAt: null, rejectReason: '', rejectNote: '', rejectAt: null }); /* F37: phát hành = tự bỏ hẹn lại; v117: và bỏ từ chối */
   if (!res.ok) { toast(res.errors.join('. ')); return; }
   audit('release', '', res.record);
   toast('Đã phát hành kết quả ' + rec.testId);
@@ -356,7 +409,7 @@ let lastNagCheckAt = 0;
 function dueTimerRecords() {
   const now = Date.now();
   return store.getAll()
-    .filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() <= now)
+    .filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() <= now)
     .sort((a, b) => (a.timerEndsAt < b.timerEndsAt ? -1 : 1));
 }
 
@@ -483,7 +536,7 @@ function syncNativeAlarms() {
     if (!bridge && !iosHandler) return;
     const now = Date.now();
     const want = store.getAll()
-      .filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
+      .filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result' && r.timerEndsAt && new Date(r.timerEndsAt).getTime() > now)
       .map((r) => {
         const t = getTestType(r.typeId);
         return { id: r.uid, at: new Date(r.timerEndsAt).getTime(), label: r.testId + ' — ' + (t ? t.name : r.typeId) };
@@ -625,6 +678,7 @@ function refreshCurrent() {
   if (!$('view-manage').classList.contains('hidden')) renderManage();
   if (!$('view-export').classList.contains('hidden')) applyExport();
   if (!$('view-deferred').classList.contains('hidden')) renderDeferred(); /* F37: bỏ hẹn ngay tại trang riêng thì danh sách cập nhật tại chỗ */
+  if (!$('view-rejected').classList.contains('hidden')) renderRejected(); /* v117: bỏ từ chối ngay tại trang riêng thì danh sách cập nhật tại chỗ */
 }
 
 /* ================= Tab Kết quả hôm nay ================= */
@@ -647,7 +701,7 @@ function renderToday() {
   updateTodayDate();
   const q = $('input-search').value.trim();
   let recs = store.filter(null, { from: todayKey(), to: todayKey() });
-  recs = recs.filter((r) => !isDeferred(r)); /* F37: mẫu hẹn lại nằm ở trang riêng */
+  recs = recs.filter((r) => !isDeferred(r) && !isRejected(r)); /* F37/v117: mẫu hẹn lại và mẫu từ chối nằm ở trang riêng */
   if (q) recs = store.filter(recs, { query: q });
   /* Thứ tự tiếp nhận (v50): giờ nhập tăng dần — nhập trước ở trên, mới nhất nằm
      cuối cùng; mẫu khẩn giữ nhãn/nền đỏ nhưng không nhảy lên đầu (trước v50 khẩn lên đầu theo F24) */
@@ -675,8 +729,8 @@ function renderStats(all) {
   let received = 0, released = 0, noresult = 0, pending = 0;
   all.forEach((r) => {
     const st = store.statusOf(r);
-    if (!isDeferred(r) && st === 'no-result') noresult += 1; /* F37: hẹn lại không tính vào hàng chờ */
-    if (!isDeferred(r) && st === 'pending-release') pending += 1;
+    if (!isDeferred(r) && !isRejected(r) && st === 'no-result') noresult += 1; /* F37/v117: hẹn lại + từ chối không tính vào hàng chờ */
+    if (!isDeferred(r) && !isRejected(r) && st === 'pending-release') pending += 1;
     if (dayKey(r.createdAt) === today) received += 1;
     if (r.releaseAt && dayKey(r.releaseAt) === today) released += 1;
   });
@@ -700,9 +754,9 @@ function renderManage() {
   renderStats(all);
   /* Cả hai khung Quản lý theo thứ tự tiếp nhận (v50): giờ nhận tăng dần — nhận
      trước lên đầu, nhận sau xuống cuối; mẫu khẩn không còn nhảy lên đầu (F24 cũ) */
-  const pending = all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release')
+  const pending = all.filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'pending-release')
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-  const noresult = all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result')
+  const noresult = all.filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result')
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   fillList($('list-pending'), $('empty-pending'), pending, {});
   fillList($('list-noresult'), $('empty-noresult'), noresult, {});
@@ -714,6 +768,7 @@ function renderManage() {
   $('count-noresult').textContent = noresult.length;
   $('count-pending').textContent = pending.length;
   $('count-deferred').textContent = deferredRecords().length; /* F37 */
+  $('count-rejected').textContent = rejectedRecords().length; /* v117 */
 }
 
 /* ================= Tab Lọc & Xuất PDF ================= */
@@ -722,7 +777,7 @@ function resultSummary(rec) {
   if (!type) return '';
   return type.fields.map((f) => {
     const v = (rec.results && rec.results[f.key]) || '';
-    const shown = f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : (v === '' ? '—' : v);
+    const shown = f.type === 'chips' ? (v === '' ? 'Âm tính' : v) : (f.type === 'tick' ? (v === '' ? 'Chưa có KQ' : 'Đã có KQ') : (v === '' ? '—' : v));
     return esc(f.label) + ': ' + esc(shown);
   }).join('<br>');
 }
@@ -975,6 +1030,7 @@ function importBackupText(text, mode) {
       ? prevTypes.concat(fileTypes.filter((t) => !prevTypes.some((x) => x.id === t.id)))
       : fileTypes;
     setTestTypes(appliedTypes); /* áp tạm để kiểm tra bản ghi theo đúng danh mục liên quan */
+    ensureBuiltinTypes(); /* v117: loại hệ thống phải có mặt để bản ghi KSK trong file đọc được */
   }
   let parsed;
   try {
@@ -1113,7 +1169,7 @@ function validateTypeDefs(list) {
       seenKeys.add(f.key);
       fieldMap[f.key] = f;
       if (typeof f.label !== 'string' || !f.label.trim()) errors.push(fw + ': thiếu nhãn trường');
-      if (f.type !== 'text' && f.type !== 'chips') errors.push(fw + ': dạng trường phải là text hoặc chips');
+      if (f.type !== 'text' && f.type !== 'chips' && f.type !== 'tick') errors.push(fw + ': dạng trường phải là text, chips hoặc tick');
       if (f.type === 'chips' && (!Array.isArray(f.levels) || !f.levels.length || f.levels.some((lv) => typeof lv !== 'string' || !lv))) {
         errors.push(fw + ': trường dạng nút chọn phải có ít nhất 1 mức');
       }
@@ -1156,6 +1212,21 @@ function loadSavedTypes() {
   } catch (e) { /* danh mục lưu hỏng -> dùng mặc định */ }
 }
 
+/* v117: loại HỆ THỐNG (builtin — vd KSK nước tiểu) phải luôn có mặt trong
+   danh mục đang dùng: máy đã lưu danh mục riêng từ bản cũ, file sao lưu cũ
+   hay danh mục đồng bộ từ máy khác đều có thể thiếu nó. Thiếu thì bổ sung
+   và lưu lại tại chỗ (không phát sự kiện đồng bộ — máy khác tự bổ sung). */
+function ensureBuiltinTypes() {
+  const builtins = LAB_CONFIG.testTypes.filter((t) => t.builtin);
+  if (!builtins.length) return;
+  const cur = getTestTypes();
+  const missing = builtins.filter((b) => !cur.some((t) => t.id === b.id));
+  if (!missing.length) return;
+  setTestTypes(cur.concat(missing.map((t) => JSON.parse(JSON.stringify(t)))));
+  typesCustom = true;
+  try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
+}
+
 function persistTypes() {
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
   typesCustom = true;
@@ -1188,9 +1259,11 @@ function renderTypes() {
       (t.quick && t.quick.length ? ' · ⚡ ' + t.quick.length + ' nút nhập nhanh' : '') +
       (t.waitMinutes ? ' · ⏱ bấm giờ ' + t.waitMinutes + ' phút' : '') +
       (used ? ' · đang có ' + used + ' bản ghi' : '') + '</div></div>' +
-      '<div class="type-actions">' +
-      '<button type="button" class="mini-btn" data-tedit="' + esc(t.id) + '">Sửa</button>' +
-      '<button type="button" class="mini-btn danger" data-tdel="' + esc(t.id) + '">Xóa</button></div>';
+      (t.builtin
+        ? '<div class="type-actions"><span class="type-meta">Loại hệ thống — không sửa/xóa</span></div>'
+        : '<div class="type-actions">' +
+          '<button type="button" class="mini-btn" data-tedit="' + esc(t.id) + '">Sửa</button>' +
+          '<button type="button" class="mini-btn danger" data-tdel="' + esc(t.id) + '">Xóa</button></div>');
     ul.appendChild(li);
   });
   $('empty-types').classList.toggle('hidden', getTestTypes().length > 0);
@@ -1199,6 +1272,7 @@ function renderTypes() {
 function deleteType(typeId) {
   const t = getTestType(typeId);
   if (!t) return;
+  if (t.builtin) { alert('Loại "' + t.name + '" là loại hệ thống của app — không xóa được.'); return; }
   const used = store.getAll().filter((r) => r.typeId === typeId).length;
   if (used > 0) {
     alert('Không xóa được: đang có ' + used + ' bản ghi thuộc loại "' + t.name + '". Muốn xóa loại này, trước hết phải xóa/đổi các bản ghi đó.');
@@ -1220,14 +1294,14 @@ function resetTypes() {
     alert('Chưa khôi phục mặc định được: đang có ' + orphans + ' bản ghi thuộc các loại tự thêm. Hãy xóa các bản ghi đó trước.');
     return;
   }
-  if (!confirm('Khôi phục danh mục về 6 loại mặc định ban đầu? Các loại tự thêm (chưa có bản ghi) sẽ bị xóa.')) return;
+  if (!confirm('Khôi phục danh mục về ' + defaults.length + ' loại mặc định ban đầu? Các loại tự thêm (chưa có bản ghi) sẽ bị xóa.')) return;
   try { localStorage.removeItem(TYPES_KEY); } catch (e) { /* bỏ qua */ }
   setTestTypes(null);
   typesCustom = false;
   if (labSync && !applyingRemoteTypes) labSync.notifyTypes();
   refreshTypeSelects();
   renderTypes();
-  toast('Đã khôi phục 6 loại mặc định');
+  toast('Đã khôi phục ' + defaults.length + ' loại mặc định');
 }
 
 /* ---- Form thêm/sửa một loại ---- */
@@ -1247,6 +1321,7 @@ function uniqueKey(base, used) {
 
 function openTypeForm(typeId) {
   const src = typeId ? getTestType(typeId) : null;
+  if (src && src.builtin) { alert('Loại "' + src.name + '" là loại hệ thống của app — không sửa được.'); return; }
   typeFormState = src
     ? { id: src.id, fields: src.fields.map((f) => ({ key: f.key, label: f.label, type: f.type, levels: (f.levels || LEVELS_PRESETS['3']).slice() })),
         quick: (src.quick || []).map((q) => ({ label: q.label, values: Object.assign({}, q.values) })) }
@@ -1574,6 +1649,13 @@ function renderFields() {
       return '<div class="form-row"><label class="form-label">' + label + '</label>' +
         '<input type="text" data-field="' + f.key + '" value="' + esc(formState.results[f.key] || '') + '" autocomplete="off"></div>';
     }
+    if (f.type === 'tick') {
+      /* v117: ống của loại gói (KSK) — một nút bật/tắt "Đã có KQ" */
+      const on = (formState.results[f.key] || '') !== '';
+      return '<div class="form-row"><span class="form-label">' + label + '</span>' +
+        '<button type="button" class="tick-btn' + (on ? ' on' : '') + '" data-tick="' + f.key + '">' +
+        (on ? '✓ Đã có KQ' : 'Đánh dấu đã có KQ') + '</button></div>';
+    }
     const chips = f.levels.map((lv) =>
       '<button type="button" class="chip' + (formState.results[f.key] === lv ? ' selected' : '') + '" data-chip="' + f.key + '" data-value="' + esc(lv) + '">' + esc(lv) + '</button>').join('');
     return '<div class="form-row"><span class="form-label">' + label + '</span><div class="chips">' + chips + '</div></div>';
@@ -1589,6 +1671,16 @@ function renderFields() {
       formState.results[key] = formState.results[key] === btn.dataset.value ? '' : btn.dataset.value;
       wrap.querySelectorAll('[data-chip="' + key + '"]').forEach((b) =>
         b.classList.toggle('selected', formState.results[key] === b.dataset.value));
+      noteResultEdited();
+    });
+  });
+  wrap.querySelectorAll('[data-tick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.tick;
+      formState.results[key] = formState.results[key] ? '' : 'Đã có KQ';
+      const on = formState.results[key] !== '';
+      btn.classList.toggle('on', on);
+      btn.textContent = on ? '✓ Đã có KQ' : 'Đánh dấu đã có KQ';
       noteResultEdited();
     });
   });
@@ -1733,7 +1825,7 @@ let batchState = null;
 
 function batchPending(typeId) {
   return store.getAll()
-    .filter((r) => r.typeId === typeId && !isDeferred(r) && store.statusOf(r) === 'no-result')
+    .filter((r) => r.typeId === typeId && !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result')
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 function batchTypesWithPending() {
@@ -1883,6 +1975,12 @@ function renderBatchGrid(type) {
         return '<td><input type="text" class="btext" data-btext="' + uid + '|' + f.key + '" value="' +
           esc(w[f.key] || '') + '" autocomplete="off"></td>';
       }
+      if (f.type === 'tick') {
+        /* v117: ống KSK trong lưới lô — bấm để bật/tắt "Đã có KQ" */
+        const on = (w[f.key] || '') !== '';
+        return '<td><button type="button" class="btick' + (on ? ' on' : '') + '" data-btick="' +
+          uid + '|' + f.key + '">' + (on ? '✓ Đã có KQ' : 'Chưa có') + '</button></td>';
+      }
       const segs = f.levels.map((lv) =>
         '<button type="button" class="bseg' + (w[f.key] === lv ? ' on' : '') + '" data-bchip="' +
         uid + '|' + f.key + '|' + esc(lv) + '">' + esc(lv) + '</button>').join('');
@@ -1908,6 +2006,13 @@ function renderBatchGrid(type) {
       batchState.work[uid][key] = inp.value;
       updateBatchRowStatus(uid);
       refreshBatchCounts();
+    });
+  });
+  wrap.querySelectorAll('[data-btick]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [uid, key] = btn.dataset.btick.split('|');
+      batchState.work[uid][key] = batchState.work[uid][key] ? '' : 'Đã có KQ';
+      renderBatch();
     });
   });
   wrap.querySelectorAll('[data-bcol]').forEach((btn) => {
@@ -1951,6 +2056,13 @@ function renderBatchCard(type) {
       return '<div class="form-row"><label class="form-label">' + label + '</label>' +
         '<input type="text" data-bfield="' + f.key + '" value="' + esc(w[f.key] || '') + '" autocomplete="off"></div>';
     }
+    if (f.type === 'tick') {
+      /* v117: ống KSK trong thẻ lô — nút bật/tắt "Đã có KQ" như form nhập */
+      const on = (w[f.key] || '') !== '';
+      return '<div class="form-row"><span class="form-label">' + label + '</span>' +
+        '<button type="button" class="tick-btn' + (on ? ' on' : '') + '" data-btickf="' + f.key + '">' +
+        (on ? '✓ Đã có KQ' : 'Đánh dấu đã có KQ') + '</button></div>';
+    }
     const chips = f.levels.map((lv) =>
       '<button type="button" class="chip' + (w[f.key] === lv ? ' selected' : '') + '" data-bchipf="' +
       f.key + '|' + esc(lv) + '">' + esc(lv) + '</button>').join('');
@@ -1970,6 +2082,13 @@ function renderBatchCard(type) {
     btn.addEventListener('click', () => {
       const [key, val] = btn.dataset.bchipf.split('|');
       batchState.work[uid][key] = batchState.work[uid][key] === val ? '' : val;
+      renderBatch();
+    });
+  });
+  card.querySelectorAll('[data-btickf]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.btickf;
+      batchState.work[uid][key] = batchState.work[uid][key] ? '' : 'Đã có KQ';
       renderBatch();
     });
   });
@@ -3560,6 +3679,7 @@ const AUDIT_LABELS = {
   receive: 'Nhận mẫu', save: 'Nhập/sửa kết quả', release: 'Phát hành', unrelease: 'Hủy phát hành',
   delete: 'Xóa mẫu', 'staff-add': 'Thêm KTV', 'staff-del': 'Xóa KTV', 'staff-sig': 'Chữ ký KTV', operator: 'Đổi người trực',
   defer: 'Hẹn lại mẫu', undefer: 'Bỏ hẹn lại',
+  reject: 'Từ chối mẫu', unreject: 'Bỏ từ chối', convert: 'Chuyển loại mẫu',
   restore: 'Phục hồi dữ liệu', merge: 'Gộp dữ liệu',
 };
 let auditLog = [];
@@ -3834,8 +3954,8 @@ function handoverRecords() {
   const byIntake = (a, b) => (a.createdAt < b.createdAt ? -1 : 1);
   return {
     /* F37: mẫu hẹn lại bàn giao ở trang riêng, không lẫn vào bàn giao ca chính */
-    noresult: all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result').sort(byIntake),
-    pending: all.filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release').sort(byIntake),
+    noresult: all.filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result').sort(byIntake),
+    pending: all.filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'pending-release').sort(byIntake),
   };
 }
 
@@ -4053,6 +4173,201 @@ function printDeferredHandover() {
     '<tbody>' + rows + '</tbody></table></div>';
   printAreaKind = 'handover'; /* giữ nguyên cơ chế F30 của tờ bàn giao ca */
   printSheet();
+}
+
+/* ================= Từ chối mẫu: hộp thoại + trang riêng (v117) =================
+ * Khác hẹn lại ở chỗ: từ chối là LOẠI HẲN — mẫu không quay lại hàng chờ,
+ * không được phát hành, chỉ nằm ở trang "Mẫu từ chối" để lưu danh sách và
+ * tra cứu. Muốn xử lý lại phải bấm "Bỏ từ chối" (mẫu quay lại trạng thái
+ * trước đó trong danh sách chờ). */
+let rejectUid = null;
+function openRejectModal(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return;
+  if (!requireOperator('đánh dấu từ chối')) return;
+  rejectUid = uid;
+  $('reject-title').textContent = 'Từ chối mẫu ' + rec.testId;
+  const cur = rec.rejectReason || 'khong-du-mau';
+  document.querySelectorAll('input[name="reject-reason"]').forEach((el) => { el.checked = el.value === cur; });
+  $('reject-note').value = rec.rejectNote || '';
+  $('btn-reject-clear').classList.toggle('hidden', !isRejected(rec));
+  closeSummary();
+  $('reject-modal').classList.remove('hidden');
+}
+function closeRejectModal() { $('reject-modal').classList.add('hidden'); rejectUid = null; }
+function saveReject() {
+  if (!rejectUid) return;
+  const rec = store.getByUid(rejectUid);
+  if (!rec) { closeRejectModal(); return; }
+  const sel = document.querySelector('input[name="reject-reason"]:checked');
+  const reason = sel ? sel.value : 'khong-du-mau';
+  const note = $('reject-note').value.trim();
+  const res = store.update(rejectUid, { rejectReason: reason, rejectNote: note, rejectAt: new Date().toISOString(), timerEndsAt: null });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('reject', REJECT_REASONS[reason] + (note ? ' — ' + note : ''), res.record);
+  syncNativeAlarms();
+  closeRejectModal();
+  toast('Đã từ chối mẫu ' + rec.testId + ' — ' + REJECT_REASONS[reason]);
+  refreshCurrent();
+  updateMascot();
+}
+function clearReject(uid) {
+  const rec = store.getByUid(uid);
+  if (!rec) return;
+  if (!requireOperator('bỏ từ chối')) return;
+  const res = store.update(uid, { rejectReason: '', rejectNote: '', rejectAt: null });
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  audit('unreject', '', res.record);
+  closeRejectModal();
+  toast('Đã bỏ từ chối mẫu ' + rec.testId + ' — mẫu quay lại danh sách chờ');
+  refreshCurrent();
+  updateMascot();
+}
+
+let rejectedFilter = 'all'; /* 'today' | 'past' | 'all' */
+const rejectedSel = new Set();
+function rejectedFiltered() {
+  const all = rejectedRecords();
+  const tk = todayKey();
+  if (rejectedFilter === 'today') return all.filter((r) => LabStore.localDayKey(new Date(r.createdAt)) === tk);
+  if (rejectedFilter === 'past') return all.filter((r) => LabStore.localDayKey(new Date(r.createdAt)) < tk);
+  return all;
+}
+function rejectedHandoverSet() {
+  const list = rejectedFiltered();
+  const picked = list.filter((r) => rejectedSel.has(r.uid));
+  return picked.length ? picked : list;
+}
+function rejectedLine(r) {
+  const type = getTestType(r.typeId);
+  return r.testId + ' — ' + (type ? type.name : r.typeId) +
+    ' — Lý do: ' + rejectReasonLabel(r) + (r.rejectNote ? ' (' + r.rejectNote + ')' : '') +
+    ' — Nhận: ' + fmtList(r.createdAt) +
+    ' — Trạng thái gốc: ' + STATUS_LABEL[store.statusOf(r)];
+}
+function buildRejectedText(recs) {
+  const lines = [
+    'DANH SÁCH MẪU TỪ CHỐI — LabEntry',
+    'Lập lúc: ' + fmtFull(new Date().toISOString()),
+    'KTV trực: ' + (currentOperator || '(chưa chọn)'),
+    'Số mẫu từ chối: ' + recs.length,
+    '',
+  ];
+  recs.forEach((r, i) => lines.push((i + 1) + '. ' + rejectedLine(r)));
+  if (!recs.length) lines.push('(không có mẫu nào)');
+  return lines.join('\n');
+}
+function renderRejected() {
+  const all = rejectedRecords();
+  const alive = new Set(all.map((r) => r.uid));
+  Array.from(rejectedSel).forEach((u) => { if (!alive.has(u)) rejectedSel.delete(u); });
+  const list = rejectedFiltered();
+  $('rejected-counts').textContent = 'Đang từ chối: ' + all.length + ' mẫu · Đang hiển thị: ' + list.length + ' mẫu';
+  document.querySelectorAll('[data-reject-filter]').forEach((b) => b.classList.toggle('active', b.dataset.rejectFilter === rejectedFilter));
+  $('rejected-list').innerHTML = list.map((r) => {
+    const type = getTestType(r.typeId);
+    const status = store.statusOf(r);
+    return '<li class="record-item rejected">' +
+      '<input type="checkbox" data-rjsel="' + r.uid + '"' + (rejectedSel.has(r.uid) ? ' checked' : '') + '>' +
+      '<div class="record-main"><div class="record-id">' + esc(r.testId) + rejectTagHTML(r) + '</div>' +
+      '<div class="record-type">' + esc(type ? type.name : r.typeId) + (r.rejectNote ? ' · ' + esc(r.rejectNote) : '') + '</div></div>' +
+      '<div class="record-side"><span class="record-time">Nhận ' + esc(fmtList(r.createdAt)) + '</span>' +
+      '<span class="status-tag ' + status + '">' + STATUS_LABEL[status] + '</span>' +
+      '<div class="record-actions">' +
+      '<button class="view-btn" data-raction="view" data-uid="' + r.uid + '">Xem</button>' +
+      '<button class="view-btn" data-raction="unreject" data-uid="' + r.uid + '">Bỏ từ chối</button>' +
+      '</div></div></li>';
+  }).join('');
+  $('rejected-empty').classList.toggle('hidden', list.length > 0);
+  $('rejected-text').value = buildRejectedText(rejectedHandoverSet());
+}
+async function copyRejected() {
+  const text = $('rejected-text').value;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Đã sao chép danh sách mẫu từ chối');
+    return;
+  } catch (e) { /* clipboard không sẵn: dùng đường dự phòng */ }
+  $('rejected-text').select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* bỏ qua */ }
+  toast(ok ? 'Đã sao chép danh sách mẫu từ chối' : 'Hãy bôi đen nội dung và sao chép thủ công');
+}
+function printRejectedList() {
+  const recs = rejectedHandoverSet();
+  if (!recs.length) { toast('Chưa có mẫu từ chối nào để in'); return; }
+  const rows = recs.map((r, i) =>
+    '<tr><td>' + (i + 1) + '</td><td>' + esc(r.testId) + '</td><td>' +
+    esc((getTestType(r.typeId) || {}).name || r.typeId) + '</td><td>' +
+    esc(rejectReasonLabel(r) + (r.rejectNote ? ' — ' + r.rejectNote : '')) + '</td><td>' +
+    STATUS_LABEL[store.statusOf(r)] + '</td><td>' + esc(fmtList(r.createdAt)) + '</td></tr>').join('');
+  const pa = $('print-area');
+  pa.innerHTML = '<div class="ho-sheet"><h1>DANH SÁCH MẪU TỪ CHỐI</h1>' +
+    '<p>Lập lúc: ' + esc(fmtFull(new Date().toISOString())) + ' · KTV trực: ' + esc(currentOperator || '(chưa chọn)') +
+    ' · Số mẫu: ' + recs.length + '</p>' +
+    '<table><thead><tr><th>STT</th><th>ID Xét Nghiệm</th><th>Loại xét nghiệm</th><th>Lý do từ chối</th><th>Trạng thái gốc</th><th>Nhận lúc</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+  printAreaKind = 'handover'; /* giữ nguyên cơ chế F30 của tờ bàn giao ca */
+  printSheet();
+}
+
+/* ================= Chuyển đổi SP → KSK nước tiểu (v117) =================
+ * Một lần dùng cho đợt nhận mẫu KSK nhưng chọn nhỡ loại SP (23/11/2026):
+ * các mẫu SP nhận trong MỘT NGÀY từ MỘT GIỜ trở đi được chuyển thành
+ * KSK nước tiểu — giữ nguyên ID, giờ nhận, người nhận; xóa kết quả đỡ,
+ * gỡ phát hành, 3 ống về trống. Mẫu SP ngoài mốc này không bị đụng tới. */
+function spToKskMatches(dateKey, timeStr) {
+  const from = (timeStr || '00:00');
+  return store.getAll().filter((r) => {
+    if (r.typeId !== 'sp') return false;
+    const d = new Date(r.createdAt);
+    if (LabStore.localDayKey(d) !== dateKey) return false;
+    const hhmm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return hhmm >= from;
+  }).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+}
+function openConvertModal() {
+  if (!requireOperator('chuyển đổi SP sang KSK')) return;
+  $('convert-date').value = '2026-11-23';
+  $('convert-time').value = '16:31';
+  updateConvertCount();
+  $('convert-modal').classList.remove('hidden');
+}
+function closeConvertModal() { $('convert-modal').classList.add('hidden'); }
+function updateConvertCount() {
+  const n = spToKskMatches($('convert-date').value, $('convert-time').value).length;
+  $('convert-count').textContent = n
+    ? 'Tìm thấy ' + n + ' mẫu SP khớp mốc này — sẽ chuyển thành KSK nước tiểu.'
+    : 'Không có mẫu SP nào khớp mốc này.';
+  $('btn-convert-run').disabled = n === 0;
+}
+function runConvertSpToKsk() {
+  const dateKey = $('convert-date').value;
+  const timeStr = $('convert-time').value || '00:00';
+  const list = spToKskMatches(dateKey, timeStr);
+  if (!list.length) { toast('Không có mẫu SP nào khớp mốc này'); return; }
+  if (!confirm('Chuyển ' + list.length + ' mẫu SP (ngày ' + dateKey + ', từ ' + timeStr + ') thành KSK nước tiểu?\n\n' +
+    'Mỗi mẫu: giữ nguyên ID + giờ nhận + người nhận; XÓA kết quả đang có, GỠ phát hành, 3 ống NT / SH-MD / CTM về chưa có kết quả.\n' +
+    'Các mẫu SP ngoài mốc này không thay đổi.')) return;
+  let okCount = 0;
+  const failed = [];
+  list.forEach((r) => {
+    const res = store.update(r.uid, {
+      typeId: 'ksk-nuoc-tieu', results: {}, releaseAt: null, releaser: '', performer: '',
+      timerEndsAt: null, deferReason: '', deferNote: '', deferAt: null,
+      rejectReason: '', rejectNote: '', rejectAt: null,
+    });
+    if (res.ok) { okCount += 1; audit('convert', 'SP → KSK nước tiểu (mốc ' + dateKey + ' ' + timeStr + ')', res.record); }
+    else failed.push(r.testId + ': ' + res.errors.join(', '));
+  });
+  closeConvertModal();
+  refreshCurrent();
+  updateMascot();
+  if (failed.length) {
+    alert('Đã chuyển ' + okCount + '/' + list.length + ' mẫu.\n\nKhông chuyển được ' + failed.length + ' mẫu:\n' + failed.slice(0, 10).join('\n'));
+  } else {
+    toast('Đã chuyển ' + okCount + ' mẫu SP → KSK nước tiểu');
+  }
 }
 
 function defaultPrintSettings() {
@@ -4513,7 +4828,8 @@ function renderLedgerSheet(s, recs, opts) {
       switch (c.id) {
         case 'sid': return '<td' + sp + cellCls(c) + '>' + esc(rec.testId) + '</td>';
         case 'type': return '<td' + sp + cellCls(c) + '>' + esc(type ? type.name : rec.typeId) +
-          (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') + '</td>';
+          (isDeferred(rec) ? '<br><i>(Hẹn lại: ' + esc(deferReasonLabel(rec)) + ')</i>' : '') +
+          (isRejected(rec) ? '<br><i>(Từ chối: ' + esc(rejectReasonLabel(rec)) + ')</i>' : '') + '</td>';
         case 'results': return '<td' + cellCls(c) + '>' +
           (fields.length ? '<b>' + esc(fields[rowIdx].label) + '</b> ' + esc(fieldDisplayValue(rec, fields[rowIdx])) : '') + '</td>';
         case 'field': return '<td' + cellCls(c) + '>' + fieldCellValue(rec, c.fieldLabel) + '</td>';
@@ -5042,7 +5358,7 @@ function mascotRemainText(ms) {
    quá giờ > sắp tới giờ (≤5') > quá tải (≥3 mẫu chờ >15') > đang chờ > ca êm */
 function computeMascotState(now) {
   /* F37: mẫu hẹn lại KHÔNG nằm trong bất kỳ nhóm nhắc việc nào */
-  const recs = store.getAll().filter((r) => !isDeferred(r) && store.statusOf(r) === 'no-result');
+  const recs = store.getAll().filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'no-result');
   const timed = recs.filter((r) => r.timerEndsAt)
     .map((r) => ({ r, at: new Date(r.timerEndsAt).getTime() }))
     .sort((a, b) => a.at - b.at);
@@ -5058,7 +5374,7 @@ function computeMascotState(now) {
   /* F36 (v72, theo yêu cầu của Minh): mẫu ĐÃ có kết quả nhưng quá 60 phút
      kể từ lúc nhận mẫu vẫn chưa phát hành -> linh vật nhắc riêng, thắng
      trạng thái quá tải (việc tồn ở khâu phát hành gấp hơn tồn ở khâu nhập). */
-  const unrel = store.getAll().filter((r) => !isDeferred(r) && store.statusOf(r) === 'pending-release' && now - new Date(r.createdAt).getTime() > 60 * 60000)
+  const unrel = store.getAll().filter((r) => !isDeferred(r) && !isRejected(r) && store.statusOf(r) === 'pending-release' && now - new Date(r.createdAt).getTime() > 60 * 60000)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   if (unrel.length) {
     const ids = unrel.map((r) => r.testId);
@@ -5618,6 +5934,7 @@ function initTheme() {
 const SYNC_PATH_LABEL = {
   note: 'Ghi chú', releaseAt: 'Phát hành', releaser: 'KTV phát hành', receiver: 'KTV nhận', testId: 'ID xét nghiệm',
   typeId: 'Loại xét nghiệm', deferReason: 'Lý do hẹn lại', deferNote: 'Ghi chú hẹn lại', deferAt: 'Giờ hẹn lại',
+  rejectReason: 'Lý do từ chối', rejectNote: 'Ghi chú từ chối', rejectAt: 'Giờ từ chối',
   performer: 'KTV thực hiện', resultAt: 'Giờ lưu kết quả', urgent: 'Mẫu khẩn', timerEndsAt: 'Hẹn giờ',
 };
 let syncRefreshTimer = null;
@@ -5810,7 +6127,7 @@ function initSync() {
       applyRemoteTypes: (list) => {
         if (validateTypeDefs(list).length) return;
         applyingRemoteTypes = true;
-        try { setTestTypes(list); persistTypes(); } finally { applyingRemoteTypes = false; }
+        try { setTestTypes(list); ensureBuiltinTypes(); persistTypes(); } finally { applyingRemoteTypes = false; }
         refreshTypeSelects();
         if (!$('view-types').classList.contains('hidden')) renderTypes();
       },
@@ -5868,6 +6185,7 @@ async function trySameOriginConnect() {
 
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
+  ensureBuiltinTypes(); /* v117: bổ sung loại hệ thống (KSK) nếu danh mục đã lưu chưa có */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadAuditLog(); /* nhật ký kiểm toán (F22) */
   loadMeta(); /* cấu hình ca trực: lần sao lưu gần nhất, tự khóa, đọc to (F24) */
@@ -5986,6 +6304,36 @@ function init() {
   $('btn-defer-save').addEventListener('click', saveDefer);
   $('btn-defer-close').addEventListener('click', closeDeferModal);
   $('btn-defer-clear').addEventListener('click', () => { if (deferUid) clearDefer(deferUid); });
+  /* v117: trang Mẫu từ chối + hộp thoại từ chối + công cụ chuyển SP → KSK */
+  $('btn-rejected').addEventListener('click', () => switchView('rejected'));
+  $('btn-rejected-back').addEventListener('click', () => switchView('manage'));
+  document.querySelectorAll('[data-reject-filter]').forEach((b) => b.addEventListener('click', () => {
+    rejectedFilter = b.dataset.rejectFilter;
+    renderRejected();
+  }));
+  $('rejected-list').addEventListener('change', (e) => {
+    const cb = e.target.closest('[data-rjsel]');
+    if (!cb) return;
+    if (cb.checked) rejectedSel.add(cb.dataset.rjsel); else rejectedSel.delete(cb.dataset.rjsel);
+    $('rejected-text').value = buildRejectedText(rejectedHandoverSet());
+  });
+  $('rejected-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-raction]');
+    if (!btn) return;
+    const uid = btn.dataset.uid;
+    if (btn.dataset.raction === 'view') openSummary(uid);
+    if (btn.dataset.raction === 'unreject') clearReject(uid);
+  });
+  $('btn-rj-copy').addEventListener('click', copyRejected);
+  $('btn-rj-print').addEventListener('click', printRejectedList);
+  $('btn-reject-save').addEventListener('click', saveReject);
+  $('btn-reject-close').addEventListener('click', closeRejectModal);
+  $('btn-reject-clear').addEventListener('click', () => { if (rejectUid) clearReject(rejectUid); });
+  $('btn-convert').addEventListener('click', () => { $('more-modal').classList.add('hidden'); openConvertModal(); });
+  $('convert-date').addEventListener('change', updateConvertCount);
+  $('convert-time').addEventListener('change', updateConvertCount);
+  $('btn-convert-run').addEventListener('click', runConvertSpToKsk);
+  $('btn-convert-close').addEventListener('click', closeConvertModal);
   $('btn-batch-back').addEventListener('click', () => {
     if (batchState) saveBatch();
     batchState = null;
@@ -6104,6 +6452,7 @@ function init() {
   });
   $('btn-summary-release').addEventListener('click', releaseFromSummary);
   $('btn-summary-defer').addEventListener('click', () => { if (summaryUid) openDeferModal(summaryUid); });
+  $('btn-summary-reject').addEventListener('click', () => { if (summaryUid) openRejectModal(summaryUid); });
   $('summary-modal').addEventListener('click', (e) => { if (e.target === $('summary-modal')) closeSummary(); });
 
   $('btn-apply-filter').addEventListener('click', applyExport);

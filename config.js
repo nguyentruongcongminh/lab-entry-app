@@ -9,6 +9,12 @@
  *   type   : 'text'  -> ô nhập tự do
  *            'chips' -> các nút chọn mức, ví dụ ['(+)', '(++)', '(+++)']
  *            (bấm lại nút đang chọn để bỏ chọn = không ghi nhận)
+ *            'tick'  -> nút bật/tắt "Đã có KQ" (v117, cho loại gói nhiều ống):
+ *            giá trị lưu là 'Đã có KQ' khi đã đánh dấu, '' khi chưa.
+ *
+ * Loại có composite: true (v117) là loại GÓI gồm nhiều phần (vd KSK = 3 ống):
+ * bản ghi chỉ được coi là "có kết quả" khi MỌI trường đều đã nhập/đánh dấu —
+ * thiếu một phần là vẫn "chưa kết quả" và không phát hành được.
  */
 const LAB_CONFIG = {
   /* Mẫu chờ (chưa có kết quả hoặc chờ phát hành) quá số phút này sẽ bị tô đỏ cảnh báo */
@@ -83,6 +89,21 @@ const LAB_CONFIG = {
       ],
       quick: [
         { label: 'Âm tính', values: { hongCau: '', bachCau: '', kySinhTrung: 'Âm tính', khac: '' } },
+      ],
+    },
+    {
+      /* v117 (Minh, 2026-11-24): gói khám sức khỏe nước tiểu — 1 ID gồm 3 ống
+       * (NT, máu ống SH-MD, ống CTM). Nhận mẫu chỉ để lên danh sách; kết quả
+       * máy đổ ra theo từng ống thì đánh dấu "Đã có KQ" cho ống đó; đủ 3/3
+       * mới phát hành. builtin: loại hệ thống, không sửa/xóa trong app. */
+      id: 'ksk-nuoc-tieu',
+      name: 'KSK nước tiểu',
+      composite: true,
+      builtin: true,
+      fields: [
+        { key: 'nt', label: 'NT', type: 'tick' },
+        { key: 'shmd', label: 'Máu ống SH-MD', type: 'tick' },
+        { key: 'ctm', label: 'Ống CTM', type: 'tick' },
       ],
     },
   ],

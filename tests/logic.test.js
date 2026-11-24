@@ -13,12 +13,12 @@ function test(name, fn) {
 
 const D = (s) => new Date(s);
 
-/* ---------- Cấu hình 6 loại xét nghiệm ---------- */
-test('config có đúng 6 loại xét nghiệm, id không trùng', () => {
-  assert.strictEqual(LAB_CONFIG.testTypes.length, 6);
+/* ---------- Cấu hình 7 loại xét nghiệm (v117: thêm KSK nước tiểu) ---------- */
+test('config có đúng 7 loại xét nghiệm, id không trùng', () => {
+  assert.strictEqual(LAB_CONFIG.testTypes.length, 7);
   const ids = LAB_CONFIG.testTypes.map((t) => t.id);
-  assert.strictEqual(new Set(ids).size, 6);
-  ['Cạo tìm nấm', 'Soi nhuộm mực tàu DNT', 'Soi tinh thể dịch', 'Soi tươi huyết trắng', 'Máu ẩn', 'SP']
+  assert.strictEqual(new Set(ids).size, 7);
+  ['Cạo tìm nấm', 'Soi nhuộm mực tàu DNT', 'Soi tinh thể dịch', 'Soi tươi huyết trắng', 'Máu ẩn', 'SP', 'KSK nước tiểu']
     .forEach((n) => assert.ok(LAB_CONFIG.testTypes.some((t) => t.name === n), n));
 });
 
@@ -423,6 +423,101 @@ test('v87: remove báo delete kèm bản ghi trước khi xóa; mergeBackup báo
   s.applyRemote([Object.assign({}, s.getByUid('f1'), { rv: 3, seq: 9 })]);
   s.clearSyncMeta();
   assert.ok(s.getAll().every((x) => x.rv === undefined && x.seq === undefined));
+});
+
+/* ---------- v117: loại gói KSK + mẫu từ chối + chuyển đổi SP → KSK ---------- */
+test('v117: KSK nước tiểu là loại gói hệ thống — 3 trường tick NT/SH-MD/CTM', () => {
+  const t = getTestType('ksk-nuoc-tieu');
+  assert.ok(t, 'có loại ksk-nuoc-tieu');
+  assert.strictEqual(t.name, 'KSK nước tiểu');
+  assert.strictEqual(t.composite, true);
+  assert.strictEqual(t.builtin, true);
+  assert.deepStrictEqual(t.fields.map((f) => f.key), ['nt', 'shmd', 'ctm']);
+  assert.ok(t.fields.every((f) => f.type === 'tick'));
+});
+
+test('v117: loại gói — thiếu 1 ống là CHƯA có kết quả, đủ 3/3 mới chờ phát hành; resultAt chỉ đóng khi đủ', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'KSK1', typeId: 'ksk-nuoc-tieu', results: {} }, D('2026-11-24T02:00:00.000Z'));
+  assert.strictEqual(s.hasResult(r.record), false);
+  assert.strictEqual(s.statusOf(r.record), 'no-result');
+  assert.strictEqual(r.record.resultAt, null);
+  const u1 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ' } }, D('2026-11-24T03:00:00.000Z'));
+  assert.strictEqual(s.hasResult(u1.record), false, '2/3 ống vẫn chưa có kết quả');
+  assert.strictEqual(s.statusOf(u1.record), 'no-result');
+  assert.strictEqual(u1.record.resultAt, null, 'chưa đủ ống thì chưa đóng dấu giờ kết quả');
+  const u2 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ', ctm: 'Đã có KQ' } }, D('2026-11-24T04:00:00.000Z'));
+  assert.strictEqual(s.hasResult(u2.record), true, 'đủ 3/3 ống là có kết quả');
+  assert.strictEqual(s.statusOf(u2.record), 'pending-release');
+  assert.strictEqual(u2.record.resultAt, '2026-11-24T04:00:00.000Z');
+  const u3 = s.update(r.record.uid, { releaseAt: '2026-11-24T05:00:00.000Z' });
+  assert.strictEqual(s.statusOf(u3.record), 'released');
+  const u4 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ', ctm: '' } }, D('2026-11-24T06:00:00.000Z'));
+  assert.strictEqual(s.statusOf(u4.record), 'no-result', 'bỏ tick 1 ống -> quay về chưa kết quả');
+  assert.strictEqual(u4.record.resultAt, null);
+});
+
+test('v117: loại thường không đổi ngữ nghĩa — 1 trường có giá trị là có kết quả', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: 'SP1', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } });
+  assert.strictEqual(s.hasResult(r.record), true);
+  assert.strictEqual(s.statusOf(r.record), 'pending-release');
+});
+
+test('v117: mẫu từ chối — add mặc định không từ chối; update đặt/giữ dấu; lọc only/none', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const a = s.add({ testId: 'RJ1', typeId: 'sp', results: {} });
+  const b = s.add({ testId: 'RJ2', typeId: 'sp', results: {} });
+  assert.strictEqual(a.record.rejectReason, '');
+  assert.strictEqual(a.record.rejectNote, '');
+  assert.strictEqual(a.record.rejectAt, null);
+  const u = s.update(a.record.uid, { rejectReason: 'khong-dat', rejectNote: 'ống vỡ', rejectAt: '2026-11-24T02:00:00.000Z' });
+  assert.strictEqual(u.record.rejectReason, 'khong-dat');
+  assert.strictEqual(u.record.rejectNote, 'ống vỡ');
+  const u2 = s.update(a.record.uid, { note: 'sửa ghi chú' });
+  assert.strictEqual(u2.record.rejectReason, 'khong-dat', 'update không truyền -> giữ nguyên dấu từ chối');
+  const ids = (c) => s.filter(null, c).map((r) => r.testId).join(',');
+  assert.strictEqual(ids({ reject: 'only' }), 'RJ1');
+  assert.strictEqual(ids({ reject: 'none' }), 'RJ2');
+  assert.strictEqual(ids({}), 'RJ1,RJ2');
+  const u3 = s.update(a.record.uid, { rejectReason: '', rejectNote: '', rejectAt: null });
+  assert.strictEqual(u3.record.rejectReason, '', 'bỏ từ chối được');
+  assert.strictEqual(ids({ reject: 'only' }), '');
+});
+
+test('v117: dấu từ chối đi theo sao lưu; lý do lạ -> rỗng; file cũ không có trường -> mặc định không từ chối', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const file = JSON.stringify({ records: [
+    { uid: 'x1', testId: 'BK1', typeId: 'sp', results: {}, rejectReason: 'khong-du-mau', rejectNote: 'hụt', rejectAt: '2026-11-24T02:00:00.000Z', createdAt: '2026-11-24T01:00:00.000Z' },
+    { uid: 'x2', testId: 'BK2', typeId: 'sp', results: {}, rejectReason: 'ly-do-la', createdAt: '2026-11-24T01:00:00.000Z' },
+    { uid: 'x3', testId: 'BK3', typeId: 'sp', results: {}, createdAt: '2026-11-24T01:00:00.000Z' },
+  ] });
+  const parsed = s.parseBackup(file);
+  assert.strictEqual(parsed.records[0].rejectReason, 'khong-du-mau');
+  assert.strictEqual(parsed.records[0].rejectNote, 'hụt');
+  assert.strictEqual(parsed.records[0].rejectAt, '2026-11-24T02:00:00.000Z');
+  assert.strictEqual(parsed.records[1].rejectReason, '', 'lý do lạ bị loại');
+  assert.strictEqual(parsed.records[2].rejectReason, '');
+  assert.strictEqual(parsed.records[2].rejectAt, null);
+});
+
+test('v117: chuyển đổi SP -> KSK ở tầng store — đổi loại + xóa kết quả đỡ + gỡ phát hành, giữ ID/giờ nhận/người nhận', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const r = s.add({ testId: '2611234968', typeId: 'sp', results: { kySinhTrung: 'Âm tính' }, receiver: 'NTCM', performer: 'NTCM' }, D('2026-11-23T09:51:54.000Z'));
+  s.update(r.record.uid, { releaseAt: '2026-11-23T11:29:00.000Z', releaser: 'NTCM' });
+  assert.strictEqual(s.statusOf(s.getByUid(r.record.uid)), 'released');
+  const cv = s.update(r.record.uid, {
+    typeId: 'ksk-nuoc-tieu', results: {}, releaseAt: null, releaser: '', performer: '',
+    timerEndsAt: null, deferReason: '', deferNote: '', deferAt: null, rejectReason: '', rejectNote: '', rejectAt: null,
+  });
+  assert.strictEqual(cv.ok, true);
+  assert.strictEqual(cv.record.typeId, 'ksk-nuoc-tieu');
+  assert.deepStrictEqual(cv.record.results, {});
+  assert.strictEqual(cv.record.releaseAt, null);
+  assert.strictEqual(cv.record.resultAt, null);
+  assert.strictEqual(cv.record.receiver, 'NTCM', 'giữ người nhận');
+  assert.strictEqual(cv.record.createdAt, '2026-11-23T09:51:54.000Z', 'giữ giờ nhận');
+  assert.strictEqual(s.statusOf(cv.record), 'no-result', 'về trạng thái chưa kết quả để làm quy trình KSK');
 });
 
 console.log('\nTỔNG: ' + passed + ' test logic đạt, 0 lỗi.');

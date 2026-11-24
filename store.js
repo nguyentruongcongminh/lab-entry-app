@@ -119,6 +119,9 @@ const LabStore = (() => {
         deferReason: typeof input.deferReason === 'string' ? input.deferReason : '', /* F37: '' = không hẹn lại; 'hut-mau' | 'khong-dat' | 'khac' */
         deferNote: typeof input.deferNote === 'string' ? input.deferNote : '',
         deferAt: input.deferAt || null,
+        rejectReason: typeof input.rejectReason === 'string' ? input.rejectReason : '', /* v117: '' = không từ chối; 'khong-du-mau' | 'khong-dat' | 'khac' — danh sách riêng, loại hẳn */
+        rejectNote: typeof input.rejectNote === 'string' ? input.rejectNote : '',
+        rejectAt: input.rejectAt || null,
         /* F38: ngày giờ lưu kết quả (= giờ thực hiện XN trên sổ theo dõi);
            tạo mới đã có kết quả thì đóng dấu ngay */
         resultAt: input.resultAt || (hasResult({ typeId: input.typeId, results: input.results || {} }) ? t.toISOString() : null),
@@ -152,6 +155,10 @@ const LabStore = (() => {
         deferReason: input.deferReason !== undefined ? input.deferReason : (records[idx].deferReason || ''),
         deferNote: input.deferNote !== undefined ? input.deferNote : (records[idx].deferNote || ''),
         deferAt: input.deferAt !== undefined ? input.deferAt : (records[idx].deferAt || null),
+        /* v117: dấu từ chối — cùng luật với hẹn lại: không truyền thì giữ nguyên */
+        rejectReason: input.rejectReason !== undefined ? input.rejectReason : (records[idx].rejectReason || ''),
+        rejectNote: input.rejectNote !== undefined ? input.rejectNote : (records[idx].rejectNote || ''),
+        rejectAt: input.rejectAt !== undefined ? input.rejectAt : (records[idx].rejectAt || null),
         /* F38: mỗi lần lưu CÓ kết quả -> cập nhật giờ lưu kết quả; lưu mà
            xóa hết kết quả -> xóa dấu giờ; không đụng kết quả -> giữ nguyên */
         resultAt: input.resultAt !== undefined ? input.resultAt
@@ -262,6 +269,10 @@ const LabStore = (() => {
           deferReason: ['hut-mau', 'khong-dat', 'khac'].indexOf(raw.deferReason) >= 0 ? raw.deferReason : '',
           deferNote: typeof raw.deferNote === 'string' ? raw.deferNote : '',
           deferAt: okDate(raw.deferAt),
+          /* v117: dấu từ chối đi theo file sao lưu; lý do lạ -> coi như không từ chối */
+          rejectReason: ['khong-du-mau', 'khong-dat', 'khac'].indexOf(raw.rejectReason) >= 0 ? raw.rejectReason : '',
+          rejectNote: typeof raw.rejectNote === 'string' ? raw.rejectNote : '',
+          rejectAt: okDate(raw.rejectAt),
           resultAt: okDate(raw.resultAt),
           releaseAt: okDate(raw.releaseAt),
           timerEndsAt: okDate(raw.timerEndsAt),
@@ -307,14 +318,18 @@ const LabStore = (() => {
       return records.find((r) => r.uid === uid) || null;
     }
 
-    /* Có ít nhất một trường kết quả được nhập/chọn? (ghi chú không tính) */
+    /* Có kết quả chưa? Loại thường: ít nhất một trường được nhập/chọn
+       (ghi chú không tính). Loại GÓI (composite, v117 — vd KSK 3 ống):
+       phải ĐỦ mọi trường/ống mới tính là có kết quả, thiếu một ống là
+       vẫn chưa có kết quả và không phát hành được. */
     function hasResult(rec) {
       const type = getTestTypeFn(rec.typeId);
       if (!type) return false;
-      return type.fields.some((f) => {
+      const filled = (f) => {
         const v = rec.results ? rec.results[f.key] : undefined;
         return typeof v === 'string' && v.trim() !== '';
-      });
+      };
+      return type.composite ? type.fields.every(filled) : type.fields.some(filled);
     }
 
     /* Trạng thái suy ra theo đặc tả F5 */
@@ -352,6 +367,8 @@ const LabStore = (() => {
         if (!hourInRange(rec.releaseAt, c.relFrom, c.relTo)) return false;
         if (c.defer === 'only' && !rec.deferReason) return false;
         if (c.defer === 'none' && rec.deferReason) return false;
+        if (c.reject === 'only' && !rec.rejectReason) return false;
+        if (c.reject === 'none' && rec.rejectReason) return false;
         return true;
       });
     }

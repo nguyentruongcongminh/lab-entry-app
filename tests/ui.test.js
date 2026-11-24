@@ -146,7 +146,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-today')));
     assert.ok(visible($('empty-today')));
     assert.strictEqual($('list-today').children.length, 0);
-    assert.strictEqual(window.eval('LAB_CONFIG.testTypes.length'), 6);
+    assert.strictEqual(window.eval('LAB_CONFIG.testTypes.length'), 7);
   });
 
   test('mở form thêm mới: form hiện, thanh điều hướng ẩn, loại mặc định có 1 trường text', () => {
@@ -431,7 +431,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const scan = (code) => window.acceptScanCode(code); // đúng hàm vòng lặp camera gọi khi phát hiện mã
     scan('2611043001');
     assert.ok($('scanner-count').textContent.includes('1'));
-    assert.strictEqual($('scanner-list').children.length, 1);
+    assert.strictEqual($('session-list').children.length, 1);
+    assert.strictEqual($('scanner-list'), null, 'v116: panel quét không còn khối danh sách ở cuối panel');
     assert.ok(!$('scanner-type-select').disabled, 'sau mã đầu tiên: loại vẫn KHÔNG bị khóa, đổi được giữa phiên');
     scan('2611043001'); // trùng ID + loại
     assert.ok($('scanner-msg').textContent.includes('Đã tồn tại'));
@@ -440,10 +441,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setSelect($('scanner-type-select'), 'mau-an');
     scan('2611043004');
     assert.ok($('scanner-count').textContent.includes('2'));
-    assert.ok($('scanner-list').children[0].textContent.includes('Máu ẩn'), 'dòng mẫu trong phiên hiện đúng loại vừa đổi');
+    /* v116: danh sách phiên ở màn hình riêng, thứ tự NHẬN TRƯỚC Ở TRÊN —
+       mẫu SP nhận đầu ở dòng 1, mẫu Máu ẩn vừa đổi loại ở dòng 2 */
+    assert.ok($('session-list').children[0].textContent.includes('2611043001'), 'dòng đầu là mẫu nhận trước');
+    assert.ok($('session-list').children[1].textContent.includes('Máu ẩn'), 'dòng mẫu trong phiên hiện đúng loại vừa đổi');
     setSelect($('scanner-type-select'), 'sp');
     scan('2611043002');
     assert.ok($('scanner-count').textContent.includes('3'));
+    assert.ok($('session-list').children[2].textContent.includes('2611043002'), 'mẫu nhận sau nối tiếp ở dưới cùng');
     $('btn-scanner-close').click(); // người dùng chủ động dừng
     assert.ok(!visible($('scanner-modal')));
     assert.strictEqual($('list-today').children.length, before + 3);
@@ -483,13 +488,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setSelect($('scanner-type-select'), 'sp');
     assert.strictEqual(window.acceptScanCode('12345', { recognized: true }), false, 'mã lạ bị cổng chặn');
     assert.ok($('scanner-msg').textContent.includes('Bỏ qua mã'));
-    assert.strictEqual($('scanner-list').children.length, 0, 'mã lạ không được nhập');
+    assert.strictEqual($('session-list').children.length, 0, 'mã lạ không được nhập');
     assert.strictEqual(window.acceptScanCode('b24-0008458', { recognized: true }), true, 'mã hồ sơ chữ thường (OCR) vẫn nhận sau chuẩn hoá');
-    assert.strictEqual($('scanner-list').children.length, 1);
-    assert.ok($('scanner-list').textContent.includes('B24-0008458'));
+    assert.strictEqual($('session-list').children.length, 1);
+    assert.ok($('session-list').textContent.includes('B24-0008458'));
     /* Không có cờ recognized (nhập tay / máy quét phím): giữ nguyên hành vi cũ, không qua cổng */
     assert.strictEqual(window.acceptScanCode('NHAP-TAY-001'), true);
-    assert.strictEqual($('scanner-list').children.length, 2);
+    assert.strictEqual($('session-list').children.length, 2);
     $('btn-scanner-close').click();
   });
 
@@ -534,7 +539,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     'WEDGE001'.split('').forEach((ch) => { window.wedgeKey(ch, t); t += 10; });
     assert.strictEqual(window.wedgeKey('Enter', t + 10), true, 'gõ nhanh kiểu máy quét + Enter phải được nhận là một mã');
     assert.ok($('scanner-count').textContent.includes('1'));
-    assert.ok($('scanner-list').textContent.includes('WEDGE001'));
+    assert.ok($('session-list').textContent.includes('WEDGE001'));
     let t2 = 5000;
     'SLOW0001'.split('').forEach((ch) => { window.wedgeKey(ch, t2); t2 += 300; });
     assert.strictEqual(window.wedgeKey('Enter', t2 + 10), false, 'gõ chậm kiểu người gõ tay không được tính là mã quét');
@@ -650,7 +655,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v112 và precache đúng URL ?v=112 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v117 và precache đúng URL ?v=117 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -670,8 +675,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v112'"), 'sw.js phải gắn VERSION v87');
-    for (const a of ['styles.css?v=112', 'print.css?v=112', 'config.js?v=112', 'store.js?v=112', 'sync-core.js?v=112', 'sync.js?v=112', 'mascot.js?v=112', 'app.js?v=112', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v117'"), 'sw.js phải gắn VERSION v117');
+    for (const a of ['styles.css?v=117', 'print.css?v=117', 'config.js?v=117', 'store.js?v=117', 'sync-core.js?v=117', 'sync.js?v=117', 'mascot.js?v=117', 'app.js?v=117', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -803,7 +808,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     document.querySelector('[data-view="manage"]').click();
     $('btn-types').click();
     assert.ok(visible($('view-types')));
-    assert.strictEqual($('types-list').children.length, 6, 'ban đầu là 6 loại mặc định');
+    assert.strictEqual($('types-list').children.length, 7, 'ban đầu là 7 loại mặc định (v117: thêm KSK nước tiểu)');
     $('btn-type-add').click();
     assert.ok(visible($('view-typeform')));
     const stackRow = $('btn-tf-add-field').closest('.form-row');
@@ -814,7 +819,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('tf-fields').querySelector('.tf-flabel'), 'Kết quả');
     $('btn-tf-save').click();
     assert.ok(visible($('view-types')), 'lưu xong quay về danh sách loại');
-    assert.strictEqual($('types-list').children.length, 7);
+    assert.strictEqual($('types-list').children.length, 8); /* 7 mặc định (v117) + 1 loại tự thêm */
     assert.ok($('types-list').textContent.includes('Soi phân tìm KST'));
     $('btn-types-back').click();
     $('fab-add').click();
@@ -2192,7 +2197,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v112', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v117', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2325,8 +2330,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const stA = await w105.eval('processScanBitmap({ width: 100, height: 100, close() {} })');
     assert.strictEqual(stA, 'accepted', 'OCR ra mã 10 số thì nhận thẳng, không hỏi');
     assert.ok(has111('2611192995'), 'mẫu 10 số OCR đã được nhận');
-    /* v112: cách 2 — mã vạch dò đúng 1 lần, OCR đúng 1 lượt; thanh tiến
-       trình gọn thay chữ báo bước; bỏ chú thích cạnh nút chụp */
+    /* v112: cách 2 — mã vạch dò đúng 1 lần; thanh tiến trình gọn thay chữ
+       báo bước; bỏ chú thích cạnh nút chụp. v114: OCR đổi sang các lượt
+       dự phòng trên cùng ảnh — dừng ở lượt đầu tiên ra mã (xem test v114);
+       ở đây mọi lượt đều trượt nên recognize chạy đủ 4 lượt */
     assert.ok(!d105.querySelector('.scanner-photo-note'), 'đã bỏ đoạn chú thích cạnh nút chụp');
     w105.eval('setScanProgress(42)');
     assert.ok(!d105.getElementById('scan-progress').classList.contains('hidden'), 'thanh tiến trình hiện khi có %');
@@ -2340,8 +2347,411 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const stF = await w105.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
     assert.strictEqual(stF, 'failed', 'không mã vạch, không chữ đọc được thì failed');
     assert.strictEqual(detectCalls, 1, 'mã vạch chỉ dò đúng 1 lần — bỏ lần thử vùng giữa');
-    assert.strictEqual(w105.eval('window.__recogCalls'), 1, 'OCR chỉ chạy đúng 1 lượt');
+    assert.strictEqual(w105.eval('window.__recogCalls'), 4, 'v114: OCR trượt hết thì đã thử đủ 4 lượt dự phòng trên cùng ảnh');
     w105.close();
+  });
+
+  test('v113: mã 6-4 (261121-0581) qua cổng + OCR nhận thẳng; chụp đọc trượt xong hình trực tiếp phải sống lại', async () => {
+    const dom113 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 113', salt: 's113', pinHash: 'h113' }]), 'labentry.operator.v1': 'KTV 113' }); } });
+    const w113 = dom113.window;
+    const d113 = w113.document;
+    await new Promise((res) => { if (d113.readyState === 'complete') res(); else w113.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    /* --- Cổng định dạng: thêm dạng 6-4, các dạng cũ giữ nguyên --- */
+    assert.strictEqual(w113.eval("isAllowedScanCode('261121-0581')"), true, 'cổng nhận mã 6-4');
+    assert.strictEqual(w113.eval("isAllowedScanCode('261121-058')"), false, 'dạng 6-3 bị chặn');
+    assert.strictEqual(w113.eval("isAllowedScanCode('26112-10581')"), false, 'dạng 5-5 bị chặn');
+    assert.strictEqual(w113.eval("isAllowedScanCode('2611210581')"), true, '10 số liền vẫn nhận như cũ');
+
+    /* --- Trích xuất OCR cho dạng 6-4 (nhãn thật Minh chụp: 261121-0581) --- */
+    const ex = (t) => w113.eval('extractCodeFromOcrText(' + JSON.stringify(t) + ')');
+    assert.strictEqual(ex('261121-0581'), '261121-0581', 'đọc đúng nguyên văn thì giữ nguyên dấu gạch');
+    assert.strictEqual(ex('LO 261121-0581 HT'), '261121-0581', 'mã 6-4 lẫn trong chữ trên nhãn vẫn rút ra được');
+    assert.strictEqual(ex('MAU 261121 - 0581'), '261121-0581', 'khoảng trắng quanh gạch ngang được chuẩn hoá');
+    assert.strictEqual(ex('261121-O581'), '261121-0581', 'chữ O ở vế số được sửa thành 0');
+    assert.strictEqual(ex('261121 0581'), '261121-0581', 'OCR mất dấu gạch: hai token kề nhau ghép lại thành 6-4');
+    assert.strictEqual(ex('261121'), '', '6 số đứng một mình không được nhận');
+    assert.strictEqual(ex('0581 261121058'), '', '0581 chỉ là mảnh của dãy số dài hơn thì bị chặn như mã 4 số mảnh');
+    assert.strictEqual(ex('MAU 0581'), '0581', '0581 đứng độc lập vẫn là mã 4 số như cũ');
+
+    /* --- OCR ra mã 6-4: nhận thẳng (đủ 10 chữ số thông tin), không qua
+       xác nhận 1 chạm như mã 4 số trần; mã lưu giữ nguyên dạng in --- */
+    w113.eval("currentOperator = 'KTV 113'");
+    w113.eval("openScanner('today')");
+    w113.eval("ocrCanvasFromBitmap = () => document.createElement('canvas')");
+    w113.eval("getOcrWorker = async () => ({ setParameters: async () => {}, recognize: async () => ({ data: { text: window.__ocrText || '' } }) })");
+    w113.BarcodeDetector = class { async detect() { return []; } };
+    const has113 = (c) => w113.eval('store.getAll()').some((r) => r.testId === c);
+    w113.eval("window.__ocrText = 'LO PHAN 261121-0581'");
+    const st64 = await w113.eval('processScanBitmap({ width: 100, height: 100, close() {} })');
+    assert.strictEqual(st64, 'accepted', 'OCR ra mã 6-4 thì nhận thẳng');
+    assert.ok(has113('261121-0581'), 'mẫu lưu giữ nguyên dạng in có gạch ngang');
+    assert.ok(d113.getElementById('scan-confirm-row').classList.contains('hidden'), 'mã 6-4 không hiện hàng xác nhận 1 chạm');
+    assert.strictEqual(w113.eval("acceptScanCode('261122-0582', { recognized: true })"), true, 'mã 6-4 qua cổng recognized được nhận');
+    assert.ok(has113('261122-0582'), 'mẫu 6-4 thứ hai được tạo qua cổng');
+
+    /* --- Lỗi 1: chụp tĩnh làm video dừng (hành vi máy thật) — đọc trượt
+       xong app phải tự play lại + nhả nút + ẩn khung đứng --- */
+    const video113 = d113.getElementById('scanner-video');
+    const fakeTrack113 = { readyState: 'live' };
+    video113.srcObject = { getVideoTracks: () => [fakeTrack113] };
+    let vPaused = false;
+    let vTime = 10;
+    let playCalls = 0;
+    Object.defineProperty(video113, 'paused', { configurable: true, get: () => vPaused });
+    Object.defineProperty(video113, 'currentTime', { configurable: true, get: () => vTime });
+    video113.play = async () => { playCalls++; vPaused = false; };
+    let photoCalls = 0;
+    w113.ImageCapture = class { async takePhoto() { photoCalls++; vPaused = true; return new w113.Blob(['x'], { type: 'image/jpeg' }); } };
+    w113.createImageBitmap = async () => ({ width: 1920, height: 1080, close() {} });
+    w113.eval("window.__ocrText = 'HELLO WORLD XXXX'");
+    d113.getElementById('btn-scan-capture').click();
+    for (let i = 0; i < 40 && !d113.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã'); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.ok(d113.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã'), 'chụp với OCR rác thì báo đọc trượt');
+    await new Promise((r) => setTimeout(r, 200));
+    assert.ok(d113.getElementById('scan-freeze').classList.contains('hidden'), 'đọc trượt xong thì ẩn khung đứng');
+    assert.strictEqual(d113.getElementById('btn-scan-capture').disabled, false, 'đọc trượt xong thì nút chụp nhả');
+    assert.strictEqual(w113.eval('scanCaptureBusy'), false, 'cờ đang chụp đã xoá');
+    assert.ok(playCalls >= 1, 'video bị chụp tĩnh làm dừng thì app phải play lại (restoreScanPreview)');
+    assert.strictEqual(vPaused, false, 'video đang chạy lại sau lượt chụp trượt');
+
+    /* Track còn 'live' nhưng khung hình không tiến: phải mở lại luồng,
+       và chụp lần 2 vẫn chạy được */
+    w113.eval('restartScanCamera = async () => { window.__restartCalls = (window.__restartCalls || 0) + 1; }');
+    d113.getElementById('btn-scan-capture').click();
+    for (let i = 0; i < 40 && w113.eval('scanCaptureBusy'); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.strictEqual(photoCalls, 2, 'chụp lần 2 chạy được sau khôi phục');
+    await new Promise((r) => setTimeout(r, 1100));
+    assert.ok(w113.eval('window.__restartCalls || 0') >= 1, 'khung hình không tiến dù track live thì mở lại luồng camera');
+    w113.close();
+  });
+
+  test('v114: OCR dự phòng nhiều lượt trên cùng ảnh (dừng ở lượt đầu ra mã) + dải ngắm + ngưỡng thích ứng', async () => {
+    const dom114 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 114', salt: 's114', pinHash: 'h114' }]), 'labentry.operator.v1': 'KTV 114' }); } });
+    const w114 = dom114.window;
+    const d114 = w114.document;
+    await new Promise((res) => { if (d114.readyState === 'complete') res(); else w114.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    /* Dải ngắm hiện trên khung chụp, có chữ gợi ý đặt dòng mã số */
+    const band = d114.getElementById('scan-band');
+    assert.ok(band, 'khung chụp có dải ngắm dòng mã số');
+    assert.ok(band.textContent.includes('Đặt dòng mã số vào dải này'), 'dải ngắm có chữ gợi ý');
+
+    w114.eval("currentOperator = 'KTV 114'");
+    w114.eval("openScanner('today')");
+    w114.eval("ocrCanvasFromBitmap = () => document.createElement('canvas')");
+    w114.BarcodeDetector = class { async detect() { return []; } };
+    const has114 = (c) => w114.eval('store.getAll()').some((r) => r.testId === c);
+    /* Worker giả: recognize trả văn bản theo số thứ tự lượt gọi */
+    w114.eval('window.__recogCalls = 0');
+    w114.eval("getOcrWorker = async () => ({ setParameters: async () => {}, recognize: async () => { window.__recogCalls++; return { data: { text: (window.__ocrSeq || [])[window.__recogCalls - 1] || '' } }; } })");
+
+    /* (a) Lượt 1 ra mã ngay: dừng ở đó, recognize đúng 1 lần */
+    w114.eval("window.__ocrSeq = ['MA 2611192995']");
+    const stA = await w114.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stA, 'accepted', 'lượt 1 ra mã 10 số thì nhận thẳng');
+    assert.strictEqual(w114.eval('window.__recogCalls'), 1, 'ra mã ở lượt 1 thì không chạy lượt dự phòng nào');
+    assert.ok(has114('2611192995'), 'mẫu từ lượt 1 đã nhận');
+
+    /* (b) Lượt 1 rác, lượt dải (lượt 2) ra mã 6-4: nhận mẫu, recognize 2 lần */
+    w114.eval('window.__recogCalls = 0');
+    w114.eval("window.__ocrSeq = ['RAC XXXX KHONG MA', 'LO 261121-0581']");
+    const stB = await w114.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stB, 'accepted', 'lượt dải ra mã 6-4 thì nhận');
+    assert.strictEqual(w114.eval('window.__recogCalls'), 2, 'dừng ngay ở lượt 2 — recognize đúng 2 lần');
+    assert.ok(has114('261121-0581'), 'mẫu 6-4 đọc được ở lượt dải đã nhận');
+
+    /* (c) Cả 4 lượt đều rác: báo chưa đọc được sau khi thử đủ 4 lượt */
+    w114.eval('window.__recogCalls = 0');
+    w114.eval("window.__ocrSeq = ['AAAAAA', 'BBBBBB', 'CCCCCC', 'DDDDDD']");
+    const stC = await w114.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stC, 'failed', 'trượt cả 4 lượt thì failed');
+    assert.strictEqual(w114.eval('window.__recogCalls'), 4, 'đã thử đủ 4 lượt trước khi báo trượt');
+    assert.ok(d114.getElementById('scanner-msg').textContent.includes('Chưa đọc được mã'), 'báo chưa đọc được mã');
+
+    /* (d) Hình học vùng cắt: dải là dải ngang thấp và dài (x 4–96%,
+       y 38–62%), khác hẳn crop giữa gần vuông như cũ */
+    const gB = w114.eval("ocrPassGeometry(1000, 1000, { band: true, targetW: 2600, maxScale: 4 })");
+    assert.strictEqual([gB.sx, gB.sy, gB.cw, gB.ch].join(','), '40,380,920,240', 'vùng dải: x từ 4%, y từ 38%, rộng 92%, cao 24% ảnh chụp');
+    assert.ok(gB.H / gB.W < 0.35, 'canvas lượt dải thấp và dài (H/W ≈ 0,26)');
+    const gM = w114.eval("ocrPassGeometry(1000, 1000, { crop: 0.8, targetW: 2200 })");
+    assert.ok(Math.abs(gM.H / gM.W - 1) < 0.01, 'crop giữa 80% vẫn cho canvas gần vuông như cũ');
+
+    /* (e) Ngưỡng thích ứng tách được chữ trên nền gradient sáng→tối, nơi
+       Otsu toàn cục nhuộm cả nền vùng tối thành "chữ" */
+    const px = w114.eval(`(() => {
+      const W = 240, H = 80;
+      const gray = new Uint8Array(W * H);
+      const isText = (x, y) => y >= 30 && y < 50 && ((x >= 30 && x < 38) || (x >= 190 && x < 198));
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const bg = Math.round(215 - 115 * x / (W - 1));
+        gray[y * W + x] = isText(x, y) ? bg - 55 : bg;
+      }
+      const thr = ocrOtsuThreshold(gray);
+      const bin = ocrAdaptiveBinarize(gray, W, H);
+      return {
+        otsuBgRight: gray[10 * W + 235] > thr ? 255 : 0,
+        adapBgRight: bin[10 * W + 235],
+        adapBgLeft: bin[10 * W + 5],
+        adapTextLeft: bin[40 * W + 34],
+        adapTextRight: bin[40 * W + 194]
+      };
+    })()`);
+    assert.strictEqual(px.otsuBgRight, 0, 'Otsu toàn cục: nền vùng tối bên phải bị phân loại thành chữ — trượt');
+    assert.strictEqual(px.adapBgRight, 255, 'ngưỡng thích ứng: nền vùng tối vẫn là nền');
+    assert.strictEqual(px.adapBgLeft, 255, 'ngưỡng thích ứng: nền vùng sáng vẫn là nền');
+    assert.strictEqual(px.adapTextLeft, 0, 'ngưỡng thích ứng: tách được chữ ở vùng sáng');
+    assert.strictEqual(px.adapTextRight, 0, 'ngưỡng thích ứng: tách được chữ ở vùng tối');
+    w114.close();
+  });
+
+  test('v115: mã lạ ngoài cổng (BN20027-03) — đem hỏi qua hàng xác nhận của mã 4 số, người chạm mới nhận', async () => {
+    const dom115 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 115', salt: 's115', pinHash: 'h115' }]), 'labentry.operator.v1': 'KTV 115' }); } });
+    const w115 = dom115.window;
+    const d115 = w115.document;
+    await new Promise((res) => { if (d115.readyState === 'complete') res(); else w115.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    /* --- Trích ứng viên mã lạ: chỉ để đem hỏi, không bao giờ tự nhận --- */
+    const cand = (t) => w115.eval('extractCandidateFromOcrText(' + JSON.stringify(t) + ')');
+    assert.strictEqual(cand('BN20027-03'), 'BN20027-03', 'mã lạ 2 chữ + 5 số + gạch + 2 số là ứng viên T1');
+    assert.strictEqual(cand('XN BUFFER BN20027-03 EXP 2027'), 'BN20027-03', 'rút đúng ứng viên giữa chữ rác trên nhãn, không dính chữ ghép loãng số');
+    assert.strictEqual(cand('8N20027-03'), '8N20027-03', 'đọc nhầm ký tự đầu vẫn đem hỏi NGUYÊN VĂN, không tự sửa');
+    assert.strictEqual(cand('MAU BN20027-03 SO 123456'), 'BN20027-03', 'có cả ứng viên dãy số (T2) thì dạng có gạch (T1) thắng');
+    assert.strictEqual(cand('BN20027-03 2002703999'), '', 'dãy số của ứng viên là mảnh của dãy số dài hơn trong cùng ảnh thì loại');
+    assert.strictEqual(cand('EXP 2027-11'), '', 'dãy ngày tháng/hạn dùng toàn số không thành ứng viên');
+    assert.strictEqual(cand('MAU 1234567'), '1234567', 'dãy 5–9 số là ứng viên T2');
+    assert.strictEqual(cand('SO 12345678901'), '12345678901', 'dãy 11+ số là ứng viên T2');
+    assert.strictEqual(cand('MAU 261121-0581'), '', 'mã 6-4 đúng cổng không phải ứng viên lạ (có đường tự nhận riêng)');
+    assert.strictEqual(cand('MAU 2611192995'), '', 'mã 10 số đúng cổng không phải ứng viên lạ');
+    assert.strictEqual(cand('HELLO WORLD'), '', 'không có chữ số thì không ứng viên');
+
+    /* --- Hồi quy lỗi CẮT NÚT ở tấm chi tiết mẫu (v115, Minh chụp thật):
+       JSDOM không đo được layout nên khẳng định ở mức CSS — số đo
+       bounding box thật đo bằng rig localhost: trước sửa hàng nút kết
+       thúc ở y=799 trên viewport 640 (bị cắt, tấm không cuộn); sau sửa
+       tấm bị cap 100dvh-40px + cuộn nội bộ, cả 3 nút nằm trọn trong
+       viewport ở 360×640/390×844/430×932/360×560 và giữ nguyên vị trí
+       khi cuộn tấm xuống đáy (sticky) --- */
+    const css115 = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+    const sumBoxCss = /\.summary-box\s*\{([^}]*)\}/.exec(css115)[1];
+    assert.ok(sumBoxCss.includes('max-height: calc(100dvh - 40px)'), 'tấm chi tiết bị cap chiều cao theo viewport thật (dvh)');
+    assert.ok(sumBoxCss.includes('overflow-y: auto'), 'nội dung tấm chi tiết cuộn dọc được ngay trong tấm');
+    const sumActCss = /\.summary-actions\s*\{([^}]*)\}/.exec(css115)[1];
+    assert.ok(sumActCss.includes('position: sticky'), 'hàng nút của tấm chi tiết dính đáy tấm');
+    assert.ok(sumActCss.includes('env(safe-area-inset-bottom'), 'đệm đáy hàng nút tính cả safe-area');
+
+    /* --- Luồng OCR: trượt mã cổng, lượt 2 có ứng viên lạ → hỏi xác nhận --- */
+    w115.eval("currentOperator = 'KTV 115'");
+    w115.eval("openScanner('today')");
+    w115.eval("ocrCanvasFromBitmap = () => document.createElement('canvas')");
+    w115.BarcodeDetector = class { async detect() { return []; } };
+    const has115 = (c) => w115.eval('store.getAll()').some((r) => r.testId === c);
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("getOcrWorker = async () => ({ setParameters: async () => {}, recognize: async () => { window.__recogCalls++; return { data: { text: (window.__ocrSeq || [])[window.__recogCalls - 1] || '' } }; } })");
+    w115.eval("window.__ocrSeq = ['RAC KHONG MA', 'LO BN20027-03', 'RAC 2', 'RAC 3']");
+    const stQ = await w115.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stQ, 'confirm', 'trượt mã cổng nhưng có ứng viên lạ thì chuyển sang chờ xác nhận');
+    assert.strictEqual(w115.eval('window.__recogCalls'), 4, 'ứng viên không làm dừng các lượt — vẫn thử đủ 4 lượt tìm mã đúng cổng trước khi hỏi');
+    assert.ok(!d115.getElementById('scan-confirm-row').classList.contains('hidden'), 'hiện hàng xác nhận cho mã lạ');
+    assert.strictEqual(d115.getElementById('scan-confirm-code').textContent, 'BN20027-03', 'hàng xác nhận hiện đúng ứng viên lạ');
+    assert.strictEqual(d115.getElementById('scan-confirm-label').textContent, 'Mã lạ đọc được:', 'nhãn hàng xác nhận phân biệt mã lạ với mã 4 số');
+    /* v116: hàng xác nhận KHÔNG còn hộp ghi chú giải thích dài — modal mang
+       lớp 'confirming' và CSS ẩn hộp thông báo + nút Chụp + nút Dừng quét
+       trong lúc chờ trả lời (chúng từng chồng lên hàng xác nhận) */
+    assert.ok(d115.getElementById('scanner-modal').classList.contains('confirming'), 'v116: đang chờ xác nhận thì modal ở trạng thái confirming');
+    assert.ok(!d115.getElementById('scanner-msg').textContent.includes('đúng mã mẫu thì bấm'), 'v116: không còn ghi chú giải thích dài khi chờ xác nhận');
+    assert.strictEqual(w115.getComputedStyle(d115.getElementById('scanner-msg')).display, 'none', 'v116: hộp thông báo ẩn trong lúc chờ xác nhận');
+    assert.strictEqual(w115.getComputedStyle(d115.querySelector('.scanner-photo-row')).display, 'none', 'v116: hàng nút Chụp ẩn trong lúc chờ xác nhận');
+    assert.strictEqual(w115.getComputedStyle(d115.getElementById('btn-scanner-close')).display, 'none', 'v116: nút Dừng quét ẩn trong lúc chờ xác nhận — không còn cảnh sơn đè lên nút Bỏ qua');
+    assert.ok(!has115('BN20027-03'), 'chưa chạm xác nhận thì chưa có mẫu');
+    d115.getElementById('btn-scan-confirm-yes').click();
+    assert.ok(has115('BN20027-03'), 'chạm Đúng: nhận mẫu mã lạ (bỏ qua cổng vì người đã đối chiếu bằng mắt)');
+    assert.ok(d115.getElementById('scan-confirm-row').classList.contains('hidden'), 'xác nhận xong thì ẩn hàng nút');
+    assert.ok(!d115.getElementById('scanner-modal').classList.contains('confirming'), 'v116: trả lời xong thì hết trạng thái confirming, các nút panel hiện lại');
+
+    /* Chạm Bỏ qua: không mẫu, hàng ẩn */
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("window.__ocrSeq = ['LO BN20027-04']");
+    const stN = await w115.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stN, 'confirm', 'ứng viên lạ khác lại hiện hỏi');
+    d115.getElementById('btn-scan-confirm-no').click();
+    assert.ok(!has115('BN20027-04'), 'chạm Bỏ qua thì không nhận mẫu mã lạ');
+    assert.ok(d115.getElementById('scan-confirm-row').classList.contains('hidden'), 'bỏ qua xong thì ẩn hàng nút');
+
+    /* Lượt 3 ra mã đúng cổng trong khi lượt 1 đã thấy ứng viên lạ:
+       mã cổng TỰ NHẬN tuyệt đối, không hiện hỏi, ứng viên bị bỏ qua */
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("window.__ocrSeq = ['LO BN20027-05', 'RAC', 'MA 2611192995']");
+    const stG = await w115.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stG, 'accepted', 'mã đúng cổng ở lượt sau vẫn tự nhận dù lượt trước có ứng viên lạ');
+    assert.strictEqual(w115.eval('window.__recogCalls'), 3, 'dừng ở lượt 3 khi ra mã cổng');
+    assert.ok(has115('2611192995'), 'mẫu mã cổng đã nhận');
+    assert.ok(!has115('BN20027-05'), 'ứng viên lạ bị bỏ qua khi đã có mã cổng');
+    assert.ok(d115.getElementById('scan-confirm-row').classList.contains('hidden'), 'không hiện hàng hỏi khi mã cổng đã nhận');
+
+    /* --- Mã vạch lạ trong lần chụp trong app: cũng đem hỏi --- */
+    w115.BarcodeDetector = class { async detect() { return [{ rawValue: 'BN20027-06' }]; } };
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("window.__ocrSeq = ['RAC']");
+    const stBc = await w115.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stBc, 'confirm', 'mã vạch lạ giải được trong lần chụp cũng chuyển sang chờ xác nhận');
+    assert.strictEqual(d115.getElementById('scan-confirm-code').textContent, 'BN20027-06', 'hàng xác nhận hiện đúng chuỗi mã vạch lạ');
+    d115.getElementById('btn-scan-confirm-yes').click();
+    assert.ok(has115('BN20027-06'), 'chạm Đúng: nhận mẫu từ mã vạch lạ đã đối chiếu');
+
+    /* Cả mã vạch lạ và ứng viên OCR cùng có: ưu tiên chuỗi mã vạch */
+    w115.BarcodeDetector = class { async detect() { return [{ rawValue: 'BN20027-07' }]; } };
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("window.__ocrSeq = ['LO AB12345-67']");
+    const stPr = await w115.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stPr, 'confirm', 'có cả hai loại ứng viên vẫn chỉ hỏi một');
+    assert.strictEqual(d115.getElementById('scan-confirm-code').textContent, 'BN20027-07', 'ưu tiên chuỗi mã vạch (giải mã chính xác) hơn ứng viên OCR');
+    d115.getElementById('btn-scan-confirm-no').click();
+    assert.ok(!has115('BN20027-07') && !has115('AB12345-67'), 'bỏ qua thì cả hai ứng viên đều không thành mẫu');
+    w115.BarcodeDetector = class { async detect() { return []; } };
+
+    /* --- Chụp trong app gặp mã lạ: giữ khung đứng đối chiếu; trả lời xong
+       mới khôi phục hình trực tiếp (cơ chế v113, qua cùng hàng xác nhận) --- */
+    const video115 = d115.getElementById('scanner-video');
+    const fakeTrack115 = { readyState: 'live' };
+    video115.srcObject = { getVideoTracks: () => [fakeTrack115] };
+    let vPaused115 = false;
+    let playCalls115 = 0;
+    Object.defineProperty(video115, 'paused', { configurable: true, get: () => vPaused115 });
+    Object.defineProperty(video115, 'currentTime', { configurable: true, get: () => 42 });
+    video115.play = async () => { playCalls115++; vPaused115 = false; };
+    w115.ImageCapture = class { async takePhoto() { vPaused115 = true; return new w115.Blob(['x'], { type: 'image/jpeg' }); } };
+    w115.createImageBitmap = async () => ({ width: 1920, height: 1080, close() {} });
+    w115.eval('window.__recogCalls = 0');
+    w115.eval("window.__ocrSeq = ['LO BN20027-08']");
+    d115.getElementById('btn-scan-capture').click();
+    for (let i = 0; i < 40 && d115.getElementById('scan-confirm-row').classList.contains('hidden'); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.ok(!d115.getElementById('scan-confirm-row').classList.contains('hidden'), 'chụp gặp mã lạ thì hiện hàng xác nhận');
+    assert.ok(!d115.getElementById('scan-freeze').classList.contains('hidden'), 'đang chờ xác nhận thì GIỮ khung đứng để đối chiếu');
+    assert.strictEqual(w115.eval('scanCaptureBusy'), false, 'lượt chụp đã xong, cờ bận đã xoá');
+    w115.eval('restartScanCamera = async () => {}');
+    playCalls115 = 0;
+    vPaused115 = true;
+    d115.getElementById('btn-scan-confirm-no').click();
+    assert.ok(d115.getElementById('scan-freeze').classList.contains('hidden'), 'trả lời xong thì bỏ khung đứng');
+    assert.ok(playCalls115 >= 1 && !vPaused115, 'trả lời xong thì hình trực tiếp được khôi phục (play lại)');
+    assert.ok(!has115('BN20027-08'), 'bỏ qua ở lượt chụp thì không có mẫu');
+    w115.close();
+
+    /* --- Vòng quét liên tục 400ms gặp mã vạch lạ: KHÔNG hỏi, KHÔNG nhận
+       (chỉ lần chụp trong app do người chủ động bấm mới đem hỏi) --- */
+    const dom115b = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 115B', salt: 's115b', pinHash: 'h115b' }]), 'labentry.operator.v1': 'KTV 115B' }); } });
+    const w115b = dom115b.window;
+    const d115b = w115b.document;
+    await new Promise((res) => { if (d115b.readyState === 'complete') res(); else w115b.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    w115b.HTMLMediaElement.prototype.play = function () { return Promise.resolve(); };
+    w115b.HTMLMediaElement.prototype.pause = function () {};
+    const video115b = d115b.getElementById('scanner-video');
+    let so115b = null;
+    Object.defineProperty(video115b, 'srcObject', { configurable: true, get() { return so115b; }, set(v) { so115b = v; } });
+    const track115b = { readyState: 'live', stop() { this.readyState = 'ended'; } };
+    const stream115b = { getTracks: () => [track115b], getVideoTracks: () => [track115b] };
+    try { Object.defineProperty(w115b.navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => stream115b } }); }
+    catch (e) { w115b.navigator.mediaDevices = { getUserMedia: async () => stream115b }; }
+    w115b.BarcodeDetector = class { async detect() { return [{ rawValue: 'BN20027-03' }]; } };
+    w115b.eval("currentOperator = 'KTV 115B'");
+    w115b.eval("openScanner('today')");
+    for (let i = 0; i < 50 && !d115b.getElementById('scanner-msg').textContent.includes('Bỏ qua mã'); i++) await new Promise((r) => setTimeout(r, 50));
+    assert.ok(d115b.getElementById('scanner-msg').textContent.includes('Bỏ qua mã'), 'vòng quét liên tục vẫn báo bỏ qua mã ngoài cổng như cũ');
+    assert.ok(!w115b.eval('store.getAll()').some((r) => r.testId === 'BN20027-03'), 'vòng quét liên tục gặp mã vạch lạ thì không nhận mẫu');
+    assert.ok(d115b.getElementById('scan-confirm-row').classList.contains('hidden'), 'vòng quét liên tục không hiện hàng hỏi xác nhận');
+    w115b.eval('closeScanner()');
+    w115b.close();
+  });
+
+  test('v116: panel quét gọn — bỏ ghi chú xác nhận + hết chồng nút; danh sách phiên thành màn hình riêng, nhận trước ở trên', async () => {
+    /* --- Mức CSS (jsdom không đo layout — số đo bounding box thật bằng
+       rig localhost): cơ chế chồng nút cũ là nút Dừng quét sticky sơn đè
+       khi nội dung cố định tràn chiều cao panel; v116 bỏ sticky, panel
+       có vùng giữa cuộn riêng .scanner-mid --- */
+    const css116 = fs.readFileSync(path.join(__dirname, '..', 'styles.css'), 'utf8');
+    assert.ok(!/#scanner-modal \.stop-btn\s*\{[^}]*position:\s*sticky/.test(css116), 'v116: nút Dừng quét KHÔNG còn sticky (cơ chế sơn đè cũ)');
+    const midCss = /#scanner-modal \.scanner-mid\s*\{([^}]*)\}/.exec(css116)[1];
+    assert.ok(midCss.includes('overflow-y: auto') && midCss.includes('flex: 1 1 auto'), 'v116: panel quét có vùng giữa cuộn riêng .scanner-mid');
+    assert.ok(css116.includes('#scanner-modal.confirming #scanner-msg'), 'v116: trạng thái confirming ẩn hộp thông báo');
+    assert.ok(css116.includes('#scanner-modal.confirming #btn-scanner-close'), 'v116: trạng thái confirming ẩn nút Dừng quét');
+    const sesBoxCss = /\.session-box\s*\{([^}]*)\}/.exec(css116)[1];
+    assert.ok(sesBoxCss.includes('max-height: calc(100dvh - 40px)') && sesBoxCss.includes('overflow-y: auto'), 'v116: tấm danh sách phiên cap chiều cao + cuộn nội bộ như pattern v115');
+    const sesActCss = /\.session-actions\s*\{([^}]*)\}/.exec(css116)[1];
+    assert.ok(sesActCss.includes('position: sticky'), 'v116: hàng nút của tấm phiên dính đáy');
+
+    const dom116 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 116', salt: 's116', pinHash: 'h116' }]), 'labentry.operator.v1': 'KTV 116' }); } });
+    const w116 = dom116.window;
+    const d116 = w116.document;
+    const $116 = (id) => d116.getElementById(id);
+    await new Promise((res) => { if (d116.readyState === 'complete') res(); else w116.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+
+    /* --- Cấu trúc: panel quét không còn khối danh sách ở cuối --- */
+    assert.strictEqual($116('scanner-list'), null, 'v116: panel quét bỏ hẳn danh sách mẫu ở cuối panel');
+    assert.strictEqual($116('scanner-empty'), null, 'v116: panel quét bỏ hẳn dòng ghi chú danh sách rỗng');
+    assert.ok($116('scanner-session') && $116('scanner-count'), 'panel quét chỉ còn dòng tóm tắt phiên bấm được');
+    assert.ok($116('session-list') && $116('session-modal'), 'có màn hình riêng cho danh sách phiên');
+
+    w116.eval("currentOperator = 'KTV 116'");
+    w116.eval("openScanner('today')");
+    $116('scanner-type-select').value = 'sp';
+
+    /* --- Trạng thái rỗng: mở màn hình phiên thấy đúng một dòng ngắn --- */
+    $116('scanner-session').click();
+    assert.ok(!$116('session-modal').classList.contains('hidden'), 'chạm dòng tóm tắt thì mở màn hình danh sách phiên');
+    assert.ok(!$116('session-empty').classList.contains('hidden'), 'phiên rỗng thì hiện dòng trạng thái ngắn');
+    assert.strictEqual($116('session-list').children.length, 0, 'phiên rỗng chưa có dòng mẫu nào');
+    $116('btn-session-close').click();
+    assert.ok($116('session-modal').classList.contains('hidden'), 'nút Đóng đóng màn hình phiên');
+
+    /* --- Hàng xác nhận mã 4 số: cũng không ghi chú dài, panel vào
+       trạng thái confirming; trả lời xong thì trở lại bình thường --- */
+    w116.eval("showOcrConfirm('5678')");
+    assert.ok($116('scanner-modal').classList.contains('confirming'), 'chờ xác nhận mã 4 số cũng vào trạng thái confirming');
+    assert.strictEqual(w116.getComputedStyle($116('scanner-msg')).display, 'none', 'hộp thông báo ẩn khi chờ xác nhận mã 4 số');
+    assert.ok(!$116('scanner-msg').textContent.includes('đúng mã mẫu thì bấm'), 'không còn ghi chú giải thích dài cho mã 4 số');
+    w116.eval('confirmOcrCode(false)');
+    assert.ok(!$116('scanner-modal').classList.contains('confirming'), 'trả lời xong thì hết confirming');
+
+    /* --- Thứ tự: nhận A(010) → B(002) → C(007); hiển thị đúng thứ tự
+       NHẬN (010, 002, 007), không sắp xếp theo mã --- */
+    const scan116 = (c) => w116.eval('acceptScanCode(' + JSON.stringify(c) + ')');
+    scan116('2611045010');
+    scan116('2611045002');
+    scan116('2611045007');
+    assert.ok($116('scanner-count').textContent.includes('3'));
+    $116('scanner-session').click();
+    const rows116 = [...$116('session-list').children];
+    assert.strictEqual(rows116.length, 3, 'màn hình phiên có đủ 3 mẫu');
+    assert.ok(rows116[0].textContent.includes('2611045010'), 'nhận trước nhất ở TRÊN CÙNG');
+    assert.ok(rows116[1].textContent.includes('2611045002'), 'nhận thứ hai ở giữa');
+    assert.ok(rows116[2].textContent.includes('2611045007'), 'nhận sau cùng ở DƯỚI');
+    assert.ok(rows116[0].textContent.includes('SP'), 'mỗi dòng có loại xét nghiệm');
+    assert.ok(/\d{2}:\d{2}:\d{2}/.test(rows116[0].textContent), 'mỗi dòng có giờ nhận');
+    assert.strictEqual($116('session-count').textContent, '3 mẫu', 'đầu màn hình phiên hiện tổng số mẫu');
+    assert.ok($116('session-empty').classList.contains('hidden'), 'có mẫu thì ẩn dòng rỗng');
+
+    /* --- Cập nhật trực tiếp: đang mở màn hình phiên mà nhận thêm mẫu --- */
+    scan116('2611045009');
+    assert.strictEqual($116('session-list').children.length, 4, 'nhận thêm khi đang mở thì danh sách cập nhật ngay');
+    assert.ok($116('session-list').children[3].textContent.includes('2611045009'), 'mẫu mới nối vào cuối danh sách đang mở');
+    assert.ok($116('scanner-count').textContent.includes('4'), 'dòng tóm tắt ở panel cũng cập nhật');
+
+    /* Đóng bằng cách chạm nền mờ ngoài tấm */
+    $116('session-modal').click();
+    assert.ok($116('session-modal').classList.contains('hidden'), 'chạm nền mờ thì đóng màn hình phiên');
+    w116.eval('closeScanner()');
+    w116.close();
   });
 
   test('F35 (v71): chụp ảnh đọc mã trong màn hình quét + khối chữ ký in không tách trang', async () => {
@@ -2555,8 +2965,8 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
        Hẹn lại, ⋯ Thêm); Nhật ký / Bàn giao / Đồng bộ chuyển vào bảng
        ⋯ Thêm (#more-modal); đoạn giới thiệu trang Mẫu hẹn lại rút ngắn */
     const ma = d13.querySelector('.manage-actions');
-    assert.ok(ma && ma.querySelectorAll('button').length === 3, 'lưới Quản lý còn 3 nút: Nhập lô, Hẹn lại, Thêm');
-    assert.ok(ma && ma.querySelector('#btn-batch') && ma.querySelector('#btn-deferred') && ma.querySelector('#btn-more'), 'lưới gồm Nhập lô + Hẹn lại + Thêm');
+    assert.ok(ma && ma.querySelectorAll('button').length === 4, 'lưới Quản lý có 4 nút: Nhập lô, Hẹn lại, Từ chối (v117), Thêm');
+    assert.ok(ma && ma.querySelector('#btn-batch') && ma.querySelector('#btn-deferred') && ma.querySelector('#btn-rejected') && ma.querySelector('#btn-more'), 'lưới gồm Nhập lô + Hẹn lại + Từ chối + Thêm');
     const mm = d13.querySelector('#more-modal');
     assert.ok(mm && mm.querySelector('#btn-audit') && mm.querySelector('#btn-handover') && mm.querySelector('#btn-sync'), 'bảng Thêm chứa Nhật ký, Bàn giao ca, Đồng bộ LAN');
     d13.getElementById('btn-more').click();
@@ -2859,6 +3269,104 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     set('f-deferred', 'none'); txt = run();
     assert.ok(!txt.includes('V90-E') && txt.includes('V90-A'), 'không tính mẫu hẹn lại -> mất E');
     w16.close();
+  });
+
+  test('v117: KSK nước tiểu (3 ống tick, đủ 3/3 mới phát hành) + mẫu từ chối (danh sách riêng) + chuyển đổi SP -> KSK theo mốc ngày/giờ', async () => {
+    const { LAB_CONFIG } = require('../config.js');
+    const oldTypes = LAB_CONFIG.testTypes.filter((t) => t.id !== 'ksk-nuoc-tieu');
+    const dom117 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, {
+        'labentry.staff.v1': JSON.stringify([{ name: 'KTV KSK', salt: 's117', pinHash: 'h117' }]),
+        'labentry.operator.v1': 'KTV KSK',
+        /* Danh mục đã lưu từ bản cũ CHỈ có 6 loại, chưa có KSK — app phải tự bổ sung loại hệ thống */
+        'labentry.types.v1': JSON.stringify(oldTypes),
+      }); } });
+    const w117 = dom117.window;
+    const d117 = w117.document;
+    w117.confirm = () => true;
+    w117.alert = () => {};
+    w117.scrollTo = () => {};
+    await new Promise((res) => { if (d117.readyState === 'complete') res(); else w117.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    const ev = (expr) => w117.eval(expr);
+    const rec = (uid) => JSON.parse(ev("JSON.stringify(store.getByUid('" + uid + "'))"));
+
+    /* 1) Loại hệ thống KSK được bổ sung dù danh mục đã lưu chưa có; hiện trong ô chọn loại; không sửa/xóa được */
+    assert.ok(ev("!!getTestType('ksk-nuoc-tieu')"), 'KSK được bổ sung vào danh mục đang dùng');
+    assert.ok([...d117.getElementById('select-type').options].some((o) => o.value === 'ksk-nuoc-tieu'), 'ô chọn loại có KSK nước tiểu');
+    ev("switchView('types')");
+    const kskRow = [...d117.querySelectorAll('#types-list li')].find((li) => li.textContent.includes('KSK nước tiểu'));
+    assert.ok(kskRow && kskRow.textContent.includes('Loại hệ thống'), 'trang danh mục ghi KSK là loại hệ thống');
+    assert.ok(!kskRow.querySelector('[data-tdel]'), 'KSK không có nút Xóa');
+
+    /* 2) Quy trình KSK: tick từng ống trong form; 2/3 vẫn chưa kết quả + hiện tiến độ; đủ 3/3 mới chờ phát hành rồi phát hành được */
+    const uidK = ev("store.add({ testId: 'KSK-001', typeId: 'ksk-nuoc-tieu', results: {} }).record.uid");
+    ev("openForm('" + uidK + "')");
+    const ticks = d117.querySelectorAll('#fields-container [data-tick]');
+    assert.strictEqual(ticks.length, 3, 'form KSK có đúng 3 nút tick cho 3 ống');
+    d117.querySelector('[data-tick="nt"]').click();
+    d117.querySelector('[data-tick="shmd"]').click();
+    d117.getElementById('btn-save').click();
+    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'no-result', 'mới 2/3 ống: vẫn chưa kết quả');
+    ev("switchView('manage')");
+    const rowK = d117.querySelector('#list-noresult [data-uid="' + uidK + '"]');
+    assert.ok(rowK, 'mẫu KSK 2/3 nằm ở khung Chưa kết quả');
+    assert.ok(rowK.closest('li').textContent.includes('2/3 ống'), 'dòng mẫu hiện tiến độ 2/3 ống');
+    ev("openForm('" + uidK + "')");
+    d117.querySelector('[data-tick="ctm"]').click();
+    d117.getElementById('btn-save').click();
+    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'pending-release', 'đủ 3/3 ống: chờ phát hành');
+    ev("switchView('manage')"); ev("setManagePanel('pending')");
+    const relBtn = d117.querySelector('#list-pending [data-action="release"][data-uid="' + uidK + '"]');
+    assert.ok(relBtn, 'mẫu KSK đủ ống có nút Phát hành');
+    relBtn.click();
+    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'released', 'phát hành KSK thành công');
+
+    /* 3) Từ chối: mẫu rời hàng chờ, sang trang riêng có đếm số; bỏ từ chối thì quay lại */
+    const uidR = ev("store.add({ testId: 'RJ-001', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } }).record.uid");
+    ev("openSummary('" + uidR + "')");
+    assert.ok(!d117.getElementById('btn-summary-reject').classList.contains('hidden'), 'trang Xem có nút Từ chối');
+    d117.getElementById('btn-summary-reject').click();
+    assert.ok(!d117.getElementById('reject-modal').classList.contains('hidden'), 'bấm Từ chối mở hộp thoại lý do');
+    d117.querySelector('input[name="reject-reason"][value="khong-dat"]').checked = true;
+    d117.getElementById('reject-note').value = 'Ống vỡ';
+    d117.getElementById('btn-reject-save').click();
+    assert.strictEqual(rec(uidR).rejectReason, 'khong-dat', 'lý do từ chối được lưu');
+    assert.strictEqual(rec(uidR).rejectNote, 'Ống vỡ');
+    ev("switchView('manage')"); ev("setManagePanel('pending')");
+    assert.ok(!d117.querySelector('#list-pending [data-uid="' + uidR + '"]'), 'mẫu từ chối rời khung Chờ phát hành');
+    assert.strictEqual(d117.getElementById('count-rejected').textContent, '1', 'nút Từ chối ở tab Quản lý đếm 1 mẫu');
+    ev("switchView('rejected')");
+    assert.ok(d117.querySelector('#rejected-list [data-uid="' + uidR + '"]'), 'mẫu nằm ở trang Mẫu từ chối');
+    assert.ok(d117.getElementById('rejected-text').value.includes('RJ-001'), 'nội dung danh sách từ chối có ID mẫu');
+    d117.querySelector('#rejected-list [data-raction="unreject"][data-uid="' + uidR + '"]').click();
+    assert.strictEqual(rec(uidR).rejectReason, '', 'bỏ từ chối xong dấu bị xóa');
+    ev("switchView('manage')"); ev("setManagePanel('pending')");
+    assert.ok(d117.querySelector('#list-pending [data-uid="' + uidR + '"]'), 'bỏ từ chối: mẫu quay lại Chờ phát hành');
+
+    /* 4) Chuyển đổi SP -> KSK: chỉ mẫu SP của ngày 23/11/2026 từ 16:31 trở đi; 2 mẫu ngoài mốc không đổi */
+    const mk = (id, dt) => ev("store.add({ testId: '" + id + "', typeId: 'sp', results: { kySinhTrung: 'Âm tính' }, receiver: 'NTCM' }, new Date(" + dt + ")).record.uid");
+    const uA = mk('CV-A', '2026, 10, 23, 16, 51');
+    const uB = mk('CV-B', '2026, 10, 23, 17, 27');
+    const uC = mk('CV-C', '2026, 10, 23, 9, 0');
+    const uD = mk('CV-D', '2026, 10, 22, 17, 0');
+    [uA, uB].forEach((u) => ev("store.update('" + u + "', { releaseAt: new Date().toISOString(), releaser: 'NTCM' })"));
+    ev('openConvertModal()');
+    assert.ok(!d117.getElementById('convert-modal').classList.contains('hidden'), 'mở được hộp thoại chuyển đổi');
+    assert.strictEqual(d117.getElementById('convert-date').value, '2026-11-23', 'ngày mặc định 23/11/2026');
+    assert.strictEqual(d117.getElementById('convert-time').value, '16:31', 'giờ mốc mặc định 16:31');
+    assert.ok(d117.getElementById('convert-count').textContent.includes('2 mẫu'), 'chỉ đúng 2 mẫu khớp mốc. Thực tế: ' + d117.getElementById('convert-count').textContent);
+    d117.getElementById('btn-convert-run').click();
+    const cA = rec(uA), cB = rec(uB), cC = rec(uC), cD = rec(uD);
+    assert.strictEqual(cA.typeId, 'ksk-nuoc-tieu', 'CV-A (16:51) đã chuyển sang KSK');
+    assert.strictEqual(cB.typeId, 'ksk-nuoc-tieu', 'CV-B (17:27) đã chuyển sang KSK');
+    assert.deepStrictEqual(cA.results, {}, 'kết quả đỡ bị xóa');
+    assert.strictEqual(cA.releaseAt, null, 'đã gỡ phát hành');
+    assert.strictEqual(cA.receiver, 'NTCM', 'giữ người nhận');
+    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uA + "'))"), 'no-result', 'mẫu chuyển đổi về chưa kết quả');
+    assert.strictEqual(cC.typeId, 'sp', 'CV-C (09:00, trước mốc) giữ nguyên SP');
+    assert.strictEqual(cD.typeId, 'sp', 'CV-D (ngày 22/11) giữ nguyên SP');
+    w117.close();
   });
 
   await chain;
