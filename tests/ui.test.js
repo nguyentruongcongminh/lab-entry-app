@@ -146,7 +146,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(visible($('view-today')));
     assert.ok(visible($('empty-today')));
     assert.strictEqual($('list-today').children.length, 0);
-    assert.strictEqual(window.eval('LAB_CONFIG.testTypes.length'), 7);
+    assert.strictEqual(window.eval('LAB_CONFIG.testTypes.length'), 9);
   });
 
   test('mở form thêm mới: form hiện, thanh điều hướng ẩn, loại mặc định có 1 trường text', () => {
@@ -655,7 +655,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v117 và precache đúng URL ?v=117 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v118 và precache đúng URL ?v=118 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -675,8 +675,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v117'"), 'sw.js phải gắn VERSION v117');
-    for (const a of ['styles.css?v=117', 'print.css?v=117', 'config.js?v=117', 'store.js?v=117', 'sync-core.js?v=117', 'sync.js?v=117', 'mascot.js?v=117', 'app.js?v=117', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v118'"), 'sw.js phải gắn VERSION v118');
+    for (const a of ['styles.css?v=118', 'print.css?v=118', 'config.js?v=118', 'store.js?v=118', 'sync-core.js?v=118', 'sync.js?v=118', 'mascot.js?v=118', 'app.js?v=118', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -686,6 +686,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const micRule = css.match(/\.mic-wrap\s*\{[^}]*\}/);
     assert.ok(micRule && micRule[0].includes('flex: 1') && micRule[0].includes('min-width: 0'),
       'styles.css: .mic-wrap phải khai flex: 1 và min-width: 0 (v48)');
+    /* v118 (Minh: "gom lại chỉ 1 hàng chức năng"): hàng nút tab Quản lý đúng 4 cột 1 hàng */
+    const maRule = css.match(/\.manage-actions\s*\{[^}]*\}/);
+    assert.ok(maRule && maRule[0].includes('grid-template-columns: repeat(4, 1fr)'),
+      'styles.css: .manage-actions phải là lưới 4 cột (1 hàng duy nhất)');
     /* v67 F34: ảnh chữ ký trong ô ký tên phải bị giới hạn chiều cao */
     const sigRule = css.match(/\.sh-sig-img\s*\{[^}]*\}/);
     assert.ok(sigRule && sigRule[0].includes('max-height: 56px'), 'styles.css: .sh-sig-img phải có max-height 56px (F34)');
@@ -808,7 +812,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     document.querySelector('[data-view="manage"]').click();
     $('btn-types').click();
     assert.ok(visible($('view-types')));
-    assert.strictEqual($('types-list').children.length, 7, 'ban đầu là 7 loại mặc định (v117: thêm KSK nước tiểu)');
+    assert.strictEqual($('types-list').children.length, 9, 'ban đầu là 9 loại mặc định (v118: 3 loại KSK riêng)');
     $('btn-type-add').click();
     assert.ok(visible($('view-typeform')));
     const stackRow = $('btn-tf-add-field').closest('.form-row');
@@ -819,7 +823,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     setInput($('tf-fields').querySelector('.tf-flabel'), 'Kết quả');
     $('btn-tf-save').click();
     assert.ok(visible($('view-types')), 'lưu xong quay về danh sách loại');
-    assert.strictEqual($('types-list').children.length, 8); /* 7 mặc định (v117) + 1 loại tự thêm */
+    assert.strictEqual($('types-list').children.length, 10); /* 9 mặc định (v118) + 1 loại tự thêm */
     assert.ok($('types-list').textContent.includes('Soi phân tìm KST'));
     $('btn-types-back').click();
     $('fab-add').click();
@@ -2197,7 +2201,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v117', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v118', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -3271,14 +3275,21 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     w16.close();
   });
 
-  test('v117: KSK nước tiểu (3 ống tick, đủ 3/3 mới phát hành) + mẫu từ chối (danh sách riêng) + chuyển đổi SP -> KSK theo mốc ngày/giờ', async () => {
+  test('v118: KSK là 3 danh mục riêng (cùng ID nhận cả 3) + ép sửa định nghĩa v117 cũ + mẫu từ chối + chuyển đổi SP -> KSK theo mốc ngày/giờ', async () => {
     const { LAB_CONFIG } = require('../config.js');
-    const oldTypes = LAB_CONFIG.testTypes.filter((t) => t.id !== 'ksk-nuoc-tieu');
+    /* Danh mục máy anh Minh sau v117: 6 loại thường + KSK GÓI 3 ống (định nghĩa cũ),
+       chưa có SH-MD/CTM — app v118 phải tự ép về 3 loại riêng */
+    const oldKsk = { id: 'ksk-nuoc-tieu', name: 'KSK nước tiểu', composite: true, builtin: true,
+      fields: [
+        { key: 'nt', label: 'NT', type: 'tick' },
+        { key: 'shmd', label: 'Máu ống SH-MD', type: 'tick' },
+        { key: 'ctm', label: 'Ống CTM', type: 'tick' },
+      ] };
+    const oldTypes = LAB_CONFIG.testTypes.filter((t) => !t.builtin).concat([oldKsk]);
     const dom117 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
       beforeParse(w) { shimStorage(w, {
         'labentry.staff.v1': JSON.stringify([{ name: 'KTV KSK', salt: 's117', pinHash: 'h117' }]),
         'labentry.operator.v1': 'KTV KSK',
-        /* Danh mục đã lưu từ bản cũ CHỈ có 6 loại, chưa có KSK — app phải tự bổ sung loại hệ thống */
         'labentry.types.v1': JSON.stringify(oldTypes),
       }); } });
     const w117 = dom117.window;
@@ -3291,36 +3302,35 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     const ev = (expr) => w117.eval(expr);
     const rec = (uid) => JSON.parse(ev("JSON.stringify(store.getByUid('" + uid + "'))"));
 
-    /* 1) Loại hệ thống KSK được bổ sung dù danh mục đã lưu chưa có; hiện trong ô chọn loại; không sửa/xóa được */
-    assert.ok(ev("!!getTestType('ksk-nuoc-tieu')"), 'KSK được bổ sung vào danh mục đang dùng');
-    assert.ok([...d117.getElementById('select-type').options].some((o) => o.value === 'ksk-nuoc-tieu'), 'ô chọn loại có KSK nước tiểu');
+    /* 1) Định nghĩa KSK cũ bị ép sửa + 2 loại mới được bổ sung; hiện đủ 3 trong ô chọn loại; không sửa/xóa được */
+    assert.strictEqual(ev("getTestType('ksk-nuoc-tieu').fields.length"), 1, 'KSK nước tiểu bị ép về 1 trường tick NT');
+    assert.ok(!ev("getTestType('ksk-nuoc-tieu').composite"), 'không còn là loại gói');
+    assert.ok(ev("!!getTestType('ksk-shmd') && !!getTestType('ksk-ctm')"), 'SH-MD và CTM được bổ sung');
+    ['ksk-nuoc-tieu', 'ksk-shmd', 'ksk-ctm'].forEach((id) => {
+      assert.ok([...d117.getElementById('select-type').options].some((o) => o.value === id), 'ô chọn loại có ' + id);
+    });
     ev("switchView('types')");
     const kskRow = [...d117.querySelectorAll('#types-list li')].find((li) => li.textContent.includes('KSK nước tiểu'));
     assert.ok(kskRow && kskRow.textContent.includes('Loại hệ thống'), 'trang danh mục ghi KSK là loại hệ thống');
     assert.ok(!kskRow.querySelector('[data-tdel]'), 'KSK không có nút Xóa');
 
-    /* 2) Quy trình KSK: tick từng ống trong form; 2/3 vẫn chưa kết quả + hiện tiến độ; đủ 3/3 mới chờ phát hành rồi phát hành được */
+    /* 2) Quy trình KSK: form có đúng 1 nút tick; tick -> chờ phát hành -> phát hành.
+       Cùng ID nhận tiếp ở 2 danh mục KSK còn lại; trùng ID + trùng loại thì bị chặn */
     const uidK = ev("store.add({ testId: 'KSK-001', typeId: 'ksk-nuoc-tieu', results: {} }).record.uid");
     ev("openForm('" + uidK + "')");
     const ticks = d117.querySelectorAll('#fields-container [data-tick]');
-    assert.strictEqual(ticks.length, 3, 'form KSK có đúng 3 nút tick cho 3 ống');
+    assert.strictEqual(ticks.length, 1, 'form KSK nước tiểu có đúng 1 nút tick');
     d117.querySelector('[data-tick="nt"]').click();
-    d117.querySelector('[data-tick="shmd"]').click();
     d117.getElementById('btn-save').click();
-    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'no-result', 'mới 2/3 ống: vẫn chưa kết quả');
-    ev("switchView('manage')");
-    const rowK = d117.querySelector('#list-noresult [data-uid="' + uidK + '"]');
-    assert.ok(rowK, 'mẫu KSK 2/3 nằm ở khung Chưa kết quả');
-    assert.ok(rowK.closest('li').textContent.includes('2/3 ống'), 'dòng mẫu hiện tiến độ 2/3 ống');
-    ev("openForm('" + uidK + "')");
-    d117.querySelector('[data-tick="ctm"]').click();
-    d117.getElementById('btn-save').click();
-    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'pending-release', 'đủ 3/3 ống: chờ phát hành');
+    assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'pending-release', 'tick NT xong: chờ phát hành');
     ev("switchView('manage')"); ev("setManagePanel('pending')");
     const relBtn = d117.querySelector('#list-pending [data-action="release"][data-uid="' + uidK + '"]');
-    assert.ok(relBtn, 'mẫu KSK đủ ống có nút Phát hành');
+    assert.ok(relBtn, 'mẫu KSK đã tick có nút Phát hành');
     relBtn.click();
     assert.strictEqual(ev("store.statusOf(store.getByUid('" + uidK + "'))"), 'released', 'phát hành KSK thành công');
+    assert.strictEqual(ev("store.add({ testId: 'KSK-001', typeId: 'ksk-shmd', results: {} }).ok"), true, 'cùng ID nhận được ở danh mục SH-MD');
+    assert.strictEqual(ev("store.add({ testId: 'KSK-001', typeId: 'ksk-ctm', results: {} }).ok"), true, 'cùng ID nhận được ở danh mục CTM');
+    assert.strictEqual(ev("store.add({ testId: 'KSK-001', typeId: 'ksk-nuoc-tieu', results: {} }).ok"), false, 'trùng ID + trùng loại NT bị chặn');
 
     /* 3) Từ chối: mẫu rời hàng chờ, sang trang riêng có đếm số; bỏ từ chối thì quay lại */
     const uidR = ev("store.add({ testId: 'RJ-001', typeId: 'sp', results: { kySinhTrung: 'Âm tính' } }).record.uid");

@@ -318,10 +318,10 @@ const LabStore = (() => {
       return records.find((r) => r.uid === uid) || null;
     }
 
-    /* Có kết quả chưa? Loại thường: ít nhất một trường được nhập/chọn
-       (ghi chú không tính). Loại GÓI (composite, v117 — vd KSK 3 ống):
-       phải ĐỦ mọi trường/ống mới tính là có kết quả, thiếu một ống là
-       vẫn chưa có kết quả và không phát hành được. */
+    /* Có kết quả chưa? Ít nhất một trường được nhập/chọn (ghi chú không
+       tính). Các loại tick (3 loại KSK, v118) có đúng 1 trường: đã tick
+       "Đã có KQ" là có kết quả. (Nhánh composite còn lại cho tương thích
+       dữ liệu cũ: loại gói phải ĐỦ mọi trường mới tính là có kết quả.) */
     function hasResult(rec) {
       const type = getTestTypeFn(rec.typeId);
       if (!type) return false;

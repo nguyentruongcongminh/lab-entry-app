@@ -13,12 +13,12 @@ function test(name, fn) {
 
 const D = (s) => new Date(s);
 
-/* ---------- Cấu hình 7 loại xét nghiệm (v117: thêm KSK nước tiểu) ---------- */
-test('config có đúng 7 loại xét nghiệm, id không trùng', () => {
-  assert.strictEqual(LAB_CONFIG.testTypes.length, 7);
+/* ---------- Cấu hình 9 loại xét nghiệm (v118: 3 loại KSK riêng) ---------- */
+test('config có đúng 9 loại xét nghiệm, id không trùng', () => {
+  assert.strictEqual(LAB_CONFIG.testTypes.length, 9);
   const ids = LAB_CONFIG.testTypes.map((t) => t.id);
-  assert.strictEqual(new Set(ids).size, 7);
-  ['Cạo tìm nấm', 'Soi nhuộm mực tàu DNT', 'Soi tinh thể dịch', 'Soi tươi huyết trắng', 'Máu ẩn', 'SP', 'KSK nước tiểu']
+  assert.strictEqual(new Set(ids).size, 9);
+  ['Cạo tìm nấm', 'Soi nhuộm mực tàu DNT', 'Soi tinh thể dịch', 'Soi tươi huyết trắng', 'Máu ẩn', 'SP', 'KSK nước tiểu', 'KSK máu ống SH-MD', 'KSK ống CTM']
     .forEach((n) => assert.ok(LAB_CONFIG.testTypes.some((t) => t.name === n), n));
 });
 
@@ -425,36 +425,53 @@ test('v87: remove báo delete kèm bản ghi trước khi xóa; mergeBackup báo
   assert.ok(s.getAll().every((x) => x.rv === undefined && x.seq === undefined));
 });
 
-/* ---------- v117: loại gói KSK + mẫu từ chối + chuyển đổi SP → KSK ---------- */
-test('v117: KSK nước tiểu là loại gói hệ thống — 3 trường tick NT/SH-MD/CTM', () => {
-  const t = getTestType('ksk-nuoc-tieu');
-  assert.ok(t, 'có loại ksk-nuoc-tieu');
-  assert.strictEqual(t.name, 'KSK nước tiểu');
-  assert.strictEqual(t.composite, true);
-  assert.strictEqual(t.builtin, true);
-  assert.deepStrictEqual(t.fields.map((f) => f.key), ['nt', 'shmd', 'ctm']);
-  assert.ok(t.fields.every((f) => f.type === 'tick'));
+/* ---------- v117/v118: KSK 3 danh mục riêng + mẫu từ chối + chuyển đổi SP → KSK ---------- */
+test('v118: KSK là 3 loại hệ thống RIÊNG (NT / SH-MD / CTM), mỗi loại đúng 1 trường tick', () => {
+  const cases = [
+    ['ksk-nuoc-tieu', 'KSK nước tiểu', 'nt'],
+    ['ksk-shmd', 'KSK máu ống SH-MD', 'shmd'],
+    ['ksk-ctm', 'KSK ống CTM', 'ctm'],
+  ];
+  cases.forEach(([id, name, key]) => {
+    const t = getTestType(id);
+    assert.ok(t, 'có loại ' + id);
+    assert.strictEqual(t.name, name);
+    assert.strictEqual(t.builtin, true);
+    assert.ok(!t.composite, id + ' không còn là loại gói');
+    assert.deepStrictEqual(t.fields.map((f) => f.key), [key]);
+    assert.strictEqual(t.fields[0].type, 'tick');
+  });
 });
 
-test('v117: loại gói — thiếu 1 ống là CHƯA có kết quả, đủ 3/3 mới chờ phát hành; resultAt chỉ đóng khi đủ', () => {
+test('v118: loại tick — chưa tick là chưa kết quả, tick "Đã có KQ" là chờ phát hành, bỏ tick quay lại', () => {
   const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
   const r = s.add({ testId: 'KSK1', typeId: 'ksk-nuoc-tieu', results: {} }, D('2026-11-24T02:00:00.000Z'));
   assert.strictEqual(s.hasResult(r.record), false);
   assert.strictEqual(s.statusOf(r.record), 'no-result');
   assert.strictEqual(r.record.resultAt, null);
-  const u1 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ' } }, D('2026-11-24T03:00:00.000Z'));
-  assert.strictEqual(s.hasResult(u1.record), false, '2/3 ống vẫn chưa có kết quả');
-  assert.strictEqual(s.statusOf(u1.record), 'no-result');
-  assert.strictEqual(u1.record.resultAt, null, 'chưa đủ ống thì chưa đóng dấu giờ kết quả');
-  const u2 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ', ctm: 'Đã có KQ' } }, D('2026-11-24T04:00:00.000Z'));
-  assert.strictEqual(s.hasResult(u2.record), true, 'đủ 3/3 ống là có kết quả');
-  assert.strictEqual(s.statusOf(u2.record), 'pending-release');
-  assert.strictEqual(u2.record.resultAt, '2026-11-24T04:00:00.000Z');
-  const u3 = s.update(r.record.uid, { releaseAt: '2026-11-24T05:00:00.000Z' });
-  assert.strictEqual(s.statusOf(u3.record), 'released');
-  const u4 = s.update(r.record.uid, { results: { nt: 'Đã có KQ', shmd: 'Đã có KQ', ctm: '' } }, D('2026-11-24T06:00:00.000Z'));
-  assert.strictEqual(s.statusOf(u4.record), 'no-result', 'bỏ tick 1 ống -> quay về chưa kết quả');
-  assert.strictEqual(u4.record.resultAt, null);
+  const u1 = s.update(r.record.uid, { results: { nt: 'Đã có KQ' } }, D('2026-11-24T03:00:00.000Z'));
+  assert.strictEqual(s.hasResult(u1.record), true, 'tick là có kết quả');
+  assert.strictEqual(s.statusOf(u1.record), 'pending-release');
+  assert.strictEqual(u1.record.resultAt, '2026-11-24T03:00:00.000Z');
+  const u2 = s.update(r.record.uid, { releaseAt: '2026-11-24T04:00:00.000Z' });
+  assert.strictEqual(s.statusOf(u2.record), 'released');
+  const u3 = s.update(r.record.uid, { results: { nt: '' } }, D('2026-11-24T05:00:00.000Z'));
+  assert.strictEqual(s.statusOf(u3.record), 'no-result', 'bỏ tick -> quay về chưa kết quả');
+  assert.strictEqual(u3.record.resultAt, null);
+});
+
+test('v118: cùng ID nhận được ở CẢ 3 danh mục KSK khác nhau; chỉ trùng ID + trùng loại mới bị chặn', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  const id = '2611234968';
+  const a = s.add({ testId: id, typeId: 'ksk-nuoc-tieu', results: {} });
+  const b = s.add({ testId: id, typeId: 'ksk-shmd', results: {} });
+  const c = s.add({ testId: id, typeId: 'ksk-ctm', results: {} });
+  assert.ok(a.ok && b.ok && c.ok, '3 danh mục khác nhau cùng ID đều nhận được');
+  assert.strictEqual(s.getAll().length, 3);
+  const dup = s.add({ testId: id, typeId: 'ksk-shmd', results: {} });
+  assert.strictEqual(dup.ok, false, 'trùng ID + trùng loại bị chặn');
+  assert.ok(s.findDuplicate({ testId: id, typeId: 'ksk-ctm' }), 'findDuplicate theo cặp ID + loại');
+  assert.strictEqual(s.findDuplicate({ testId: id, typeId: 'sp' }), null, 'khác loại thì không tính trùng');
 });
 
 test('v117: loại thường không đổi ngữ nghĩa — 1 trường có giá trị là có kết quả', () => {

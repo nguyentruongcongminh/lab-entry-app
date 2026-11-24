@@ -819,10 +819,12 @@ svg { width: 24px; height: 24px; display: block; }
 @keyframes alarm-pulse { 0%, 100% { background: #c62828; } 50% { background: #e53935; } }
 /* Nhật ký thao tác (F22) */
 .audit-open-btn { display: block; width: 100%; margin: 4px 0 12px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-weight: 600; color: var(--blue-dark); }
-/* v74 (Minh góp ý "hiện nằm dọc chiếm chỗ trang"): 4 nút chức năng của tab
-   Quản lý xếp lưới 2 cột gọn thay vì 4 hàng dọc */
-.manage-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 12px; }
-.manage-actions .audit-open-btn { margin: 0; width: auto; padding: 8px 6px; font-size: 15px; }
+/* v74 (Minh góp ý "hiện nằm dọc chiếm chỗ trang"): các nút chức năng của tab
+   Quản lý xếp lưới gọn thay vì xếp dọc. v118 (Minh: "gom lại chỉ 1 hàng"):
+   đúng 4 cột trên MỘT hàng, chữ/padding thu lại để vừa màn hình hẹp. */
+.manage-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 12px; }
+.manage-actions .audit-open-btn { margin: 0; width: auto; padding: 8px 2px; font-size: 13.5px; white-space: nowrap; }
+.manage-actions .audit-open-btn .switch-count { margin-left: 2px; min-width: 19px; padding: 0 5px; font-size: 12.5px; }
 .audit-tools { display: flex; gap: 8px; margin-bottom: 8px; }
 .audit-tools select { flex: 0 0 auto; }
 .audit-tools input { flex: 1 1 auto; min-width: 0; }
@@ -1306,7 +1308,7 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v117</span>
+  <span class="app-version">LabEntry v118</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -2317,12 +2319,14 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
  *   type   : 'text'  -> ô nhập tự do
  *            'chips' -> các nút chọn mức, ví dụ ['(+)', '(++)', '(+++)']
  *            (bấm lại nút đang chọn để bỏ chọn = không ghi nhận)
- *            'tick'  -> nút bật/tắt "Đã có KQ" (v117, cho loại gói nhiều ống):
- *            giá trị lưu là 'Đã có KQ' khi đã đánh dấu, '' khi chưa.
+ *            'tick'  -> nút bật/tắt "Đã có KQ": giá trị lưu là 'Đã có KQ'
+ *            khi đã đánh dấu, '' khi chưa (cho các loại chỉ cần xác nhận
+ *            đã có kết quả, không nhập chữ — vd 3 loại KSK ở dưới).
  *
- * Loại có composite: true (v117) là loại GÓI gồm nhiều phần (vd KSK = 3 ống):
- * bản ghi chỉ được coi là "có kết quả" khi MỌI trường đều đã nhập/đánh dấu —
- * thiếu một phần là vẫn "chưa kết quả" và không phát hành được.
+ * Ba loại KSK (v118, Minh chốt 2026-11-24) là BA DANH MỤC RIÊNG — nước tiểu
+ * NT, máu ống SH-MD, ống CTM — dù chung một ID bệnh nhân vẫn nhận thành 3
+ * mẫu riêng (luật trùng chỉ chặn khi trùng cả ID + loại). v117 từng gộp
+ * thành 1 loại gói 3 trường tick; Minh sửa lại: mỗi ống là một danh mục.
  */
 const LAB_CONFIG = {
   /* Mẫu chờ (chưa có kết quả hoặc chờ phát hành) quá số phút này sẽ bị tô đỏ cảnh báo */
@@ -2400,18 +2404,37 @@ const LAB_CONFIG = {
       ],
     },
     {
-      /* v117 (Minh, 2026-11-24): gói khám sức khỏe nước tiểu — 1 ID gồm 3 ống
-       * (NT, máu ống SH-MD, ống CTM). Nhận mẫu chỉ để lên danh sách; kết quả
-       * máy đổ ra theo từng ống thì đánh dấu "Đã có KQ" cho ống đó; đủ 3/3
-       * mới phát hành. builtin: loại hệ thống, không sửa/xóa trong app. */
+      /* v118 (Minh chốt 2026-11-24): khám sức khỏe gồm 3 DANH MỤC RIÊNG —
+       * nước tiểu NT, máu ống SH-MD, ống CTM (huyết học). Mỗi danh mục là
+       * một loại riêng với 1 trường tick: nhận mẫu chỉ để lên danh sách,
+       * máy trả kết quả ống nào thì vào mẫu của ống đó bấm "Đã có KQ" rồi
+       * phát hành. Chung ID khác danh mục vẫn nhận bình thường (luật trùng
+       * chỉ chặn trùng ID + trùng loại). builtin: loại hệ thống, app tự bổ
+       * sung/ép đúng định nghĩa, không sửa/xóa trong app.
+       * Giữ id 'ksk-nuoc-tieu' của v117 để 252 mẫu đã chuyển đổi hôm
+       * 24/11/2026 (vốn là danh mục NT) nằm nguyên, không phải chuyển lại;
+       * giữ key trường 'nt' để tick NT đã đánh ở v117 không bị mất. */
       id: 'ksk-nuoc-tieu',
       name: 'KSK nước tiểu',
-      composite: true,
       builtin: true,
       fields: [
         { key: 'nt', label: 'NT', type: 'tick' },
-        { key: 'shmd', label: 'Máu ống SH-MD', type: 'tick' },
-        { key: 'ctm', label: 'Ống CTM', type: 'tick' },
+      ],
+    },
+    {
+      id: 'ksk-shmd',
+      name: 'KSK máu ống SH-MD',
+      builtin: true,
+      fields: [
+        { key: 'shmd', label: 'SH-MD', type: 'tick' },
+      ],
+    },
+    {
+      id: 'ksk-ctm',
+      name: 'KSK ống CTM',
+      builtin: true,
+      fields: [
+        { key: 'ctm', label: 'CTM', type: 'tick' },
       ],
     },
   ],
@@ -2763,10 +2786,10 @@ const LabStore = (() => {
       return records.find((r) => r.uid === uid) || null;
     }
 
-    /* Có kết quả chưa? Loại thường: ít nhất một trường được nhập/chọn
-       (ghi chú không tính). Loại GÓI (composite, v117 — vd KSK 3 ống):
-       phải ĐỦ mọi trường/ống mới tính là có kết quả, thiếu một ống là
-       vẫn chưa có kết quả và không phát hành được. */
+    /* Có kết quả chưa? Ít nhất một trường được nhập/chọn (ghi chú không
+       tính). Các loại tick (3 loại KSK, v118) có đúng 1 trường: đã tick
+       "Đã có KQ" là có kết quả. (Nhánh composite còn lại cho tương thích
+       dữ liệu cũ: loại gói phải ĐỦ mọi trường mới tính là có kết quả.) */
     function hasResult(rec) {
       const type = getTestTypeFn(rec.typeId);
       if (!type) return false;
@@ -4115,7 +4138,8 @@ function rejectedRecords() {
   return store.getAll().filter(isRejected)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
 }
-/* Loại GÓI (composite — vd KSK nước tiểu 3 ống): đếm số phần đã có kết quả */
+/* Loại GÓI (composite — chỉ còn để tương thích dữ liệu v117; từ v118 danh
+   mục không còn loại gói): đếm số phần đã có kết quả */
 function tubeProgress(rec) {
   const type = getTestType(rec.typeId);
   if (!type || !type.composite) return null;
@@ -5248,17 +5272,25 @@ function loadSavedTypes() {
   } catch (e) { /* danh mục lưu hỏng -> dùng mặc định */ }
 }
 
-/* v117: loại HỆ THỐNG (builtin — vd KSK nước tiểu) phải luôn có mặt trong
-   danh mục đang dùng: máy đã lưu danh mục riêng từ bản cũ, file sao lưu cũ
-   hay danh mục đồng bộ từ máy khác đều có thể thiếu nó. Thiếu thì bổ sung
-   và lưu lại tại chỗ (không phát sự kiện đồng bộ — máy khác tự bổ sung). */
+/* v117: loại HỆ THỐNG (builtin — 3 loại KSK) phải luôn có mặt trong danh
+   mục đang dùng với ĐÚNG định nghĩa gốc: máy đã lưu danh mục riêng từ bản
+   cũ, file sao lưu cũ hay danh mục đồng bộ từ máy khác đều có thể thiếu
+   hoặc mang định nghĩa cũ (v117 từng gộp KSK thành 1 loại 3 ống — v118
+   tách lại thành 3 loại riêng). Thiếu thì bổ sung, khác thì thay bằng bản
+   gốc, rồi lưu lại tại chỗ (không phát sự kiện đồng bộ — máy khác tự sửa). */
 function ensureBuiltinTypes() {
   const builtins = LAB_CONFIG.testTypes.filter((t) => t.builtin);
   if (!builtins.length) return;
-  const cur = getTestTypes();
-  const missing = builtins.filter((b) => !cur.some((t) => t.id === b.id));
-  if (!missing.length) return;
-  setTestTypes(cur.concat(missing.map((t) => JSON.parse(JSON.stringify(t)))));
+  const cur = getTestTypes().slice();
+  let changed = false;
+  builtins.forEach((b) => {
+    const canon = JSON.parse(JSON.stringify(b));
+    const i = cur.findIndex((t) => t.id === b.id);
+    if (i < 0) { cur.push(canon); changed = true; }
+    else if (JSON.stringify(cur[i]) !== JSON.stringify(canon)) { cur[i] = canon; changed = true; }
+  });
+  if (!changed) return;
+  setTestTypes(cur);
   typesCustom = true;
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
 }

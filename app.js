@@ -79,7 +79,8 @@ function rejectedRecords() {
   return store.getAll().filter(isRejected)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)); /* thứ tự tiếp nhận (v50) */
 }
-/* Loại GÓI (composite — vd KSK nước tiểu 3 ống): đếm số phần đã có kết quả */
+/* Loại GÓI (composite — chỉ còn để tương thích dữ liệu v117; từ v118 danh
+   mục không còn loại gói): đếm số phần đã có kết quả */
 function tubeProgress(rec) {
   const type = getTestType(rec.typeId);
   if (!type || !type.composite) return null;
@@ -1212,17 +1213,25 @@ function loadSavedTypes() {
   } catch (e) { /* danh mục lưu hỏng -> dùng mặc định */ }
 }
 
-/* v117: loại HỆ THỐNG (builtin — vd KSK nước tiểu) phải luôn có mặt trong
-   danh mục đang dùng: máy đã lưu danh mục riêng từ bản cũ, file sao lưu cũ
-   hay danh mục đồng bộ từ máy khác đều có thể thiếu nó. Thiếu thì bổ sung
-   và lưu lại tại chỗ (không phát sự kiện đồng bộ — máy khác tự bổ sung). */
+/* v117: loại HỆ THỐNG (builtin — 3 loại KSK) phải luôn có mặt trong danh
+   mục đang dùng với ĐÚNG định nghĩa gốc: máy đã lưu danh mục riêng từ bản
+   cũ, file sao lưu cũ hay danh mục đồng bộ từ máy khác đều có thể thiếu
+   hoặc mang định nghĩa cũ (v117 từng gộp KSK thành 1 loại 3 ống — v118
+   tách lại thành 3 loại riêng). Thiếu thì bổ sung, khác thì thay bằng bản
+   gốc, rồi lưu lại tại chỗ (không phát sự kiện đồng bộ — máy khác tự sửa). */
 function ensureBuiltinTypes() {
   const builtins = LAB_CONFIG.testTypes.filter((t) => t.builtin);
   if (!builtins.length) return;
-  const cur = getTestTypes();
-  const missing = builtins.filter((b) => !cur.some((t) => t.id === b.id));
-  if (!missing.length) return;
-  setTestTypes(cur.concat(missing.map((t) => JSON.parse(JSON.stringify(t)))));
+  const cur = getTestTypes().slice();
+  let changed = false;
+  builtins.forEach((b) => {
+    const canon = JSON.parse(JSON.stringify(b));
+    const i = cur.findIndex((t) => t.id === b.id);
+    if (i < 0) { cur.push(canon); changed = true; }
+    else if (JSON.stringify(cur[i]) !== JSON.stringify(canon)) { cur[i] = canon; changed = true; }
+  });
+  if (!changed) return;
+  setTestTypes(cur);
   typesCustom = true;
   try { localStorage.setItem(TYPES_KEY, JSON.stringify(getTestTypes())); } catch (e) { /* bỏ qua */ }
 }

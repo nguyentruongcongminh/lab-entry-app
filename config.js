@@ -9,12 +9,14 @@
  *   type   : 'text'  -> ô nhập tự do
  *            'chips' -> các nút chọn mức, ví dụ ['(+)', '(++)', '(+++)']
  *            (bấm lại nút đang chọn để bỏ chọn = không ghi nhận)
- *            'tick'  -> nút bật/tắt "Đã có KQ" (v117, cho loại gói nhiều ống):
- *            giá trị lưu là 'Đã có KQ' khi đã đánh dấu, '' khi chưa.
+ *            'tick'  -> nút bật/tắt "Đã có KQ": giá trị lưu là 'Đã có KQ'
+ *            khi đã đánh dấu, '' khi chưa (cho các loại chỉ cần xác nhận
+ *            đã có kết quả, không nhập chữ — vd 3 loại KSK ở dưới).
  *
- * Loại có composite: true (v117) là loại GÓI gồm nhiều phần (vd KSK = 3 ống):
- * bản ghi chỉ được coi là "có kết quả" khi MỌI trường đều đã nhập/đánh dấu —
- * thiếu một phần là vẫn "chưa kết quả" và không phát hành được.
+ * Ba loại KSK (v118, Minh chốt 2026-11-24) là BA DANH MỤC RIÊNG — nước tiểu
+ * NT, máu ống SH-MD, ống CTM — dù chung một ID bệnh nhân vẫn nhận thành 3
+ * mẫu riêng (luật trùng chỉ chặn khi trùng cả ID + loại). v117 từng gộp
+ * thành 1 loại gói 3 trường tick; Minh sửa lại: mỗi ống là một danh mục.
  */
 const LAB_CONFIG = {
   /* Mẫu chờ (chưa có kết quả hoặc chờ phát hành) quá số phút này sẽ bị tô đỏ cảnh báo */
@@ -92,18 +94,37 @@ const LAB_CONFIG = {
       ],
     },
     {
-      /* v117 (Minh, 2026-11-24): gói khám sức khỏe nước tiểu — 1 ID gồm 3 ống
-       * (NT, máu ống SH-MD, ống CTM). Nhận mẫu chỉ để lên danh sách; kết quả
-       * máy đổ ra theo từng ống thì đánh dấu "Đã có KQ" cho ống đó; đủ 3/3
-       * mới phát hành. builtin: loại hệ thống, không sửa/xóa trong app. */
+      /* v118 (Minh chốt 2026-11-24): khám sức khỏe gồm 3 DANH MỤC RIÊNG —
+       * nước tiểu NT, máu ống SH-MD, ống CTM (huyết học). Mỗi danh mục là
+       * một loại riêng với 1 trường tick: nhận mẫu chỉ để lên danh sách,
+       * máy trả kết quả ống nào thì vào mẫu của ống đó bấm "Đã có KQ" rồi
+       * phát hành. Chung ID khác danh mục vẫn nhận bình thường (luật trùng
+       * chỉ chặn trùng ID + trùng loại). builtin: loại hệ thống, app tự bổ
+       * sung/ép đúng định nghĩa, không sửa/xóa trong app.
+       * Giữ id 'ksk-nuoc-tieu' của v117 để 252 mẫu đã chuyển đổi hôm
+       * 24/11/2026 (vốn là danh mục NT) nằm nguyên, không phải chuyển lại;
+       * giữ key trường 'nt' để tick NT đã đánh ở v117 không bị mất. */
       id: 'ksk-nuoc-tieu',
       name: 'KSK nước tiểu',
-      composite: true,
       builtin: true,
       fields: [
         { key: 'nt', label: 'NT', type: 'tick' },
-        { key: 'shmd', label: 'Máu ống SH-MD', type: 'tick' },
-        { key: 'ctm', label: 'Ống CTM', type: 'tick' },
+      ],
+    },
+    {
+      id: 'ksk-shmd',
+      name: 'KSK máu ống SH-MD',
+      builtin: true,
+      fields: [
+        { key: 'shmd', label: 'SH-MD', type: 'tick' },
+      ],
+    },
+    {
+      id: 'ksk-ctm',
+      name: 'KSK ống CTM',
+      builtin: true,
+      fields: [
+        { key: 'ctm', label: 'CTM', type: 'tick' },
       ],
     },
   ],
