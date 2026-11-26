@@ -2321,6 +2321,19 @@ function acceptScanCode(rawCode, opts) {
     if (navigator.vibrate) navigator.vibrate(120);
     return false;
   }
+  /* v119: mã do OCR đọc mà chỉ khác ĐÚNG 1 ký tự so với mẫu CÙNG LOẠI đã
+     nhận thì gần như chắc chắn là OCR đọc nhầm 1 chữ số của chính nhãn đó
+     (thực tế Minh báo 26/11/2026: nhãn 2611264734 bị đọc thành 2511264734
+     nên nhận thành 2 mẫu) — không nhận thẳng, đem hỏi KTV qua hàng xác
+     nhận như mã lạ. Mã vạch, máy bắn và gõ tay chính xác tuyệt đối nên
+     không qua kiểm tra này (chỉ opts.ocr mới bị hỏi). */
+  if (opts && opts.ocr && !opts.ocrConfirmed) {
+    const near = store.findNearDuplicate({ testId: code, typeId });
+    if (near) {
+      showOcrConfirm(code, 'near', near.testId.trim());
+      return 'confirm';
+    }
+  }
   const res = store.add({ testId: code, typeId, results: {}, receiver: currentOperator });
   if (!res.ok) {
     setScanMsg(res.errors.join('. '), 'err');
@@ -2414,13 +2427,17 @@ function finishScanProgress() {
    trên nữa (xem showOcrConfirm) — chỉ nhãn ngắn + mã + 2 nút. */
 let pendingOcrConfirm = '';
 let pendingOcrConfirmKind = '';
-function showOcrConfirm(code, kind) {
+let pendingOcrConfirmNear = '';
+function showOcrConfirm(code, kind, nearId) {
   pendingOcrConfirm = code;
   pendingOcrConfirmKind = kind || 'ocr4';
+  pendingOcrConfirmNear = nearId || '';
   const codeEl = $('scan-confirm-code');
   if (codeEl) codeEl.textContent = code;
   const labelEl = $('scan-confirm-label');
-  if (labelEl) labelEl.textContent = pendingOcrConfirmKind === 'strange' ? 'Mã lạ đọc được:' : 'Mã 4 số đọc được:';
+  if (labelEl) labelEl.textContent = pendingOcrConfirmKind === 'strange' ? 'Mã lạ đọc được:'
+    : pendingOcrConfirmKind === 'near' ? 'Gần trùng mẫu đã nhận ' + pendingOcrConfirmNear + ':'
+    : 'Mã 4 số đọc được:';
   const row = $('scan-confirm-row');
   if (row) row.classList.remove('hidden');
   /* v116 (Minh báo 2026-11-21): BỎ hộp ghi chú giải thích dài phía trên
@@ -2433,6 +2450,7 @@ function showOcrConfirm(code, kind) {
 function clearOcrConfirm() {
   pendingOcrConfirm = '';
   pendingOcrConfirmKind = '';
+  pendingOcrConfirmNear = '';
   const row = $('scan-confirm-row');
   if (row) row.classList.add('hidden');
   $('scanner-modal').classList.remove('confirming');
@@ -2445,6 +2463,9 @@ function confirmOcrCode(yes) {
   if (!code) return;
   if (yes) {
     if (kind === 'strange') acceptScanCode(code);
+    /* v119: KTV đã đối chiếu mắt và xác nhận mã gần-trùng là mẫu mới thật
+       → nhận với ocrConfirmed để không bị hỏi lại chính kiểm tra này */
+    else if (kind === 'near') acceptScanCode(code, { recognized: true, ocr: true, ocrConfirmed: true });
     else acceptScanCode(code, { recognized: true });
   }
   else setScanMsg('Đã bỏ qua mã "' + code + '" — chụp lại hoặc gõ tay mã đúng.', 'err');
@@ -2498,7 +2519,10 @@ async function processScanBitmap(bmp) {
     if (ocr.code) {
       finishScanProgress();
       if (/^\d{4}$/.test(ocr.code)) { showOcrConfirm(ocr.code); return 'confirm'; }
-      acceptScanCode(ocr.code, { recognized: true }); return 'accepted';
+      /* v119: đánh dấu ocr:true để acceptScanCode hỏi xác nhận khi mã
+         gần-trùng (khác 1 ký tự) với mẫu cùng loại đã nhận */
+      const ocrRes = acceptScanCode(ocr.code, { recognized: true, ocr: true });
+      return ocrRes === 'confirm' ? 'confirm' : 'accepted';
     }
     /* v115: không lượt nào ra mã đúng cổng — có ứng viên mã lạ thì đem
        hỏi (chuỗi mã vạch lạ ưu tiên hơn ứng viên OCR: giải mã chính xác,

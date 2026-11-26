@@ -190,6 +190,20 @@ test('cùng ID nhưng khác loại XN -> vẫn nhập được; khác ID cùng l
   assert.strictEqual(s.getAll().length, 3);
 });
 
+/* ---------- v119: gần trùng (khác đúng 1 ký tự) — dấu hiệu OCR đọc nhầm ---------- */
+test('findNearDuplicate: khác đúng 1 ký tự + cùng loại -> trúng; các trường hợp còn lại -> null', () => {
+  const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
+  assert.strictEqual(s.add({ testId: '2611264734', typeId: 'sp', results: {} }).ok, true);
+  /* ca thực tế 26/11/2026: OCR đọc 2611264734 thành 2511264734 (sai 1 số) */
+  const near = s.findNearDuplicate({ testId: '2511264734', typeId: 'sp' });
+  assert.ok(near && near.testId === '2611264734', 'khác 1 ký tự cùng loại phải báo gần trùng');
+  assert.strictEqual(s.findNearDuplicate({ testId: '2611264734', typeId: 'sp' }), null, 'trùng khớp hoàn toàn là việc của findDuplicate, không phải gần trùng');
+  assert.strictEqual(s.findNearDuplicate({ testId: '2511264700', typeId: 'sp' }), null, 'khác 3 ký tự thì không phải gần trùng');
+  assert.strictEqual(s.findNearDuplicate({ testId: '251126473', typeId: 'sp' }), null, 'khác độ dài thì không phải gần trùng');
+  assert.strictEqual(s.findNearDuplicate({ testId: '2511264734', typeId: 'mau-an' }), null, 'khác loại XN thì không phải gần trùng (cùng ID khác loại vẫn hợp lệ)');
+  assert.strictEqual(s.findNearDuplicate({ testId: '', typeId: 'sp' }), null, 'ID rỗng -> null');
+});
+
 test('sửa: đổi sang ID+loại đã có của bản ghi khác -> bị chặn; sửa chính bản ghi đó -> được', () => {
   const s = LabStore.createStore(LabStore.memoryStorage(), getTestType);
   const a = s.add({ testId: 'Y1', typeId: 'sp', results: {} }).record;

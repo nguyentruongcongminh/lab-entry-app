@@ -655,7 +655,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v118 và precache đúng URL ?v=118 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v119 và precache đúng URL ?v=119 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -675,8 +675,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v118'"), 'sw.js phải gắn VERSION v118');
-    for (const a of ['styles.css?v=118', 'print.css?v=118', 'config.js?v=118', 'store.js?v=118', 'sync-core.js?v=118', 'sync.js?v=118', 'mascot.js?v=118', 'app.js?v=118', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v119'"), 'sw.js phải gắn VERSION v119');
+    for (const a of ['styles.css?v=119', 'print.css?v=119', 'config.js?v=119', 'store.js?v=119', 'sync-core.js?v=119', 'sync.js?v=119', 'mascot.js?v=119', 'app.js?v=119', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2201,7 +2201,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v118', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v119', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -2674,6 +2674,64 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok(d115b.getElementById('scan-confirm-row').classList.contains('hidden'), 'vòng quét liên tục không hiện hàng hỏi xác nhận');
     w115b.eval('closeScanner()');
     w115b.close();
+  });
+
+  test('v119: mã OCR gần-trùng (khác đúng 1 ký tự) với mẫu cùng loại đã nhận -> hỏi xác nhận, không nhận thẳng', async () => {
+    const dom119 = new JSDOM(htmlText, { url: 'file://' + htmlPath, runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true,
+      beforeParse(w) { shimStorage(w, { 'labentry.staff.v1': JSON.stringify([{ name: 'KTV 119', salt: 's119', pinHash: 'h119' }]), 'labentry.operator.v1': 'KTV 119' }); } });
+    const w119 = dom119.window;
+    const d119 = w119.document;
+    await new Promise((res) => { if (d119.readyState === 'complete') res(); else w119.addEventListener('load', res); });
+    await new Promise((r) => setTimeout(r, 300));
+    w119.eval("currentOperator = 'KTV 119'");
+    w119.eval("openScanner('today')");
+    w119.eval("ocrCanvasFromBitmap = () => document.createElement('canvas')");
+    w119.BarcodeDetector = class { async detect() { return []; } };
+    const has119 = (c) => w119.eval('store.getAll()').some((r) => r.testId === c);
+    /* Mẫu gốc đã nhận trước đó, cùng loại với loại đang chọn ở máy quét */
+    const type119 = w119.eval("document.getElementById('scanner-type-select').value");
+    const seed119 = w119.eval('store.add({ testId: "2611264734", typeId: ' + JSON.stringify(type119) + ', results: {} })');
+    assert.strictEqual(seed119.ok, true, 'gieo được mẫu gốc 2611264734');
+    w119.eval('window.__recogCalls = 0');
+    w119.eval("getOcrWorker = async () => ({ setParameters: async () => {}, recognize: async () => { window.__recogCalls++; return { data: { text: (window.__ocrSeq || [])[window.__recogCalls - 1] || '' } }; } })");
+
+    /* Ca thực tế 26/11/2026: OCR đọc nhầm 1 số (6->5) của nhãn đã nhận —
+       KHÔNG nhận thẳng thành mẫu thứ hai, hiện hàng xác nhận gần-trùng */
+    w119.eval("window.__ocrSeq = ['MA 2511264734']");
+    const stNear = await w119.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stNear, 'confirm', 'mã OCR khác đúng 1 ký tự so với mẫu đã nhận -> chờ xác nhận');
+    assert.ok(!d119.getElementById('scan-confirm-row').classList.contains('hidden'), 'hiện hàng xác nhận gần-trùng');
+    assert.strictEqual(d119.getElementById('scan-confirm-code').textContent, '2511264734', 'hàng xác nhận hiện mã OCR vừa đọc');
+    assert.ok(d119.getElementById('scan-confirm-label').textContent.includes('2611264734'), 'nhãn hàng xác nhận nêu mã mẫu đã nhận để KTV đối chiếu');
+    assert.ok(!has119('2511264734'), 'chưa xác nhận thì chưa có mẫu gần-trùng');
+
+    /* Bỏ qua: không nhận */
+    d119.getElementById('btn-scan-confirm-no').click();
+    assert.ok(!has119('2511264734'), 'bỏ qua thì không nhận mẫu gần-trùng');
+    assert.ok(d119.getElementById('scan-confirm-row').classList.contains('hidden'), 'bỏ qua xong thì ẩn hàng nút');
+
+    /* Đọc lại y hệt + chạm Đúng (mẫu mới thật): nhận, không hỏi vòng lặp */
+    w119.eval('window.__recogCalls = 0');
+    w119.eval("window.__ocrSeq = ['MA 2511264734']");
+    const stNear2 = await w119.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stNear2, 'confirm', 'đọc lại mã gần-trùng vẫn hỏi lại');
+    d119.getElementById('btn-scan-confirm-yes').click();
+    assert.ok(has119('2511264734'), 'xác nhận Đúng thì nhận mẫu gần-trùng');
+
+    /* Mã OCR khác từ 2 ký tự trở lên: nhận thẳng như cũ, không hỏi */
+    w119.eval('window.__recogCalls = 0');
+    w119.eval("window.__ocrSeq = ['MA 2511264700']");
+    const stFar = await w119.eval('processScanBitmap({ width: 1920, height: 1080, close() {} })');
+    assert.strictEqual(stFar, 'accepted', 'mã OCR khác từ 2 ký tự trở lên thì nhận thẳng');
+    assert.ok(has119('2511264700'), 'mẫu khác xa đã nhận');
+    assert.ok(d119.getElementById('scan-confirm-row').classList.contains('hidden'), 'không hiện hàng hỏi với mã khác xa');
+
+    /* Mã vạch (không phải OCR) gần-trùng: vẫn nhận thẳng — kênh chính xác
+       tuyệt đối không bị hỏi */
+    const stBar = w119.eval("acceptScanCode('2611264730', { recognized: true })");
+    assert.strictEqual(stBar, true, 'mã vạch gần-trùng vẫn nhận thẳng');
+    assert.ok(has119('2611264730'), 'mẫu từ mã vạch gần-trùng đã nhận');
+    w119.close();
   });
 
   test('v116: panel quét gọn — bỏ ghi chú xác nhận + hết chồng nút; danh sách phiên thành màn hình riêng, nhận trước ở trên', async () => {

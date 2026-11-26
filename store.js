@@ -88,6 +88,27 @@ const LabStore = (() => {
       return records.find((r) => r.uid !== excludeUid && r.testId.trim() === id && r.typeId === rec.typeId) || null;
     }
 
+    /* Gần trùng = bản ghi KHÁC cùng loại xét nghiệm, ID cùng độ dài và
+       chỉ khác ĐÚNG 1 ký tự — dấu hiệu điển hình của OCR đọc nhầm 1 chữ
+       số (thực tế 26/11/2026: nhãn 2611264734 bị OCR đọc thành
+       2511264734 và nhận thành mẫu thứ hai). Mã vạch/máy bắn/gõ tay
+       chính xác tuyệt đối nên kiểm tra này chỉ áp cho mã do OCR đọc. */
+    function findNearDuplicate(rec, excludeUid) {
+      if (!rec || typeof rec.testId !== 'string') return null;
+      const id = rec.testId.trim();
+      if (!id) return null;
+      return records.find((r) => {
+        if (r.uid === excludeUid || r.typeId !== rec.typeId) return false;
+        const other = r.testId.trim();
+        if (other.length !== id.length || other === id) return false;
+        let diff = 0;
+        for (let i = 0; i < id.length; i++) {
+          if (other[i] !== id[i]) { diff += 1; if (diff > 1) return false; }
+        }
+        return diff === 1;
+      }) || null;
+    }
+
     function validate(rec, excludeUid) {
       const errors = [];
       if (!rec || typeof rec.testId !== 'string' || rec.testId.trim() === '') {
@@ -373,7 +394,7 @@ const LabStore = (() => {
       });
     }
 
-    return { add, update, remove, getAll, getByUid, validate, findDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, applyRemote, removeLocal, clearSyncMeta, STORAGE_KEY };
+    return { add, update, remove, getAll, getByUid, validate, findDuplicate, findNearDuplicate, hasResult, statusOf, filter, exportBackup, parseBackup, importBackup, mergeBackup, applyRemote, removeLocal, clearSyncMeta, STORAGE_KEY };
   }
 
   function localDayKey(d) {
