@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LabEntry">
-<link rel="stylesheet" href="styles.css?v=119">
-<link rel="stylesheet" href="print.css?v=119">
+<link rel="stylesheet" href="styles.css?v=120">
+<link rel="stylesheet" href="print.css?v=120">
 <style id="print-page-style"></style>
 </head>
 <body>
@@ -41,7 +41,7 @@
 <!-- Thanh ứng dụng (v96): logo + tên bản + avatar KTV trực -->
 <header id="app-bar">
   <img class="app-bar-logo" src="icon-192.png" alt="" width="26" height="26">
-  <span class="app-version">LabEntry v119</span>
+  <span class="app-version">LabEntry v120</span>
   <button type="button" id="op-avatar" class="op-avatar hidden" aria-label="KTV trực hiện tại"></button>
 </header>
 
@@ -707,6 +707,11 @@
       <option value="staff-del">Xóa KTV</option>
       <option value="restore">Phục hồi dữ liệu</option>
       <option value="merge">Gộp dữ liệu</option>
+      <option value="tray-create">Tạo khay</option>
+      <option value="tray-place">Cắm mẫu vào khay</option>
+      <option value="tray-remove">Rút mẫu khỏi khay</option>
+      <option value="tray-dispose">Hủy mẫu trong khay</option>
+      <option value="tray-delete">Xóa khay</option>
     </select>
     <input id="audit-search" type="search" placeholder="Tìm theo ID mẫu, người trực, nội dung...">
   </div>
@@ -714,6 +719,108 @@
   <div id="audit-list" class="audit-list"></div>
   <div id="audit-empty" class="empty-msg hidden">Chưa có dòng nhật ký nào</div>
   <p class="pcfg-hint">Nhật ký giữ tối đa 2.000 dòng gần nhất và đi kèm file sao lưu (phục hồi = thay bằng nhật ký trong file, gộp = hợp nhất). Thao tác nhập mã PIN không được ghi vào nhật ký.</p>
+</section>
+
+<!-- ============ LƯU MẪU THEO KHAY (F33) ============ -->
+<section id="view-trays" class="view hidden">
+  <header class="toolbar">
+    <span class="toolbar-title">Lưu mẫu theo khay</span>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-tray-new" class="view-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Khay mới</span>
+    </button>
+  </header>
+
+  <p class="types-note">Mẫu làm xong cắm vào khay theo thứ tự, bắn ID từng mẫu — cần tìm lại thì tra ID ra ngay khay và ô. Dữ liệu khay lưu trên máy này và đi theo file sao lưu.</p>
+
+  <div class="tray-find-row">
+    <input id="tray-find-input" type="search" placeholder="Tìm theo ID mẫu, mã khay hoặc nhãn khay...">
+    <button id="btn-tray-find" class="primary-btn">Tìm</button>
+    <button id="btn-tray-scanfind" class="icon-btn" title="Quét mã để tìm" aria-label="Quét mã để tìm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M4 12h16"/></svg>
+    </button>
+  </div>
+  <div id="tray-find-result" class="tray-find-result hidden"></div>
+
+  <div id="tray-list" class="tray-list"></div>
+  <div id="tray-list-empty" class="empty-msg hidden">Chưa có khay nào — bấm “Khay mới” để tạo khay đầu tiên.</div>
+</section>
+
+<section id="view-trayform" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-trayform-back" class="icon-btn" title="Quay lại" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title">Tạo khay mới</span>
+    <span class="toolbar-spacer"></span>
+  </header>
+
+  <div class="tray-form">
+    <label class="tray-field">Nhãn khay (tự do — in trên tem cùng barcode)
+      <input id="tf-label" type="text" maxlength="80" placeholder="VD: NT, mẫu soi HT, mẫu KSK+...">
+    </label>
+    <div class="tray-form-row">
+      <label class="tray-field">Số hàng
+        <input id="tf-rows" type="number" min="1" max="20" step="1" value="4">
+      </label>
+      <label class="tray-field">Số mẫu mỗi hàng (cột)
+        <input id="tf-cols" type="number" min="1" max="20" step="1" value="10">
+      </label>
+    </div>
+    <p class="pcfg-hint" id="tf-capacity">Khay 4 hàng × 10 cột = 40 vị trí.</p>
+    <label class="tray-field">Khổ tem in barcode khay
+      <select id="tf-labelsize">
+        <option value="50x30">50 × 30 mm</option>
+        <option value="40x30">40 × 30 mm</option>
+        <option value="60x40">60 × 40 mm</option>
+        <option value="70x40">70 × 40 mm</option>
+      </select>
+    </label>
+    <p class="pcfg-hint">App tự sinh mã khay duy nhất (không bao giờ trùng) và vẽ barcode theo mã đó. Tạo khay xong bấm “In tem” ở màn hình khay để in tem dán lên khay thật — sau này quét mã tem là mở đúng khay.</p>
+    <div class="summary-actions">
+      <button type="button" id="btn-trayform-create" class="primary-btn">Tạo khay</button>
+    </div>
+  </div>
+</section>
+
+<section id="view-tray" class="view hidden">
+  <header class="toolbar">
+    <button id="btn-tray-back" class="icon-btn" title="Quay lại danh sách khay" aria-label="Quay lại">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <span class="toolbar-title" id="tray-title">Khay</span>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-tray-print" class="icon-btn" title="In tem barcode khay" aria-label="In tem khay">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/></svg>
+    </button>
+  </header>
+
+  <div id="tray-meta" class="tray-meta"></div>
+
+  <div class="tray-place-row">
+    <input id="tray-input" type="text" placeholder="Bắn ID mẫu hoặc gõ rồi Enter" autocomplete="off">
+    <button id="btn-tray-place" class="primary-btn">Cắm</button>
+    <button id="btn-tray-scan" class="view-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M4 12h16"/></svg>
+      <span>Quét</span>
+    </button>
+  </div>
+
+  <div class="tray-actions-row">
+    <span id="tray-count" class="tray-count"></span>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-tray-undo" class="text-btn">Hoàn tác mẫu cuối</button>
+  </div>
+
+  <div id="tray-grid" class="tray-grid"></div>
+  <div id="tray-cell-panel" class="tray-cell-panel hidden"></div>
+  <div id="tray-history" class="tray-history"></div>
+
+  <div class="tray-danger-row">
+    <button id="btn-tray-dispose" class="text-btn">Hủy mẫu trong khay (đến hạn lưu)</button>
+    <button id="btn-tray-delete" class="text-btn">Xóa khay</button>
+  </div>
 </section>
 
 <!-- ============ THANH ĐIỀU HƯỚNG DƯỚI ============ -->
@@ -730,6 +837,10 @@
   <button class="nav-btn" data-view="manage">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12l9-8 9 8-9 8z"/><circle cx="8" cy="10" r="1.4" fill="currentColor"/></svg>
     <span>Quản lý</span>
+  </button>
+  <button class="nav-btn" data-view="trays">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.3h18M3 14.6h18M9 4v16M15 4v16"/></svg>
+    <span>Lưu mẫu</span>
   </button>
   <button class="nav-btn" data-view="display">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h9M19 8h1M4 16h3M13 16h7"/><circle cx="16" cy="8" r="2.2"/><circle cx="10" cy="16" r="2.2"/></svg>
@@ -1040,11 +1151,12 @@
 <div id="print-area"></div>
 </div>
 
-<script src="config.js?v=119"></script>
-<script src="store.js?v=119"></script>
-<script src="sync-core.js?v=119"></script>
-<script src="sync.js?v=119"></script>
-<script src="mascot.js?v=119"></script>
-<script src="app.js?v=119"></script>
+<script src="config.js?v=120"></script>
+<script src="store.js?v=120"></script>
+<script src="sync-core.js?v=120"></script>
+<script src="tray-core.js?v=120"></script>
+<script src="sync.js?v=120"></script>
+<script src="mascot.js?v=120"></script>
+<script src="app.js?v=120"></script>
 </body>
 </html>

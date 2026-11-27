@@ -103,13 +103,13 @@ function toast(msg) {
 /* ================= Điều hướng ================= */
 let mainView = 'today';
 function switchView(name) {
-  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch', 'deferred', 'rejected'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
-  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch' || name === 'deferred' || name === 'rejected';
+  ['today', 'manage', 'export', 'display', 'form', 'types', 'typeform', 'printcfg', 'audit', 'handover', 'batch', 'deferred', 'rejected', 'trays', 'trayform', 'tray'].forEach((v) => $('view-' + v).classList.toggle('hidden', v !== name));
+  const subView = name === 'form' || name === 'types' || name === 'typeform' || name === 'printcfg' || name === 'audit' || name === 'handover' || name === 'batch' || name === 'deferred' || name === 'rejected' || name === 'trayform' || name === 'tray';
   $('bottom-nav').style.display = subView ? 'none' : 'flex';
   /* Nút + hiện ở tab Hôm nay và tab Quản lý; ẩn ở tab Lọc & Xuất và các màn hình phụ */
-  $('fab-add').classList.toggle('hidden', subView || name === 'export' || name === 'display');
+  $('fab-add').classList.toggle('hidden', subView || name === 'export' || name === 'display' || name === 'trays');
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
-  if (name === 'today' || name === 'manage' || name === 'export' || name === 'display') mainView = name;
+  if (name === 'today' || name === 'manage' || name === 'export' || name === 'display' || name === 'trays') mainView = name;
   if (name === 'today') renderToday();
   if (name === 'manage') renderManage();
   if (name === 'export') applyExport();
@@ -119,6 +119,8 @@ function switchView(name) {
   if (name === 'batch') renderBatch();
   if (name === 'deferred') renderDeferred();
   if (name === 'rejected') renderRejected();
+  if (name === 'trays') renderTrayList();
+  if (name === 'tray') renderTrayDetail();
   window.scrollTo(0, 0);
 }
 
@@ -680,6 +682,8 @@ function refreshCurrent() {
   if (!$('view-export').classList.contains('hidden')) applyExport();
   if (!$('view-deferred').classList.contains('hidden')) renderDeferred(); /* F37: bỏ hẹn ngay tại trang riêng thì danh sách cập nhật tại chỗ */
   if (!$('view-rejected').classList.contains('hidden')) renderRejected(); /* v117: bỏ từ chối ngay tại trang riêng thì danh sách cập nhật tại chỗ */
+  if (!$('view-trays').classList.contains('hidden')) renderTrayList(); /* F33 */
+  if (!$('view-tray').classList.contains('hidden')) renderTrayDetail(); /* F33 */
 }
 
 /* ================= Tab Kết quả hôm nay ================= */
@@ -970,6 +974,7 @@ function exportBackupFile() {
     obj.staff = staffList.slice(); /* danh sách KTV (v30) */
     obj.operator = currentOperator; /* KTV trực đang chọn (v30) */
     obj.auditLog = JSON.parse(JSON.stringify(auditLog)); /* nhật ký thao tác (F22) */
+    obj.trays = JSON.parse(JSON.stringify(trays)); /* khay lưu mẫu (F33) */
   } catch (e) { /* bỏ qua nếu lỗi sao chép */ }
   const count = store.getAll().length;
   const delivered = downloadTextFile(stampName('labentry-sao-luu', '.json'), JSON.stringify(obj, null, 2), 'application/json');
@@ -1010,6 +1015,7 @@ function importBackupText(text, mode) {
   let fileStaff = null;
   let filePresets = null;
   let fileAudit = null;
+  let fileTrays = null;
   try {
     const raw = JSON.parse(text);
     if (raw && Array.isArray(raw.types)) fileTypes = raw.types;
@@ -1017,6 +1023,7 @@ function importBackupText(text, mode) {
     if (raw && Array.isArray(raw.staff)) fileStaff = sanitizeStaffList(raw.staff);
     if (raw && Array.isArray(raw.printPresets)) filePresets = raw.printPresets.filter((p) => p && typeof p.name === 'string' && p.name.trim() && p.settings && typeof p.settings === 'object');
     if (raw && Array.isArray(raw.auditLog)) fileAudit = sanitizeAuditLog(raw.auditLog);
+    if (raw && Array.isArray(raw.trays)) fileTrays = LabTrayCore.sanitizeTrays(raw.trays);
   } catch (e) { /* JSON hỏng: parseBackup bên dưới sẽ báo lỗi cụ thể */ }
   if (fileTypes) {
     const errs = validateTypeDefs(fileTypes);
@@ -1058,9 +1065,14 @@ function importBackupText(text, mode) {
       ? '\nFile có kèm nhật ký thao tác — các dòng nhật ký trong file sẽ được hợp nhất vào nhật ký của máy này.'
       : '\nFile có kèm nhật ký thao tác — nhật ký trên máy này sẽ được thay bằng nhật ký trong file.')
     : '';
+  const trayNote = fileTrays
+    ? (merge
+      ? '\nFile có kèm dữ liệu khay lưu mẫu — khay nào (theo mã khay) máy này chưa có sẽ được thêm; khay trùng mã giữ nguyên của máy này.'
+      : '\nFile có kèm dữ liệu khay lưu mẫu — dữ liệu khay trên máy này sẽ được thay bằng dữ liệu trong file.')
+    : '';
   const ask = merge
-    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
-    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
+    ? 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + trayNote + '\n\nGỘP sẽ thêm các mẫu máy này CHƯA có; mẫu trùng ID + loại sẽ bị bỏ qua. Dữ liệu hiện tại được giữ nguyên. Tiếp tục?'
+    : 'File sao lưu có ' + parsed.records.length + ' bản ghi (xuất lúc ' + when + ').' + typeNote + layoutNote + packNote + auditNote + trayNote + '\n\nPhục hồi sẽ THAY TOÀN BỘ dữ liệu hiện tại trên máy này. Tiếp tục?';
   if (!confirm(ask)) {
     restoreTypes();
     return false;
@@ -1094,6 +1106,12 @@ function importBackupText(text, mode) {
       if (auditLog.length > AUDIT_CAP) auditLog = auditLog.slice(auditLog.length - AUDIT_CAP);
       saveAuditLog();
     }
+    if (fileTrays) {
+      /* F33: gộp khay theo mã — khay trùng mã giữ nguyên của máy này */
+      let addedT = 0;
+      fileTrays.forEach((t) => { if (!LabTrayCore.getTray(trays, t.code)) { trays.push(t); addedT += 1; } });
+      if (addedT > 0) saveTrays();
+    }
     audit('merge', 'Gộp dữ liệu từ file sao lưu: thêm ' + res.added + ' mẫu mới, bỏ qua ' + res.skipped + ' mẫu trùng', null);
     if (fileTypes) persistTypes();
     refreshTypeSelects();
@@ -1123,6 +1141,10 @@ function importBackupText(text, mode) {
        không có thì bắt đầu trống), rồi ghi dòng phục hồi vào chính nhật ký mới */
     auditLog = fileAudit || [];
     saveAuditLog();
+    /* F33: file có dữ liệu khay thì thay theo file; file cũ (trước F33)
+       không có thì GIỮ khay của máy — vị trí mẫu gắn với khay vật lý, tránh
+       mất trắng khi phục hồi một file sao lưu cũ */
+    if (fileTrays) { trays = fileTrays; saveTrays(); }
     audit('restore', 'Phục hồi toàn bộ từ file sao lưu: ' + res.count + ' bản ghi (file xuất lúc ' + when + ')', null);
     if (fileTypes) persistTypes();
     refreshTypeSelects();
@@ -2217,19 +2239,21 @@ function closeSessionList() {
 
 function openScanner(source) {
   /* Chế độ 'find' (F24): quét 1 mã để TÌM mẫu đã có — mở từ tab Quản lý */
-  const find = source === 'find';
+  if (source === 'tray' && !currentTrayCode) return;
+  const find = source === 'find' || source === 'trayfind';
   const single = find || (source === 'form' && !!formState.uid);
-  scannerState = { source, single, find, count: 0, items: [], lastCode: '', lastAt: 0 };
+  scannerState = { source, single, find, tray: source === 'tray' ? currentTrayCode : '', count: 0, items: [], lastCode: '', lastAt: 0 };
   clearOcrConfirm();
   const typeSel = $('scanner-type-select');
   typeSel.disabled = false;
   typeSel.value = source === 'form' ? formState.typeId : (typeSel.value || getTestTypes()[0].id);
   $('scanner-input').value = '';
   $('scan-frame').classList.remove('hidden');
-  $('scanner-title').textContent = find ? 'Quét tìm mẫu' : (single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu');
-  $('scanner-subtitle').textContent = find ? 'Quét 1 mã — app tìm và mở ngay mẫu đó' : (single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận');
+  const trayMode = source === 'tray';
+  $('scanner-title').textContent = trayMode ? 'Cắm mẫu vào khay' : (find ? 'Quét tìm mẫu' : (single ? 'Quét mã mẫu' : 'Tiếp nhận mẫu'));
+  $('scanner-subtitle').textContent = trayMode ? ('Khay ' + trayDisplayName(currentTray()) + ' — quét liên tục, mỗi mã cắm vào ô trống tiếp theo') : (find ? 'Quét 1 mã — app tìm và mở ngay mẫu đó' : (single ? 'Nhận 1 mã để điền vào ô ID của mẫu đang sửa' : 'Quét mã liên tục — mỗi mã là một mẫu được nhận'));
   /* Tìm mẫu thì loại XN + KTV nhận không liên quan — ẩn hai hàng chọn cho gọn */
-  document.querySelectorAll('.scanner-type-row').forEach((el) => el.classList.toggle('hidden', find));
+  document.querySelectorAll('.scanner-type-row').forEach((el) => el.classList.toggle('hidden', find || trayMode));
   $('scanner-session').classList.toggle('hidden', single);
   /* Chế độ quét liên tục: chỉ quét bằng camera, không hiện ô nhập tay + nút Nhận mẫu.
      Ô nhập tay chỉ còn ở chế độ 1 mã (mở từ form sửa / quét tìm) làm đường dự phòng. */
@@ -2237,13 +2261,41 @@ function openScanner(source) {
   updateScanCount();
   $('scanner-modal').classList.remove('hidden');
   unlockAudio();
-  setScanMsg(find ? 'Đưa mã vào khung hình để tìm mẫu...' : (single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...'));
+  setScanMsg(trayMode ? 'Đưa mã mẫu vào khung hình để cắm vào khay...' : (find ? 'Đưa mã vào khung hình để tìm mẫu...' : (single ? 'Nhận 1 mã để điền vào ô ID...' : 'Đang mở camera — quét liên tục, bấm "Dừng quét" khi xong...')));
   startCamera();
 }
 
 /* Quét tìm mẫu (F24): khớp ĐÚNG mã (không phân biệt khoảng trắng thừa ở hai đầu).
    Thấy nhiều mẫu cùng ID (khác loại XN) thì mở mẫu mới nhất và báo số lượng. */
 function findAndOpenRecord(code) {
+  /* F33: quét phải mã tem khay -> mở khay; chế độ tìm mở từ tab Lưu mẫu thì
+     ưu tiên vị trí lưu trong khay trước bản ghi kết quả */
+  if (LabTrayCore.isTrayCode(code)) {
+    const tray = LabTrayCore.getTray(trays, code);
+    if (!tray) {
+      setScanMsg('Không tìm thấy khay ' + code + ' trên máy này', 'err');
+      beepErr();
+      if (navigator.vibrate) navigator.vibrate(120);
+      return false;
+    }
+    beepOk();
+    noteActivity();
+    closeScanner();
+    openTray(tray.code);
+    toast('Đã mở khay ' + trayDisplayName(tray));
+    return true;
+  }
+  if (scannerState && scannerState.source === 'trayfind') {
+    const hit = LabTrayCore.findSample(trays, code);
+    if (hit) {
+      beepOk();
+      noteActivity();
+      closeScanner();
+      openTray(hit.tray.code, hit.index);
+      toast('Mẫu ' + code + ' ở khay ' + trayDisplayName(hit.tray) + ', ô ' + LabTrayCore.posLabel(hit.tray, hit.index));
+      return true;
+    }
+  }
   const matches = store.getAll().filter((r) => r.testId.trim() === code);
   if (!matches.length) {
     setScanMsg('Không tìm thấy mẫu ' + code + ' — quét lại hoặc kiểm tra mã', 'err');
@@ -2287,7 +2339,10 @@ function acceptScanCode(rawCode, opts) {
 
   if (opts && opts.recognized) {
     code = normalizeScanCode(code);
-    if (!isAllowedScanCode(code)) {
+    /* F33: mã tem khay không thuộc dạng mã mẫu, nhưng ở chế độ TÌM thì cho
+       qua cổng để mở khay — mã khay không bao giờ là ID mẫu nên không sợ
+       nhận nhầm thành mẫu */
+    if (!isAllowedScanCode(code) && !(scannerState.find && LabTrayCore.isTrayCode(code))) {
       /* v104: thông báo phải NGẮN — bản dài làm nút Dừng quét bị đẩy xuống
          khỏi màn hình, KTV không dừng quét được (Minh báo 2026-11-19) */
       const shown = code.length > 16 ? code.slice(0, 16) + '…' : code;
@@ -2297,6 +2352,8 @@ function acceptScanCode(rawCode, opts) {
   }
 
   if (scannerState.find) return findAndOpenRecord(code);
+
+  if (scannerState.tray) return acceptTrayScan(code, opts);
 
   if (scannerState.single) {
     $('input-testid').value = code;
@@ -3241,6 +3298,7 @@ function initWedgeListener() {
 
 function closeScanner() {
   const added = scannerState ? scannerState.count : 0;
+  const wasTray = !!(scannerState && scannerState.tray);
   clearOcrConfirm();
   closeSessionList();
   hideScanFreeze();
@@ -3248,6 +3306,13 @@ function closeScanner() {
   $('scanner-modal').classList.add('hidden');
   stopScanCamera();
   scannerState = null;
+  if (wasTray) {
+    /* F33: đóng phiên quét cắm mẫu thì ở lại màn hình khay, không nhảy sang
+       tab Quản lý như phiên tiếp nhận (F25) */
+    if (added > 0) toast('Đã cắm ' + added + ' mẫu vào khay trong phiên quét');
+    renderTrayDetail();
+    return;
+  }
   if (added > 0) {
     toast('Đã nhận ' + added + ' mẫu trong phiên quét');
     /* Nhận mẫu mới xong (F25, theo yêu cầu của Minh 2026-11-06): chuyển sang
@@ -3714,6 +3779,7 @@ const AUDIT_LABELS = {
   defer: 'Hẹn lại mẫu', undefer: 'Bỏ hẹn lại',
   reject: 'Từ chối mẫu', unreject: 'Bỏ từ chối', convert: 'Chuyển loại mẫu',
   restore: 'Phục hồi dữ liệu', merge: 'Gộp dữ liệu',
+  'tray-create': 'Tạo khay', 'tray-place': 'Cắm mẫu vào khay', 'tray-remove': 'Rút mẫu khỏi khay', 'tray-dispose': 'Hủy mẫu trong khay', 'tray-delete': 'Xóa khay',
 };
 let auditLog = [];
 
@@ -5645,7 +5711,7 @@ function updateOpAvatar() {
   b.classList.remove('hidden');
 }
 
-/* ================= F32: Chủ đề lễ hội (ý tưởng 14) =================
+/* ================= F33: Chủ đề lễ hội (ý tưởng 14) =================
  * Đổi màu giao diện + dải lời chúc theo mùa lễ — thuần trang trí, KHÔNG
  * đụng dữ liệu, hẹn giờ, báo động, in ấn, sao lưu. Tự động theo ngày:
  * Tết (âm lịch 23/12 → 5/1), Trung Thu (âm lịch 13–17/8), Giáng Sinh
@@ -6216,11 +6282,470 @@ async function trySameOriginConnect() {
   } catch (e) { /* không nối được: giữ chế độ riêng */ }
 }
 
+
+/* ================= F33 (v120): Lưu/Tìm mẫu theo khay =================
+   Mẫu sau xét nghiệm được cắm vào khay vật lý theo thứ tự, mỗi lần cắm thì
+   bắn ID mẫu. Khay có hình dạng hàng × cột (mặc định 4×10 = 40, Minh chốt
+   2026-11-27), nhãn tự do và mã khay duy nhất in thành barcode Code39 dán
+   lên khay. Logic thuần nằm ở tray-core.js (LabTrayCore); ở đây chỉ giữ
+   trạng thái + lưu localStorage từng máy (labentry.trays.v1) + UI. Dữ liệu
+   khay đi theo file sao lưu; CHƯA đồng bộ LAN (Minh chốt 2026-11-27).
+   Mọi thao tác khay đều qua cổng KTV trực (F22) và ghi nhật ký kiểm toán. */
+const TRAYS_KEY = 'labentry.trays.v1';
+const TRAYLABEL_KEY = 'labentry.traylabel.v1';
+let trays = [];
+let currentTrayCode = '';  /* khay đang mở ở màn hình chi tiết */
+let trayHighlight = -1;     /* ô được làm nổi bật (vừa tìm thấy / vừa cắm) */
+let traySelected = -1;      /* ô đang chọn xem chi tiết */
+let trayLabelSize = { w: 50, h: 30 };  /* khổ tem khay (mm), nhớ theo máy */
+
+function loadTrays() {
+  try { trays = LabTrayCore.sanitizeTrays(JSON.parse(localStorage.getItem(TRAYS_KEY) || '[]')); }
+  catch (e) { trays = []; }
+}
+function saveTrays() {
+  try { localStorage.setItem(TRAYS_KEY, JSON.stringify(trays)); } catch (e) { /* đầy bộ nhớ: bỏ qua */ }
+}
+function loadTrayLabelSize() {
+  try {
+    const s = JSON.parse(localStorage.getItem(TRAYLABEL_KEY) || 'null');
+    if (s && Number.isFinite(s.w) && Number.isFinite(s.h) && s.w > 0 && s.h > 0) trayLabelSize = { w: s.w, h: s.h };
+  } catch (e) { /* giữ mặc định 50x30 */ }
+}
+function saveTrayLabelSize() {
+  try { localStorage.setItem(TRAYLABEL_KEY, JSON.stringify(trayLabelSize)); } catch (e) { /* bỏ qua */ }
+}
+
+function trayDisplayName(tray) { return tray && tray.label ? tray.label : (tray ? tray.code : ''); }
+function currentTray() { return LabTrayCore.getTray(trays, currentTrayCode); }
+
+/* Tên loại XN gắn cho mẫu khi cắm: nếu ID có bản ghi kết quả trên máy thì
+   lấy loại của bản ghi mới nhất — chỉ để hiển thị cho dễ nhận diện, việc
+   lưu khay đứng độc lập theo ID ống mẫu. */
+function trayRecordTypeName(code) {
+  const matches = store.getAll().filter((r) => LabTrayCore.sameId(r.testId, code));
+  if (!matches.length) return '';
+  matches.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const t = getTestType(matches[0].typeId);
+  return t ? t.name : '';
+}
+
+/* ID bản ghi kết quả gần-trùng đúng 1 ký tự (bài học OCR v119 áp cho khâu
+   cắm mẫu: mã OCR mà suýt trùng một mẫu đã có thì nhiều khả năng đọc nhầm) */
+function trayNearRecordId(code) {
+  const id = LabTrayCore.normalizeId(code).toUpperCase();
+  if (!id) return null;
+  const all = store.getAll();
+  for (const r of all) {
+    const other = (r.testId || '').trim().toUpperCase();
+    if (other.length !== id.length || other === id) continue;
+    let diff = 0;
+    for (let i = 0; i < id.length; i++) { if (other[i] !== id[i]) { diff += 1; if (diff > 1) break; } }
+    if (diff === 1) return r.testId;
+  }
+  return null;
+}
+
+/* Cắm 1 mã vào khay đang mở — lõi dùng chung cho quét camera và nhập tay.
+   Không tự báo lỗi ra UI; trả trạng thái để nơi gọi báo theo ngữ cảnh:
+   placed | duplicate | full | no-operator | no-tray | empty | near */
+function trayPlace(code, opts) {
+  const o = opts || {};
+  const tray = currentTray();
+  if (!tray) return { status: 'no-tray' };
+  if (!currentOperator) return { status: 'no-operator' };
+  const id = LabTrayCore.normalizeId(code);
+  if (!id) return { status: 'empty' };
+  if (o.ocr && !o.ocrConfirmed && !LabTrayCore.findSample(trays, id)) {
+    const nearPlaced = LabTrayCore.findNearPlaced(trays, id);
+    if (nearPlaced) return { status: 'near', nearId: nearPlaced };
+    if (!store.getAll().some((r) => LabTrayCore.sameId(r.testId, id))) {
+      const nearRec = trayNearRecordId(id);
+      if (nearRec) return { status: 'near', nearId: nearRec };
+    }
+  }
+  const res = LabTrayCore.placeSample(trays, tray.code, id, { typeName: trayRecordTypeName(id), by: currentOperator });
+  if (!res.ok) {
+    if (res.reason === 'duplicate') {
+      const at = LabTrayCore.getTray(trays, res.at.code);
+      return { status: 'duplicate', atCode: res.at.code, atIndex: res.at.index, atLabel: at ? LabTrayCore.posLabel(at, res.at.index) : '' };
+    }
+    return { status: res.reason };
+  }
+  saveTrays();
+  audit('tray-place', 'Cắm mẫu ' + id + ' vào khay ' + trayDisplayName(tray) + ' (' + tray.code + '), ô ' + LabTrayCore.posLabel(tray, res.index), { testId: id, typeId: '' });
+  return { status: 'placed', index: res.index };
+}
+
+/* Nhận 1 mã trong phiên quét cắm mẫu (đi qua acceptScanCode khi
+   scannerState.tray có giá trị) — báo theo kiểu panel quét như tiếp nhận */
+function acceptTrayScan(code, opts) {
+  const tray = currentTray();
+  if (!tray || tray.code !== scannerState.tray) {
+    setScanMsg('Khay đã đóng — dừng quét', 'err');
+    beepErr();
+    return false;
+  }
+  const r = trayPlace(code, { ocr: !!(opts && opts.ocr), ocrConfirmed: !!(opts && opts.ocrConfirmed) });
+  if (r.status === 'near') { showOcrConfirm(code, 'near', r.nearId); return 'confirm'; }
+  if (r.status === 'no-operator') {
+    setScanMsg('Chưa chọn KTV trực — hãy chọn người trực trước khi cắm mẫu', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+  if (r.status === 'duplicate') {
+    setScanMsg('Mẫu ' + code + ' đã cắm ở ' + (r.atCode === tray.code ? 'khay này' : 'khay ' + r.atCode) + ', ô ' + r.atLabel + ' — bỏ qua, quét mẫu tiếp theo', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+  if (r.status === 'full') {
+    setScanMsg('Khay đã đầy ' + LabTrayCore.capacity(tray) + ' mẫu — dừng quét, đổi khay khác', 'err');
+    beepErr();
+    if (navigator.vibrate) navigator.vibrate(120);
+    return false;
+  }
+  if (r.status !== 'placed') {
+    setScanMsg('Không cắm được mẫu ' + code, 'err');
+    beepErr();
+    return false;
+  }
+  noteActivity();
+  scannerState.count += 1;
+  if (!scannerState.items) scannerState.items = [];
+  const placed = tray.positions[r.index];
+  scannerState.items.push({
+    code,
+    typeName: LabTrayCore.posLabel(tray, r.index) + (placed && placed.typeName ? ' · ' + placed.typeName : ''),
+    at: new Date().toISOString(),
+  });
+  updateScanCount();
+  setScanMsg('Đã cắm: ' + code + ' → ô ' + LabTrayCore.posLabel(tray, r.index) + ' (' + LabTrayCore.countFilled(tray) + '/' + LabTrayCore.capacity(tray) + ') — quét mẫu tiếp theo, hoặc bấm "Dừng quét"', 'ok');
+  beepOk();
+  if (navigator.vibrate) navigator.vibrate(60);
+  return true;
+}
+
+/* ---------- Danh sách khay + tìm mẫu ---------- */
+
+function renderTrayList() {
+  const list = $('tray-list');
+  if (!list) return;
+  const q = (($('tray-find-input').value || '').trim()).toLowerCase();
+  const sorted = trays.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const shown = sorted.filter((t) => !q || t.code.toLowerCase().includes(q) || (t.label || '').toLowerCase().includes(q));
+  $('tray-list-empty').classList.toggle('hidden', trays.length > 0);
+  list.innerHTML = shown.map((t) => {
+    const filled = LabTrayCore.countFilled(t);
+    const cap = LabTrayCore.capacity(t);
+    const pct = cap ? Math.round((filled / cap) * 100) : 0;
+    return '<button type="button" class="tray-card" data-tray-open="' + esc(t.code) + '">'
+      + '<span class="tray-card-top"><span class="tray-card-name">' + esc(trayDisplayName(t)) + '</span>'
+      + (filled >= cap ? '<span class="tray-full-chip">ĐÃ ĐẦY</span>' : '')
+      + '<span class="toolbar-spacer"></span><span class="tray-card-code">' + esc(t.code) + '</span></span>'
+      + '<span class="tray-card-meta">' + t.rows + ' hàng × ' + t.cols + ' cột · ' + filled + '/' + cap + ' mẫu · tạo ' + esc(fmtList(t.createdAt)) + '</span>'
+      + '<span class="tray-card-bar"><span class="' + (filled >= cap ? 'full' : '') + '" style="display:block;height:100%;width:' + pct + '%"></span></span>'
+      + '</button>';
+  }).join('');
+}
+
+function openTray(code, highlightIndex) {
+  const tray = LabTrayCore.getTray(trays, code);
+  if (!tray) { toast('Không tìm thấy khay ' + code + ' trên máy này'); return; }
+  currentTrayCode = tray.code;
+  trayHighlight = Number.isInteger(highlightIndex) ? highlightIndex : -1;
+  traySelected = trayHighlight;
+  switchView('tray');
+}
+
+function doTrayFind() {
+  const q = ($('tray-find-input').value || '').trim();
+  const box = $('tray-find-result');
+  if (!q) { box.classList.add('hidden'); renderTrayList(); return; }
+  if (LabTrayCore.isTrayCode(q)) {
+    const tray = LabTrayCore.getTray(trays, q);
+    if (tray) { box.classList.add('hidden'); openTray(tray.code); return; }
+  }
+  const hit = LabTrayCore.findSample(trays, q);
+  if (hit) {
+    box.classList.remove('hidden');
+    box.innerHTML = 'Mẫu <b>' + esc(hit.entry.sampleId) + '</b> đang ở <span class="tfr-where">khay '
+      + esc(trayDisplayName(hit.tray)) + ' (' + esc(hit.tray.code) + '), ô ' + esc(LabTrayCore.posLabel(hit.tray, hit.index)) + '</span>'
+      + (hit.entry.typeName ? '<br>Loại: ' + esc(hit.entry.typeName) : '')
+      + '<br>Cắm lúc ' + esc(hit.entry.at ? fmtFull(hit.entry.at) : '—') + (hit.entry.by ? ' · ' + esc(hit.entry.by) : '')
+      + '<div class="summary-actions"><button type="button" class="primary-btn" id="btn-tfr-open">Mở khay</button></div>';
+    $('btn-tfr-open').addEventListener('click', () => openTray(hit.tray.code, hit.index));
+    return;
+  }
+  const hasRec = store.getAll().some((r) => LabTrayCore.sameId(r.testId, q));
+  box.classList.remove('hidden');
+  box.innerHTML = hasRec
+    ? 'Mẫu <b>' + esc(q) + '</b> có bản ghi kết quả nhưng <b>chưa được lưu vào khay nào</b>.'
+    : 'Không tìm thấy mẫu <b>' + esc(q) + '</b> trong các khay trên máy này.';
+}
+
+/* ---------- Màn hình 1 khay ---------- */
+
+function renderTrayDetail() {
+  const tray = currentTray();
+  if (!tray) { if (!$('view-trays').classList.contains('hidden')) return; switchView('trays'); return; }
+  $('tray-title').textContent = trayDisplayName(tray);
+  const filled = LabTrayCore.countFilled(tray);
+  const cap = LabTrayCore.capacity(tray);
+  $('tray-meta').innerHTML = 'Mã khay <b>' + esc(tray.code) + '</b> · ' + tray.rows + ' hàng × ' + tray.cols + ' cột · tạo '
+    + esc(fmtList(tray.createdAt)) + (tray.createdBy ? ' bởi ' + esc(tray.createdBy) : '')
+    + '<br>Quét mã tem dán trên khay (ở tab Lưu mẫu hoặc Quét tìm ở tab Quản lý) để mở nhanh khay này.';
+  $('tray-count').textContent = 'Đã cắm ' + filled + '/' + cap + (filled >= cap ? ' — ĐÃ ĐẦY' : '');
+  $('btn-tray-undo').disabled = filled === 0;
+  $('btn-tray-dispose').disabled = filled === 0;
+  $('btn-tray-delete').disabled = filled > 0;
+  const grid = $('tray-grid');
+  grid.style.gridTemplateColumns = 'repeat(' + tray.cols + ', minmax(52px, 1fr))';
+  grid.innerHTML = tray.positions.map((p, i) => {
+    const cls = 'tray-cell' + (p ? ' filled' : '') + (i === traySelected ? ' selected' : '') + (i === trayHighlight ? ' highlight' : '');
+    return '<button type="button" class="' + cls + '" data-tray-cell="' + i + '" title="' + esc(p ? p.sampleId : LabTrayCore.posLabel(tray, i)) + '">'
+      + '<span class="tc-pos">' + esc(LabTrayCore.posLabel(tray, i)) + '</span>'
+      + '<span class="tc-id">' + (p ? esc(p.sampleId) : '·') + '</span></button>';
+  }).join('');
+  renderTrayCellPanel();
+  const hist = $('tray-history');
+  if (tray.disposed.length) {
+    const last = tray.disposed[tray.disposed.length - 1];
+    hist.textContent = 'Lần hủy mẫu gần nhất: ' + last.count + ' mẫu lúc ' + fmtList(last.at)
+      + (last.by ? ' bởi ' + last.by : '') + ' · tổng ' + tray.disposed.length + ' lần hủy.';
+  } else {
+    hist.textContent = '';
+  }
+}
+
+function renderTrayCellPanel() {
+  const panel = $('tray-cell-panel');
+  const tray = currentTray();
+  if (!tray || traySelected < 0 || !tray.positions[traySelected]) {
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+    return;
+  }
+  const p = tray.positions[traySelected];
+  panel.classList.remove('hidden');
+  panel.innerHTML = '<div class="tcp-id">' + esc(p.sampleId) + '</div>'
+    + '<div>Ô <b>' + esc(LabTrayCore.posLabel(tray, traySelected)) + '</b> · khay ' + esc(trayDisplayName(tray)) + ' (' + esc(tray.code) + ')</div>'
+    + (p.typeName ? '<div>Loại: ' + esc(p.typeName) + '</div>' : '')
+    + '<div>Cắm lúc ' + esc(p.at ? fmtFull(p.at) : '—') + (p.by ? ' · ' + esc(p.by) : '') + '</div>'
+    + '<div class="summary-actions"><button type="button" id="btn-tray-remove" class="primary-btn outline">Rút mẫu khỏi ô</button>'
+    + '<button type="button" id="btn-tray-cell-close" class="primary-btn">Đóng</button></div>';
+  $('btn-tray-remove').addEventListener('click', removeSelectedTrayCell);
+  $('btn-tray-cell-close').addEventListener('click', () => { traySelected = -1; renderTrayDetail(); });
+}
+
+function placeFromTrayInput() {
+  const input = $('tray-input');
+  const code = (input.value || '').trim();
+  if (!code) return;
+  if (!requireOperator('cắm mẫu')) return;
+  const tray = currentTray();
+  if (!tray) return;
+  const r = trayPlace(code, {});
+  if (r.status === 'placed') {
+    input.value = '';
+    traySelected = r.index;
+    trayHighlight = r.index;
+    renderTrayDetail();
+    toast('Đã cắm ' + code + ' → ô ' + LabTrayCore.posLabel(tray, r.index));
+    input.focus();
+    return;
+  }
+  if (r.status === 'duplicate') {
+    if (r.atCode === tray.code) {
+      traySelected = r.atIndex;
+      trayHighlight = r.atIndex;
+      renderTrayDetail();
+      toast('Mẫu ' + code + ' đã ở khay này, ô ' + r.atLabel);
+      return;
+    }
+    if (confirm('Mẫu ' + code + ' đang ở khay ' + r.atCode + ', ô ' + r.atLabel + '.\n\nChuyển mẫu sang khay này (ô trống tiếp theo)?')) {
+      const from = LabTrayCore.getTray(trays, r.atCode);
+      const entry = LabTrayCore.removeSample(trays, r.atCode, r.atIndex);
+      if (entry && from) {
+        const moved = LabTrayCore.placeSample(trays, tray.code, entry.sampleId, { typeName: entry.typeName, by: currentOperator });
+        if (moved.ok) {
+          saveTrays();
+          audit('tray-remove', 'Chuyển mẫu ' + entry.sampleId + ' khỏi khay ' + trayDisplayName(from) + ' (' + from.code + '), ô ' + r.atLabel, { testId: entry.sampleId, typeId: '' });
+          audit('tray-place', 'Cắm mẫu ' + entry.sampleId + ' vào khay ' + trayDisplayName(tray) + ' (' + tray.code + '), ô ' + LabTrayCore.posLabel(tray, moved.index) + ' (chuyển từ khay ' + from.code + ')', { testId: entry.sampleId, typeId: '' });
+          input.value = '';
+          traySelected = moved.index;
+          trayHighlight = moved.index;
+          renderTrayDetail();
+          toast('Đã chuyển ' + entry.sampleId + ' → ô ' + LabTrayCore.posLabel(tray, moved.index));
+          input.focus();
+          return;
+        }
+        from.positions[r.atIndex] = entry; /* cắm mới thất bại (khay đầy): trả mẫu về ô cũ */
+        saveTrays();
+      }
+      toast('Không chuyển được mẫu — khay này đã đầy');
+    }
+    return;
+  }
+  if (r.status === 'full') { toast('Khay đã đầy — không cắm thêm được'); return; }
+  toast('Không cắm được mẫu ' + code);
+}
+
+function removeSelectedTrayCell() {
+  const tray = currentTray();
+  if (!tray || traySelected < 0) return;
+  if (!requireOperator('rút mẫu')) return;
+  const idx = traySelected;
+  const entry = LabTrayCore.removeSample(trays, tray.code, idx);
+  if (!entry) { renderTrayDetail(); return; }
+  saveTrays();
+  audit('tray-remove', 'Rút mẫu ' + entry.sampleId + ' khỏi khay ' + trayDisplayName(tray) + ' (' + tray.code + '), ô ' + LabTrayCore.posLabel(tray, idx), { testId: entry.sampleId, typeId: '' });
+  toast('Đã rút mẫu ' + entry.sampleId + ' khỏi ô ' + LabTrayCore.posLabel(tray, idx));
+  traySelected = -1;
+  trayHighlight = -1;
+  renderTrayDetail();
+}
+
+function undoTrayPlacement() {
+  const tray = currentTray();
+  if (!tray) return;
+  if (!requireOperator('hoàn tác cắm mẫu')) return;
+  const idx = LabTrayCore.lastPlacedIndex(tray);
+  if (idx < 0) return;
+  const entry = LabTrayCore.removeSample(trays, tray.code, idx);
+  if (!entry) return;
+  saveTrays();
+  audit('tray-remove', 'Hoàn tác: rút mẫu ' + entry.sampleId + ' khỏi khay ' + trayDisplayName(tray) + ' (' + tray.code + '), ô ' + LabTrayCore.posLabel(tray, idx), { testId: entry.sampleId, typeId: '' });
+  traySelected = -1;
+  trayHighlight = -1;
+  renderTrayDetail();
+  toast('Đã hoàn tác mẫu ' + entry.sampleId + ' (ô ' + LabTrayCore.posLabel(tray, idx) + ')');
+}
+
+function disposeCurrentTray() {
+  const tray = currentTray();
+  if (!tray) return;
+  if (!requireOperator('hủy mẫu')) return;
+  const n = LabTrayCore.countFilled(tray);
+  if (!n) { toast('Khay đang rỗng — không có mẫu để hủy'); return; }
+  if (!confirm('Hủy toàn bộ ' + n + ' mẫu trong khay ' + trayDisplayName(tray) + ' (' + tray.code + ')?\n\nMẫu đã hủy sẽ không tra cứu vị trí được nữa. Khay được dùng lại từ ô đầu tiên.')) return;
+  const res = LabTrayCore.disposeTray(trays, tray.code, new Date(), currentOperator);
+  if (!res.ok) { toast('Không hủy được mẫu trong khay'); return; }
+  saveTrays();
+  audit('tray-dispose', 'Hủy ' + res.count + ' mẫu trong khay ' + trayDisplayName(tray) + ' (' + tray.code + ')', null);
+  traySelected = -1;
+  trayHighlight = -1;
+  renderTrayDetail();
+  toast('Đã hủy ' + res.count + ' mẫu — khay dùng lại được');
+}
+
+function deleteCurrentTray() {
+  const tray = currentTray();
+  if (!tray) return;
+  if (!requireOperator('xóa khay')) return;
+  if (LabTrayCore.countFilled(tray) > 0) { toast('Khay còn mẫu — hủy mẫu hoặc rút hết mẫu trước khi xóa khay'); return; }
+  if (!confirm('Xóa hẳn khay ' + trayDisplayName(tray) + ' (' + tray.code + ')?\n\nTem đã in của khay này sẽ không mở được khay nào nữa.')) return;
+  const name = trayDisplayName(tray);
+  const code = tray.code;
+  const res = LabTrayCore.deleteTray(trays, code);
+  if (!res.ok) { toast('Không xóa được khay'); return; }
+  saveTrays();
+  audit('tray-delete', 'Xóa khay ' + name + ' (' + code + ')', null);
+  currentTrayCode = '';
+  switchView('trays');
+  toast('Đã xóa khay ' + code);
+}
+
+/* ---------- Tạo khay ---------- */
+
+function updateTrayFormCapacity() {
+  const rows = parseInt($('tf-rows').value, 10) || 0;
+  const cols = parseInt($('tf-cols').value, 10) || 0;
+  $('tf-capacity').textContent = 'Khay ' + rows + ' hàng × ' + cols + ' cột = ' + (rows * cols) + ' vị trí.';
+}
+
+function createTrayFromForm() {
+  if (!requireOperator('tạo khay')) return;
+  const parts = ($('tf-labelsize').value || '50x30').split('x').map((x) => parseInt(x, 10));
+  if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) {
+    trayLabelSize = { w: parts[0], h: parts[1] };
+    saveTrayLabelSize();
+  }
+  const res = LabTrayCore.createTray({
+    label: $('tf-label').value,
+    rows: parseInt($('tf-rows').value, 10),
+    cols: parseInt($('tf-cols').value, 10),
+    createdBy: currentOperator,
+  }, new Date(), trays.map((t) => t.code));
+  if (!res.ok) { toast(res.errors.join('. ')); return; }
+  trays.push(res.tray);
+  saveTrays();
+  audit('tray-create', 'Tạo khay ' + trayDisplayName(res.tray) + ' (' + res.tray.code + '), ' + res.tray.rows + ' hàng × ' + res.tray.cols + ' cột', null);
+  $('tf-label').value = '';
+  toast('Đã tạo khay ' + res.tray.code + ' — bấm nút in ở góc phải để in tem barcode dán lên khay');
+  openTray(res.tray.code);
+}
+
+/* ---------- In tem barcode khay ---------- */
+
+/* Vẽ barcode Code39 của mã khay lên canvas (thanh hẹp 6px, rộng 15px,
+   vùng trắng 2 đầu 30px — in ra máy in tem vẫn đọc được) */
+function drawTrayBarcode(canvas, code) {
+  const segs = LabTrayCore.code39Segments(code);
+  if (!segs || !canvas || !canvas.getContext) return false;
+  const total = segs.reduce((s, x) => s + x.width, 0);
+  const unit = 3;
+  const quiet = 10 * unit;
+  canvas.width = (total + 20) * unit;
+  canvas.height = 150;
+  const ctx = canvas.getContext ? canvas.getContext('2d') : null;
+  if (!ctx) return false; /* môi trường không có canvas 2d: bỏ vẽ, tem vẫn in phần chữ */
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000000';
+  let x = quiet;
+  segs.forEach((s) => {
+    if (s.bar) ctx.fillRect(x, 0, s.width * unit, canvas.height);
+    x += s.width * unit;
+  });
+  return true;
+}
+
+/* In tem qua đúng đường in của app (#print-area + printSheet, F29/F30):
+   dựng tem vào #print-area, đặt printAreaKind = 'traylabel' để beforeprint
+   không dựng lại tờ kết quả đè lên, bơm @page theo khổ tem đã chọn;
+   afterprint dựng lại tờ kết quả như cơ chế tờ bàn giao. */
+function printTrayLabel() {
+  const tray = currentTray();
+  if (!tray) return;
+  const w = trayLabelSize.w;
+  const h = trayLabelSize.h;
+  const area = $('print-area');
+  area.innerHTML = '<div class="tray-label-sheet" style="width:' + w + 'mm;height:' + h + 'mm">'
+    + '<div class="tl-label" style="font-size:' + Math.max(9, Math.round(h * 0.62)) + 'pt">' + esc(trayDisplayName(tray)) + '</div>'
+    + '<canvas class="tl-barcode" id="tray-label-canvas" style="height:' + Math.round(h * 0.4) + 'mm"></canvas>'
+    + '<div class="tl-code" style="font-size:' + Math.max(8, Math.round(h * 0.4)) + 'pt">' + esc(tray.code) + '</div>'
+    + '<div class="tl-meta" style="font-size:' + Math.max(6.5, Math.round(h * 0.26)) + 'pt">' + tray.rows + ' hàng × ' + tray.cols + ' cột · ' + esc(fmtList(tray.createdAt).slice(0, 10)) + '</div></div>';
+  drawTrayBarcode($('tray-label-canvas'), tray.code);
+  let st = $('tray-page-style');
+  if (!st) {
+    st = document.createElement('style');
+    st.id = 'tray-page-style';
+    document.head.appendChild(st);
+  }
+  st.textContent = '@page { size: ' + w + 'mm ' + h + 'mm; margin: 0; }';
+  printAreaKind = 'traylabel';
+  printSheet();
+}
+
 function init() {
   loadSavedTypes(); /* nạp danh mục tự tạo (nếu có) TRƯỚC khi dựng các ô chọn loại */
   ensureBuiltinTypes(); /* v117: bổ sung loại hệ thống (KSK) nếu danh mục đã lưu chưa có */
   loadStaff(); /* danh sách KTV + KTV trực đã lưu */
   loadAuditLog(); /* nhật ký kiểm toán (F22) */
+  loadTrays(); /* khay lưu mẫu (F33) */
+  loadTrayLabelSize();
   loadMeta(); /* cấu hình ca trực: lần sao lưu gần nhất, tự khóa, đọc to (F24) */
   restoreActivityClock(); /* v82: khóa ngay khi mở app nếu mốc thao tác đã lưu quá hạn */
   loadPrintSettings(); /* cấu hình bản in (mặc định nếu chưa tùy chỉnh) */
@@ -6229,7 +6754,7 @@ function init() {
   bindPrintCfg();
   initWedgeListener(); /* nhận mã từ máy quét cầm tay khi màn hình quét đang mở */
   initMascot(); /* Bot (F31) */
-  initTheme(); /* chủ đề lễ hội (F32) */
+  initTheme(); /* chủ đề lễ hội (F33) */
   initAppearance(); /* v96: chế độ tối + hiệu ứng */
   const opAv = $('op-avatar');
   if (opAv) opAv.addEventListener('click', () => {
@@ -6303,6 +6828,35 @@ function init() {
     if (document.visibilityState === 'visible') { timerTick(); manageWakeLock(); }
   });
   $('btn-audit').addEventListener('click', () => switchView('audit'));
+  /* F33: tab Lưu mẫu */
+  $('btn-tray-new').addEventListener('click', () => { $('tf-labelsize').value = trayLabelSize.w + 'x' + trayLabelSize.h; updateTrayFormCapacity(); switchView('trayform'); });
+  $('btn-trayform-back').addEventListener('click', () => switchView('trays'));
+  $('btn-trayform-create').addEventListener('click', createTrayFromForm);
+  $('tf-rows').addEventListener('input', updateTrayFormCapacity);
+  $('tf-cols').addEventListener('input', updateTrayFormCapacity);
+  $('btn-tray-find').addEventListener('click', doTrayFind);
+  $('btn-tray-scanfind').addEventListener('click', () => openScanner('trayfind'));
+  $('tray-find-input').addEventListener('input', () => renderTrayList());
+  $('tray-find-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') doTrayFind(); });
+  $('tray-list').addEventListener('click', (e) => {
+    const card = e.target.closest('[data-tray-open]');
+    if (card) openTray(card.dataset.trayOpen);
+  });
+  $('btn-tray-back').addEventListener('click', () => switchView('trays'));
+  $('btn-tray-print').addEventListener('click', printTrayLabel);
+  $('btn-tray-place').addEventListener('click', placeFromTrayInput);
+  $('tray-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') placeFromTrayInput(); });
+  $('btn-tray-scan').addEventListener('click', () => openScanner('tray'));
+  $('btn-tray-undo').addEventListener('click', undoTrayPlacement);
+  $('btn-tray-dispose').addEventListener('click', disposeCurrentTray);
+  $('btn-tray-delete').addEventListener('click', deleteCurrentTray);
+  $('tray-grid').addEventListener('click', (e) => {
+    const cell = e.target.closest('[data-tray-cell]');
+    if (!cell) return;
+    const idx = parseInt(cell.dataset.trayCell, 10);
+    const tray = currentTray();
+    if (tray && tray.positions[idx]) { traySelected = idx; trayHighlight = -1; renderTrayDetail(); }
+  });
   $('btn-audit-back').addEventListener('click', () => switchView('manage'));
   /* F24: bàn giao ca + quét tìm mẫu + nhắc sao lưu + tự khóa + đọc to */
   $('btn-handover').addEventListener('click', () => switchView('handover'));
@@ -6528,12 +7082,19 @@ function init() {
     e.target.value = '';
     await handleBackupFile(file);
   });
-  window.addEventListener('beforeprint', () => { if (printAreaKind !== 'handover') applyExport(); });
+  window.addEventListener('beforeprint', () => { if (printAreaKind !== 'handover' && printAreaKind !== 'traylabel') applyExport(); });
   /* Trên trình duyệt: in bàn giao xong thì dựng lại tờ kết quả vào #print-area
      như hành vi cũ. Trong vỏ app KHÔNG làm vậy — adapter in dựng trang bất
      đồng bộ, afterprint có thể bắn giữa chừng và ghi đè tờ bàn giao (F30). */
   window.addEventListener('afterprint', () => {
     if (!lastPrintViaNative && printAreaKind === 'handover') applyExport();
+    /* F33: in tem khay xong (đường trình duyệt) thì gỡ khổ @page của tem và
+       dựng lại tờ kết quả; trong vỏ app không làm — cùng lý do F30 */
+    else if (!lastPrintViaNative && printAreaKind === 'traylabel') {
+      const st = $('tray-page-style');
+      if (st) st.textContent = '';
+      applyExport();
+    }
   });
 
   $('btn-back').addEventListener('click', () => switchView(mainView));

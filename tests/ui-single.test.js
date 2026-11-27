@@ -655,7 +655,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     assert.ok($('group-pending').classList.contains('hidden'));
   });
 
-  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v119 và precache đúng URL ?v=119 (v24)', () => {
+  test('PWA: trang khai manifest + theme-color; manifest hợp lệ, có icon 192/512/maskable; sw.js đúng phiên bản v120 và precache đúng URL ?v=120 (v24)', () => {
     const link = document.querySelector('link[rel="manifest"]');
     assert.ok(link, 'phải có thẻ link manifest');
     assert.strictEqual(link.getAttribute('href'), 'manifest.webmanifest');
@@ -675,8 +675,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const ic of man.icons) assert.ok(fs.existsSync(path.join(root, ic.src)), 'thiếu file icon ' + ic.src);
     assert.ok(fs.existsSync(path.join(root, 'apple-touch-icon.png')), 'thiếu apple-touch-icon.png');
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-    assert.ok(sw.includes("const VERSION = 'v119'"), 'sw.js phải gắn VERSION v119');
-    for (const a of ['styles.css?v=119', 'print.css?v=119', 'config.js?v=119', 'store.js?v=119', 'sync-core.js?v=119', 'sync.js?v=119', 'mascot.js?v=119', 'app.js?v=119', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
+    assert.ok(sw.includes("const VERSION = 'v120'"), 'sw.js phải gắn VERSION v120');
+    for (const a of ['styles.css?v=120', 'print.css?v=120', 'config.js?v=120', 'store.js?v=120', 'sync-core.js?v=120', 'tray-core.js?v=120', 'sync.js?v=120', 'mascot.js?v=120', 'app.js?v=120', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png']) {
       assert.ok(sw.includes(a), 'sw.js phải precache ' + a);
     }
     assert.ok(sw.includes('skipWaiting') && sw.includes('clients.claim'), 'sw.js phải kích hoạt bản mới ngay');
@@ -2178,7 +2178,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* v59: thẻ tùy chỉnh nằm ở tab riêng Giao diện, cạnh Quản lý (v95: bỏ thẻ chọn lễ; v97 thêm thẻ Hiển thị) */
     const navBtns = [...d10.querySelectorAll('.nav-btn')];
-    assert.deepStrictEqual(navBtns.map((b) => b.dataset.view), ['today', 'manage', 'display', 'export'], 'thanh dưới có 4 tab, Giao diện ngay sau Quản lý');
+    assert.deepStrictEqual(navBtns.map((b) => b.dataset.view), ['today', 'manage', 'trays', 'display', 'export'], 'thanh dưới có 5 tab (F33 thêm Lưu mẫu giữa Quản lý và Giao diện)');
     const viewDisplay = d10.getElementById('view-display');
     assert.ok(viewDisplay.querySelector('#mascot-enabled') && !viewDisplay.querySelector('#theme-mode'), 'tab Giao diện có thẻ Bot, không còn ô chọn chủ đề');
     assert.ok(!d10.getElementById('view-manage').querySelector('#mascot-enabled'), 'tab Quản lý không còn thẻ linh vật');
@@ -2201,7 +2201,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
     /* Thanh ứng dụng: logo + tên bản; hai trang con bỏ tiêu đề h2 cũ */
     assert.ok($96('app-bar'), 'có thanh ứng dụng ở đầu app');
-    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v119', 'thanh ứng dụng mang tên bản');
+    assert.strictEqual(d96.querySelector('#app-bar .app-version').textContent, 'LabEntry v120', 'thanh ứng dụng mang tên bản');
     assert.ok(!d96.querySelector('#view-display .page-title') && !d96.querySelector('#view-export .page-title'), 'bỏ h2 tiêu đề trang ở Giao diện + Lọc');
 
     /* Avatar KTV trực: chữ cái đầu của tên riêng + màu nền theo tên */
@@ -3435,6 +3435,147 @@ test('F34 (v67): chữ ký KTV — lưu trong hồ sơ KTV, đi theo sao lưu, g
     assert.strictEqual(cC.typeId, 'sp', 'CV-C (09:00, trước mốc) giữ nguyên SP');
     assert.strictEqual(cD.typeId, 'sp', 'CV-D (ngày 22/11) giữ nguyên SP');
     w117.close();
+  });
+
+
+  /* ================= F33 (v120): Lưu/Tìm mẫu theo khay ================= */
+  let f32Code = '';
+  const f32Trays = () => JSON.parse(window.localStorage.getItem('labentry.trays.v1') || '[]');
+
+  test('F33: có tab Lưu mẫu, mở ra thấy trạng thái chưa có khay', () => {
+    const navBtn = document.querySelector('.nav-btn[data-view="trays"]');
+    assert.ok(navBtn, 'bottom-nav phải có nút Lưu mẫu');
+    navBtn.click();
+    assert.ok(!$('view-trays').classList.contains('hidden'), 'view-trays hiện');
+    assert.ok(!$('tray-list-empty').classList.contains('hidden'), 'chưa có khay thì hiện dòng trống');
+    assert.strictEqual(window.eval('typeof LabTrayCore'), 'object', 'tray-core.js đã nạp');
+  });
+
+  test('F33: tạo khay mặc định 4 hàng x 10 cột = 40 ô, mã khay đúng dạng', () => {
+    window.eval("currentOperator = 'KTV Kiểm Tra'"); /* các test phục hồi trước đó đã đặt lại KTV trực */
+    $('btn-tray-new').click();
+    assert.ok(!$('view-trayform').classList.contains('hidden'), 'mở form tạo khay');
+    assert.strictEqual($('tf-rows').value, '4', 'mặc định 4 hàng');
+    assert.strictEqual($('tf-cols').value, '10', 'mặc định 10 cột');
+    $('tf-label').value = 'NT';
+    $('btn-trayform-create').click();
+    assert.ok(!$('view-tray').classList.contains('hidden'), 'tạo xong mở ngay màn hình khay');
+    assert.strictEqual($('tray-title').textContent, 'NT');
+    assert.strictEqual(document.querySelectorAll('#tray-grid .tray-cell').length, 40, 'lưới đúng 40 ô');
+    assert.ok($('tray-count').textContent.includes('0/40'), 'đếm 0/40');
+    const saved = f32Trays();
+    assert.strictEqual(saved.length, 1, 'đã lưu 1 khay vào localStorage');
+    assert.ok(/^KH\d{6}-01$/.test(saved[0].code), 'mã khay dạng KH + yymmdd + -01: ' + saved[0].code);
+    assert.strictEqual(saved[0].positions.length, 40);
+    f32Code = saved[0].code;
+  });
+
+  test('F33: cắm mẫu bằng ô nhập theo thứ tự ô, trùng bị chặn, rút được mẫu', () => {
+    $('tray-input').value = '2611270001';
+    $('btn-tray-place').click();
+    let cells = document.querySelectorAll('#tray-grid .tray-cell');
+    assert.ok(cells[0].classList.contains('filled'), 'ô đầu tiên có mẫu');
+    assert.ok(cells[0].textContent.includes('2611270001'));
+    assert.ok($('tray-count').textContent.includes('1/40'));
+    $('tray-input').value = '2611270002';
+    $('tray-input').dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    cells = document.querySelectorAll('#tray-grid .tray-cell');
+    assert.ok(cells[1].classList.contains('filled'), 'Enter cũng cắm được, vào ô thứ hai');
+    /* trùng ngay trong khay: không thêm, vẫn 2 mẫu */
+    $('tray-input').value = '2611270001';
+    $('btn-tray-place').click();
+    assert.strictEqual(f32Trays()[0].positions.filter(Boolean).length, 2, 'trùng ID không cắm thêm');
+    /* bấm ô xem chi tiết rồi rút mẫu */
+    cells[0].click();
+    assert.ok(!$('tray-cell-panel').classList.contains('hidden'), 'bấm ô có mẫu hiện panel chi tiết');
+    assert.ok($('tray-cell-panel').textContent.includes('2611270001'));
+    assert.ok($('tray-cell-panel').textContent.includes('H1-C1'));
+    $('btn-tray-remove').click();
+    assert.strictEqual(f32Trays()[0].positions.filter(Boolean).length, 1, 'rút xong còn 1 mẫu');
+    assert.ok($('tray-count').textContent.includes('1/40'));
+  });
+
+  test('F33: tìm mẫu ra đúng khay + ô H1-C2, mở khay highlight đúng ô đó', () => {
+    document.querySelector('.nav-btn[data-view="trays"]').click();
+    $('tray-find-input').value = '2611270002';
+    $('btn-tray-find').click();
+    const box = $('tray-find-result');
+    assert.ok(!box.classList.contains('hidden'), 'có kết quả tìm');
+    assert.ok(box.textContent.includes('H1-C2'), 'chỉ đúng ô H1-C2: ' + box.textContent);
+    assert.ok(box.textContent.includes(f32Code), 'kèm mã khay');
+    $('btn-tfr-open').click();
+    assert.ok(!$('view-tray').classList.contains('hidden'), 'mở khay từ kết quả tìm');
+    const cells = document.querySelectorAll('#tray-grid .tray-cell');
+    assert.ok(cells[1].classList.contains('highlight'), 'ô H1-C2 được highlight');
+    /* tìm mã khay thì mở khay; tìm mẫu chưa lưu khay thì báo rõ */
+    document.querySelector('.nav-btn[data-view="trays"]').click();
+    $('tray-find-input').value = f32Code;
+    $('btn-tray-find').click();
+    assert.ok(!$('view-tray').classList.contains('hidden'), 'gõ mã khay mở thẳng khay');
+    /* quét camera phải mã tem khay: qua được cổng định dạng ở chế độ tìm */
+    window.openScanner('trayfind');
+    assert.strictEqual(window.acceptScanCode(f32Code, { recognized: true }), true, 'mã tem khay qua cổng khi tìm');
+    assert.ok(!$('view-tray').classList.contains('hidden'), 'quét mã tem mở khay');
+  });
+
+  test('F33: quét camera cắm mẫu qua acceptScanCode, đóng quét ở lại màn hình khay', () => {
+    window.openScanner('tray');
+    assert.ok(!$('scanner-modal').classList.contains('hidden'), 'mở panel quét');
+    assert.strictEqual(window.acceptScanCode('2611270003'), true, 'quét cắm mẫu thành công');
+    assert.strictEqual(window.acceptScanCode('2611270003'), false, 'quét trùng bị bỏ qua');
+    assert.strictEqual(f32Trays()[0].positions.filter(Boolean).length, 2, 'khay có 2 mẫu sau phiên quét');
+    window.closeScanner();
+    assert.ok(!$('view-tray').classList.contains('hidden'), 'đóng quét vẫn ở màn hình khay');
+    assert.ok($('view-manage').classList.contains('hidden'), 'không bị nhảy sang tab Quản lý');
+    assert.ok($('tray-count').textContent.includes('2/40'), 'lưới cập nhật sau phiên quét');
+  });
+
+  test('F33: in tem khay dựng tem + barcode vào #print-area', () => {
+    window.print = () => {};
+    $('btn-tray-print').click();
+    const area = $('print-area');
+    assert.ok(area.innerHTML.includes('tray-label-sheet'), 'có tờ tem khay');
+    assert.ok(area.innerHTML.includes(f32Code), 'tem in mã khay');
+    assert.ok(area.innerHTML.includes('NT'), 'tem in nhãn khay');
+    const canvas = $('tray-label-canvas');
+    assert.ok(canvas && canvas.width > 500, 'barcode Code39 đã vẽ (canvas rộng ' + (canvas && canvas.width) + 'px)');
+    assert.ok(($('tray-page-style') || {}).textContent.includes('50mm 30mm'), '@page theo khổ tem 50x30');
+  });
+
+  test('F33: sao lưu kèm khay; gộp file không nhân đôi khay, khay mới được thêm', () => {
+    const obj = window.exportBackupFile();
+    assert.ok(Array.isArray(obj.trays), 'file sao lưu có mảng trays');
+    assert.strictEqual(obj.trays.length, 1);
+    assert.strictEqual(obj.trays[0].positions.filter(Boolean).length, 2, 'vị trí mẫu đi theo file');
+    window.__f32bak = JSON.stringify(obj);
+    assert.strictEqual(window.importBackupText(window.__f32bak, 'merge'), true, 'gộp file vừa xuất');
+    assert.strictEqual(f32Trays().length, 1, 'gộp lại chính file đó không nhân đôi khay');
+    const obj2 = JSON.parse(window.__f32bak);
+    obj2.trays[0].code = 'KH991231-07';
+    obj2.trays[0].label = 'KHAY-GOP';
+    window.__f32bak2 = JSON.stringify(obj2);
+    assert.strictEqual(window.importBackupText(window.__f32bak2, 'merge'), true);
+    const after = f32Trays();
+    assert.strictEqual(after.length, 2, 'khay khác mã trong file được thêm khi gộp');
+    assert.ok(after.some((t) => t.code === 'KH991231-07'));
+  });
+
+  test('F33: hủy mẫu làm rỗng khay (dùng lại được) rồi xóa khay rỗng', () => {
+    window.openTray(f32Code);
+    assert.ok($('tray-count').textContent.includes('2/40'));
+    $('btn-tray-dispose').click(); /* confirm đã stub = true */
+    assert.ok($('tray-count').textContent.includes('0/40'), 'hủy xong khay rỗng');
+    assert.ok($('tray-history').textContent.includes('Lần hủy mẫu gần nhất'), 'có dòng lịch sử hủy');
+    assert.strictEqual(f32Trays().find((t) => t.code === f32Code).disposed.length, 1, 'lưu 1 lần hủy');
+    /* khay rỗng dùng lại được ngay */
+    $('tray-input').value = '2611270010';
+    $('btn-tray-place').click();
+    assert.ok($('tray-count').textContent.includes('1/40'));
+    $('btn-tray-undo').click();
+    assert.ok($('tray-count').textContent.includes('0/40'), 'hoàn tác rút mẫu cuối');
+    $('btn-tray-delete').click();
+    assert.ok(!$('view-trays').classList.contains('hidden'), 'xóa khay xong về danh sách');
+    assert.ok(!f32Trays().some((t) => t.code === f32Code), 'khay đã xóa khỏi dữ liệu');
   });
 
   await chain;

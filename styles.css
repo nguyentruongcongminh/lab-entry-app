@@ -1070,7 +1070,7 @@ svg { width: 24px; height: 24px; display: block; }
 /* Tab Giao diện (v59): vùng đệm cho các thẻ tùy chỉnh */
 .display-wrap { padding: 2px 12px 0; }
 
-/* ===== F32: Chủ đề lễ hội (ý tưởng 14) =====
+/* ===== F33: Chủ đề lễ hội (ý tưởng 14) =====
    Chỉ đổi biến màu chủ đạo + dải lời chúc mỏng trên cùng; không đổi bố cục,
    không đụng bản in (dải chúc là con trực tiếp của body, print.css tự ẩn). */
 .theme-banner {
@@ -1248,3 +1248,96 @@ body.kb-open .batch-navbar { padding-top: 6px; padding-bottom: 8px; }
 .sync-theirs { color: #1b5e20; }
 .sync-c-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .mini-btn.primary { background: var(--blue); color: #fff; }
+
+/* ---------- F33 (v120): Lưu mẫu theo khay ---------- */
+.tray-find-row { display: flex; gap: 8px; align-items: center; padding: 12px 12px 4px; }
+.tray-find-row input {
+  flex: 1; min-width: 0; padding: 11px 12px; border: 1.5px solid var(--line);
+  border-radius: var(--radius-s); background: var(--card); color: var(--text);
+}
+.tray-find-row .primary-btn { flex: 0 0 auto; padding: 11px 18px; }
+.tray-find-result {
+  margin: 10px 12px 0; padding: 12px; background: var(--card);
+  border: 1.5px solid var(--blue); border-radius: var(--radius);
+  box-shadow: var(--shadow-1); font-size: 15px; line-height: 1.45;
+}
+.tray-find-result .tfr-where { font-weight: 700; color: var(--blue-dark); }
+.tray-list { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.tray-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow-1); padding: 12px 14px; text-align: left; width: 100%;
+}
+.tray-card-top { display: flex; align-items: baseline; gap: 8px; }
+.tray-card-name { font-size: 17px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tray-card-code { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.tray-card-meta { display: block; color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+.tray-card-bar { height: 7px; background: var(--line); border-radius: 4px; margin-top: 9px; overflow: hidden; }
+.tray-card-bar > * { height: 100%; background: var(--blue); border-radius: 4px; }
+.tray-card-bar > .full { background: var(--warn); }
+.tray-full-chip {
+  flex: 0 0 auto; background: var(--warn); color: #fff; font-size: 11.5px; font-weight: 700;
+  padding: 2px 8px; border-radius: 9px;
+}
+.tray-form { padding: 14px 12px; display: flex; flex-direction: column; gap: 14px; }
+.tray-field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14.5px; }
+.tray-field input, .tray-field select {
+  padding: 11px 12px; border: 1.5px solid var(--line); border-radius: var(--radius-s);
+  background: var(--card); color: var(--text); font-weight: 400;
+}
+.tray-form-row { display: flex; gap: 12px; }
+.tray-form-row .tray-field { flex: 1; }
+.tray-meta { padding: 10px 14px 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.tray-meta b { color: var(--text); }
+.tray-place-row { display: flex; gap: 8px; align-items: center; padding: 10px 12px 0; }
+.tray-place-row input {
+  flex: 1; min-width: 0; padding: 11px 12px; border: 1.5px solid var(--line);
+  border-radius: var(--radius-s); background: var(--card); color: var(--text);
+}
+.tray-place-row .primary-btn { flex: 0 0 auto; padding: 11px 16px; }
+.tray-place-row .view-btn { flex: 0 0 auto; }
+.tray-actions-row { display: flex; align-items: center; padding: 8px 12px 0; }
+.tray-count { font-weight: 700; font-size: 15px; }
+.tray-grid { display: grid; gap: 6px; padding: 12px; overflow-x: auto; }
+.tray-cell {
+  min-height: 46px; padding: 4px 3px; border-radius: var(--radius-s);
+  border: 1.5px dashed var(--line); background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  overflow: hidden;
+}
+.tray-cell .tc-pos { font-size: 9px; color: var(--muted); line-height: 1; }
+.tray-cell .tc-id {
+  font-size: 10.5px; font-weight: 600; color: var(--muted); line-height: 1.15;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tray-cell.filled { border-style: solid; border-color: var(--blue); background: rgba(30, 136, 229, .13); }
+.tray-cell.filled .tc-id { color: var(--text); }
+.tray-cell.selected { outline: 3px solid var(--warn); outline-offset: -1px; }
+.tray-cell.highlight { outline: 3px solid var(--warn); outline-offset: -1px; animation: tray-pulse 1s ease-in-out 3; }
+@keyframes tray-pulse { 50% { background: rgba(239, 108, 0, .35); } }
+.tray-cell-panel {
+  margin: 0 12px 4px; padding: 12px 14px; background: var(--card);
+  border: 1.5px solid var(--blue); border-radius: var(--radius); box-shadow: var(--shadow-1);
+  font-size: 15px; line-height: 1.55;
+}
+.tray-cell-panel .tcp-id { font-size: 18px; font-weight: 700; }
+.tray-cell-panel .summary-actions { margin-top: 10px; }
+.tray-history { padding: 2px 14px 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+.tray-danger-row {
+  display: flex; gap: 18px; flex-wrap: wrap; padding: 14px 14px 20px; margin-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.tray-danger-row .text-btn { color: var(--danger); }
+
+/* Tem khay in qua #print-area (chỉ hiện khi in, khổ tem theo @page do app.js bơm) */
+.tray-label-sheet {
+  margin: 0 auto; padding: 2.5mm 3mm; background: #fff; color: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  overflow: hidden; page-break-inside: avoid;
+}
+.tray-label-sheet .tl-label {
+  font-weight: 700; text-align: center; line-height: 1.15; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tray-label-sheet .tl-barcode { width: 100%; }
+.tray-label-sheet .tl-code { font-weight: 600; letter-spacing: 1px; text-align: center; }
+.tray-label-sheet .tl-meta { color: #333; text-align: center; }
